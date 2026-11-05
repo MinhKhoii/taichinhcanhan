@@ -1,19 +1,19 @@
 -- ==============================================================================
 -- MONEYFLOW - PERSONAL FINANCIAL MANAGEMENT SYSTEM
--- PostgreSQL / Supabase Database Schema & RLS Policies (Full Cloud Sync)
+-- PostgreSQL / Supabase Database Schema & Strict RLS Policies (Security Upgrade v2)
 -- ==============================================================================
 
 -- 1. CLOUD BACKUPS TABLE (Snapshot toàn diện 1-Click Sync)
 CREATE TABLE IF NOT EXISTS public.cloud_backups (
-    id TEXT PRIMARY KEY DEFAULT 'moneyflow_cloud_state',
-    user_id TEXT DEFAULT 'usr_default',
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT auth.uid()::text,
     data JSONB NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- 2. USERS PROFILE TABLE
 CREATE TABLE IF NOT EXISTS public.users (
-    id TEXT PRIMARY KEY DEFAULT 'usr_default',
+    id TEXT PRIMARY KEY DEFAULT auth.uid()::text,
     email TEXT,
     full_name TEXT NOT NULL,
     avatar_url TEXT,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- 3. ACCOUNTS TABLE
 CREATE TABLE IF NOT EXISTS public.accounts (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL DEFAULT 'usr_default',
+    user_id TEXT NOT NULL DEFAULT auth.uid()::text,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     balance NUMERIC(15, 2) NOT NULL DEFAULT 0,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.accounts (
 -- 4. CATEGORIES TABLE
 CREATE TABLE IF NOT EXISTS public.categories (
     id TEXT PRIMARY KEY,
-    user_id TEXT DEFAULT 'usr_default',
+    user_id TEXT DEFAULT auth.uid()::text,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     icon TEXT NOT NULL DEFAULT 'Tag',
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
 -- 5. TRANSACTIONS TABLE
 CREATE TABLE IF NOT EXISTS public.transactions (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL DEFAULT 'usr_default',
+    user_id TEXT NOT NULL DEFAULT auth.uid()::text,
     type TEXT NOT NULL,
     amount NUMERIC(15, 2) NOT NULL,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 -- 6. BUDGETS TABLE
 CREATE TABLE IF NOT EXISTS public.budgets (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL DEFAULT 'usr_default',
+    user_id TEXT NOT NULL DEFAULT auth.uid()::text,
     category_id TEXT NOT NULL,
     amount NUMERIC(15, 2) NOT NULL,
     month TEXT NOT NULL,
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS public.budgets (
 -- 7. SAVINGS GOALS TABLE
 CREATE TABLE IF NOT EXISTS public.savings_goals (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL DEFAULT 'usr_default',
+    user_id TEXT NOT NULL DEFAULT auth.uid()::text,
     name TEXT NOT NULL,
     target_amount NUMERIC(15, 2) NOT NULL,
     current_amount NUMERIC(15, 2) NOT NULL DEFAULT 0,
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS public.savings_goals (
 -- 8. DEBTS TABLE (Sổ nợ & Cho vay)
 CREATE TABLE IF NOT EXISTS public.debts (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL DEFAULT 'usr_default',
+    user_id TEXT NOT NULL DEFAULT auth.uid()::text,
     person_name TEXT NOT NULL,
     phone_number TEXT,
     relationship TEXT,
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS public.debts (
 -- 9. RECURRING ITEMS TABLE (Lương & Thu chi định kỳ)
 CREATE TABLE IF NOT EXISTS public.recurring_items (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL DEFAULT 'usr_default',
+    user_id TEXT NOT NULL DEFAULT auth.uid()::text,
     name TEXT NOT NULL,
     amount NUMERIC(15, 2) NOT NULL,
     day_of_month INT NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.recurring_items (
 -- 10. NOTIFICATIONS TABLE
 CREATE TABLE IF NOT EXISTS public.notifications (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL DEFAULT 'usr_default',
+    user_id TEXT NOT NULL DEFAULT auth.uid()::text,
     title TEXT NOT NULL,
     message TEXT NOT NULL,
     type TEXT NOT NULL,
@@ -149,7 +149,19 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 );
 
 -- ==============================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES (Cho phép kết nối thông qua Anon/Publishable Key)
+-- INDEXES CHO HIỆU NĂNG CAO (OPTIMIZED QUERYING)
+-- ==============================================================================
+CREATE INDEX IF NOT EXISTS idx_accounts_user ON public.accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON public.transactions(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_categories_user ON public.categories(user_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_user_month ON public.budgets(user_id, month);
+CREATE INDEX IF NOT EXISTS idx_savings_user ON public.savings_goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_debts_user ON public.debts(user_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_user ON public.recurring_items(user_id);
+
+-- ==============================================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES BẢO MẬT PHÂN QUYỀN NGHIÊM NGẶT
+-- KHÔNG DÙNG USING (true) NỮA - MỖI NGƯỜI DÙNG CHỈ TRUY CẬP DỮ LIỆU CỦA CHÍNH MÌNH
 -- ==============================================================================
 
 ALTER TABLE public.cloud_backups ENABLE ROW LEVEL SECURITY;
@@ -163,33 +175,101 @@ ALTER TABLE public.debts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recurring_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
--- Tạo chính sách toàn quyền cho khóa Publishable / Anon
+-- 1. Xóa toàn bộ chính sách công khai (Public access) cũ nếu có
 DROP POLICY IF EXISTS "Public access to cloud_backups" ON public.cloud_backups;
-CREATE POLICY "Public access to cloud_backups" ON public.cloud_backups FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to users" ON public.users;
-CREATE POLICY "Public access to users" ON public.users FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to accounts" ON public.accounts;
-CREATE POLICY "Public access to accounts" ON public.accounts FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to categories" ON public.categories;
-CREATE POLICY "Public access to categories" ON public.categories FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to transactions" ON public.transactions;
-CREATE POLICY "Public access to transactions" ON public.transactions FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to budgets" ON public.budgets;
-CREATE POLICY "Public access to budgets" ON public.budgets FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to savings_goals" ON public.savings_goals;
-CREATE POLICY "Public access to savings_goals" ON public.savings_goals FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to debts" ON public.debts;
-CREATE POLICY "Public access to debts" ON public.debts FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to recurring_items" ON public.recurring_items;
-CREATE POLICY "Public access to recurring_items" ON public.recurring_items FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public access to notifications" ON public.notifications;
-CREATE POLICY "Public access to notifications" ON public.notifications FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users can only access own backups" ON public.cloud_backups;
+DROP POLICY IF EXISTS "Users can access own profile" ON public.users;
+DROP POLICY IF EXISTS "Users can access own accounts" ON public.accounts;
+DROP POLICY IF EXISTS "Users can access own categories" ON public.categories;
+DROP POLICY IF EXISTS "Users can access own transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Users can access own budgets" ON public.budgets;
+DROP POLICY IF EXISTS "Users can access own savings_goals" ON public.savings_goals;
+DROP POLICY IF EXISTS "Users can access own debts" ON public.debts;
+DROP POLICY IF EXISTS "Users can access own recurring_items" ON public.recurring_items;
+DROP POLICY IF EXISTS "Users can access own notifications" ON public.notifications;
+
+-- 2. Thiết lập chính sách bảo mật cá nhân hóa (auth.uid() = user_id)
+-- Chỉ người dùng đã đăng nhập (authenticated) mới có thể đọc/ghi dữ liệu của chính mình
+-- Sử dụng user_id::text và id::text để tương thích cả 2 kiểu dữ liệu UUID hoặc TEXT
+
+-- Cloud Backups: Snapshot dữ liệu riêng theo user_id
+CREATE POLICY "Users can only access own backups" ON public.cloud_backups
+FOR ALL TO authenticated
+USING (auth.uid()::text = user_id::text OR auth.uid()::text = (data->'user'->>'id'))
+WITH CHECK (auth.uid()::text = user_id::text OR auth.uid()::text = (data->'user'->>'id'));
+
+-- Profiles: Người dùng chỉ đọc và cập nhật hồ sơ cá nhân của mình
+CREATE POLICY "Users can access own profile" ON public.users
+FOR ALL TO authenticated
+USING (auth.uid()::text = id::text)
+WITH CHECK (auth.uid()::text = id::text);
+
+-- Accounts: Chỉ xem, thêm, sửa, xóa tài khoản ví của chính mình
+CREATE POLICY "Users can access own accounts" ON public.accounts
+FOR ALL TO authenticated
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Categories: Được xem danh mục mặc định hệ thống HOẶC danh mục do chính mình tạo
+CREATE POLICY "Users can view categories" ON public.categories
+FOR SELECT TO authenticated
+USING (auth.uid()::text = user_id::text OR is_default = TRUE);
+
+CREATE POLICY "Users can modify own categories" ON public.categories
+FOR INSERT TO authenticated
+WITH CHECK (auth.uid()::text = user_id::text);
+
+CREATE POLICY "Users can update own categories" ON public.categories
+FOR UPDATE TO authenticated
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
+
+CREATE POLICY "Users can delete own categories" ON public.categories
+FOR DELETE TO authenticated
+USING (auth.uid()::text = user_id::text);
+
+-- Transactions: Thu chi chuyển khoản thuộc quyền riêng tư tuyệt đối
+CREATE POLICY "Users can access own transactions" ON public.transactions
+FOR ALL TO authenticated
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Budgets: Ngân sách cá nhân
+CREATE POLICY "Users can access own budgets" ON public.budgets
+FOR ALL TO authenticated
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Savings Goals: Mục tiêu tiết kiệm cá nhân
+CREATE POLICY "Users can access own savings_goals" ON public.savings_goals
+FOR ALL TO authenticated
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Debts: Sổ nợ và cho vay cá nhân
+CREATE POLICY "Users can access own debts" ON public.debts
+FOR ALL TO authenticated
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Recurring Items: Lương và khoản định kỳ cá nhân
+CREATE POLICY "Users can access own recurring_items" ON public.recurring_items
+FOR ALL TO authenticated
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Notifications: Thông báo cá nhân
+CREATE POLICY "Users can access own notifications" ON public.notifications
+FOR ALL TO authenticated
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);

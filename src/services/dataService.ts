@@ -11,6 +11,7 @@ import {
   DebtBalanceAction,
 } from '../types';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { importExcelToMoneyFlow, ExcelImportResult } from '../utils/excelImport';
 import {
   initialAccounts,
   initialCategories,
@@ -386,7 +387,7 @@ export class DataService {
           calcBalance += tx.amount;
         }
       }
-      acc.balance = calcBalance;
+      acc.balance = Math.round(calcBalance * 100) / 100;
     }
     this.saveState();
   }
@@ -501,21 +502,23 @@ export class DataService {
     if (tx.type === 'income') {
       const acc = this.db.accounts.find((a) => a.id === tx.accountId);
       if (acc) {
-        acc.balance += tx.amount * multiplier;
+        acc.balance = Math.round((acc.balance + tx.amount * multiplier) * 100) / 100;
       }
     } else if (tx.type === 'expense') {
       const acc = this.db.accounts.find((a) => a.id === tx.accountId);
       if (acc) {
-        acc.balance -= tx.amount * multiplier;
+        acc.balance = Math.round((acc.balance - tx.amount * multiplier) * 100) / 100;
       }
     } else if (tx.type === 'transfer') {
       const fromAcc = this.db.accounts.find((a) => a.id === tx.accountId);
       const toAcc = tx.toAccountId ? this.db.accounts.find((a) => a.id === tx.toAccountId) : null;
+      const totalDeduction = tx.amount + (tx.transferFee || 0);
+
       if (fromAcc) {
-        fromAcc.balance -= tx.amount * multiplier;
+        fromAcc.balance = Math.round((fromAcc.balance - totalDeduction * multiplier) * 100) / 100;
       }
       if (toAcc) {
-        toAcc.balance += tx.amount * multiplier;
+        toAcc.balance = Math.round((toAcc.balance + tx.amount * multiplier) * 100) / 100;
       }
     }
   }
@@ -762,6 +765,7 @@ export class DataService {
       const parsed = JSON.parse(jsonString);
       if (parsed.transactions && parsed.accounts && parsed.categories) {
         this.db = parsed;
+        this.recalculateAccountBalances();
         this.saveState();
         return true;
       }
@@ -770,6 +774,14 @@ export class DataService {
       console.error('Import parse error:', e);
       return false;
     }
+  }
+
+  public importFromExcel(fileBuffer: ArrayBuffer): ExcelImportResult {
+    const { updatedDb, result } = importExcelToMoneyFlow(fileBuffer, this.db);
+    this.db = updatedDb;
+    this.saveState();
+    this.notifyListeners();
+    return result;
   }
 
   // ===================== CLOUD SUPABASE SYNC =====================
@@ -782,26 +794,43 @@ export class DataService {
       return { success: false, message: 'Chưa cấu hình thông tin Supabase trong .env!' };
     }
     const userEmail = (this.db.user.email || 'default').toLowerCase().trim();
-    const backupId = `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
 
     try {
+      let supaUserId: string | null = null;
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data && data.user) {
+          supaUserId = data.user.id;
+        }
+      } catch {}
+
+      const effectiveUserId = supaUserId || this.db.user.id || 'usr_default';
+      const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
+
       const { error } = await supabase
         .from('cloud_backups')
         .upsert({
           id: backupId,
-          user_id: this.db.user.id || 'usr_default',
-          data: this.db,
+          user_id: effectiveUserId,
+          data: {
+            ...this.db,
+            user: {
+              ...this.db.user,
+              id: effectiveUserId,
+              updatedAt: new Date().toISOString(),
+            },
+          },
           updated_at: new Date().toISOString(),
         });
 
-      // Đồng thời cập nhật hàng mặc định nếu là tài khoản chính Khôi
+      // Cập nhật hàng mặc định nếu là tài khoản chính Khôi
       if (userEmail.includes('minhkhoj') || userEmail.includes('khoi')) {
         try {
           await supabase
             .from('cloud_backups')
             .upsert({
               id: 'moneyflow_cloud_state',
-              user_id: this.db.user.id || 'usr_default',
+              user_id: effectiveUserId,
               data: this.db,
               updated_at: new Date().toISOString(),
             });
@@ -828,9 +857,18 @@ export class DataService {
       return { success: false, message: 'Chưa cấu hình thông tin Supabase trong .env!' };
     }
     const userEmail = (this.db.user.email || 'default').toLowerCase().trim();
-    const backupId = `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
 
     try {
+      let supaUserId: string | null = null;
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data && data.user) {
+          supaUserId = data.user.id;
+        }
+      } catch {}
+
+      const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
+
       let { data, error } = await supabase
         .from('cloud_backups')
         .select('data, updated_at')
@@ -865,6 +903,7 @@ export class DataService {
 
       if (data && data.data) {
         this.db = data.data;
+        this.recalculateAccountBalances();
         this.saveState();
         return { success: true, message: 'Khôi phục dữ liệu từ Supabase Cloud thành công!' };
       }

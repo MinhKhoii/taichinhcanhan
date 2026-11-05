@@ -83,9 +83,11 @@ export const Dashboard: React.FC = () => {
   }, [activeTx]);
 
   const curExpense = useMemo(() => {
-    return activeTx
-      .filter((t) => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+    return activeTx.reduce((sum, t) => {
+      if (t.type === 'expense') return sum + t.amount;
+      if (t.type === 'transfer' && t.transferFee) return sum + t.transferFee;
+      return sum;
+    }, 0);
   }, [activeTx]);
 
   const prevIncome = useMemo(() => {
@@ -95,9 +97,11 @@ export const Dashboard: React.FC = () => {
   }, [prevMonthTx]);
 
   const prevExpense = useMemo(() => {
-    return prevMonthTx
-      .filter((t) => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+    return prevMonthTx.reduce((sum, t) => {
+      if (t.type === 'expense') return sum + t.amount;
+      if (t.type === 'transfer' && t.transferFee) return sum + t.transferFee;
+      return sum;
+    }, 0);
   }, [prevMonthTx]);
 
   const curSavings = curIncome - curExpense;

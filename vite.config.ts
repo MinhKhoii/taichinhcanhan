@@ -5,19 +5,25 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Đường dẫn khi deploy lên GitHub Pages
+  base: '/taichinhcanhan/',
+
   server: {
     host: true,
     port: 5173,
   },
+
   plugins: [
     react(),
     tailwindcss(),
   ],
+
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+
   build: {
     chunkSizeWarningLimit: 800,
     rollupOptions: {

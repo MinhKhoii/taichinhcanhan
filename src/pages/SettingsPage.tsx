@@ -30,11 +30,13 @@ import {
   Search,
   CheckCircle2,
   ChevronDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { dataService } from '../services/dataService';
 import { RecurringModal } from '../components/modals/RecurringModal';
 import { formatVND } from '../utils/formatters';
+import { exportComprehensiveReportToExcel } from '../utils/exportData';
 import schemaSql from '../../supabase/schema.sql?raw';
 import { ConfirmClearDataModal } from '../components/modals/ConfirmClearDataModal';
 import { ConfirmResetDataModal } from '../components/modals/ConfirmResetDataModal';
@@ -49,6 +51,7 @@ export const SettingsPage: React.FC = () => {
     accounts,
     categories,
     transactions,
+    budgets,
     debts,
     savingsGoals,
     createCategory,
@@ -154,6 +157,40 @@ export const SettingsPage: React.FC = () => {
     link.download = `MoneyFlow_Backup_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     showToast('Tải file sao lưu JSON thành công!', 'success');
+  };
+
+  const handleExportExcel = () => {
+    exportComprehensiveReportToExcel(
+      transactions,
+      accounts,
+      categories,
+      budgets,
+      savingsGoals,
+      debts,
+      `MoneyFlow_Toan_Bo_Du_Lieu_${new Date().toISOString().split('T')[0]}.xlsx`
+    );
+    showToast('Xuất toàn bộ dữ liệu ra Excel (.xlsx) thành công!', 'success');
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const buffer = event.target?.result as ArrayBuffer;
+        const res = dataService.importFromExcel(buffer);
+        if (res.success) {
+          showToast(res.message, 'success');
+        } else {
+          showToast(res.message || 'Lỗi nhập dữ liệu từ Excel', 'error');
+        }
+      } catch (err: any) {
+        showToast(`Lỗi xử lý file Excel: ${err.message || err}`, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1119,6 +1156,51 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
+              {/* Xuất Excel */}
+              <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/50 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Xuất dữ liệu toàn diện (Excel .xlsx)</span>
+                  </h4>
+                  <p className="text-2xs text-slate-500 dark:text-slate-400">
+                    Bao gồm ví tài khoản, thu chi, ngân sách, mục tiêu & sổ nợ
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Xuất Excel</span>
+                </button>
+              </div>
+
+              {/* Nhập từ Excel */}
+              <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/50 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Nhập & Khôi phục từ Excel (.xlsx)</span>
+                  </h4>
+                  <p className="text-2xs text-slate-500 dark:text-slate-400">
+                    Tự động nhận diện và <strong className="text-emerald-700 dark:text-emerald-300">chống trùng lặp giao dịch</strong>
+                  </p>
+                </div>
+                <label className="flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200 bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100/60 rounded-xl cursor-pointer transition-colors shadow-2xs">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Chọn file Excel</span>
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls"
+                    onChange={handleImportExcel}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Xuất JSON */}
               <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">
@@ -1134,22 +1216,23 @@ export const SettingsPage: React.FC = () => {
                   className="flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 rounded-xl transition-colors cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Tải file</span>
+                  <span>Tải JSON</span>
                 </button>
               </div>
 
+              {/* Nhập JSON */}
               <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">
                     Khôi phục từ file JSON
                   </h4>
                   <p className="text-2xs text-slate-400">
-                    Tải lên file sao lưu đã lưu trước đó
+                    Tải lên file sao lưu JSON đã lưu trước đó
                   </p>
                 </div>
-                <label className="flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 rounded-xl cursor-pointer transition-colors">
+                <label className="flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 rounded-xl cursor-pointer transition-colors shadow-2xs">
                   <Upload className="w-3.5 h-3.5" />
-                  <span>Chọn file</span>
+                  <span>Chọn JSON</span>
                   <input
                     type="file"
                     accept=".json"

@@ -125,12 +125,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-4 md:px-8 bg-white border-b border-slate-200 shadow-xs">
+    <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-3 sm:px-4 md:px-8 bg-white border-b border-slate-200 shadow-xs max-w-full">
       {/* Left: Mobile hamburger & Greeting */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
         <button
           onClick={onToggleMobileMenu}
-          className="p-2 -ml-2 text-slate-600 rounded-lg lg:hidden hover:bg-slate-100"
+          className="p-2 -ml-1 text-slate-600 rounded-xl lg:hidden hover:bg-slate-100 cursor-pointer"
           aria-label="Mở menu"
         >
           <Menu className="w-5 h-5" />
@@ -149,38 +149,44 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
               </span>
             )}
           </div>
-          <h2 className="text-base font-semibold text-slate-800">{user.fullName}</h2>
+          <h2 className="text-base font-semibold text-slate-800 line-clamp-1">{user.fullName}</h2>
+        </div>
+
+        {/* Mobile Brand Title on left */}
+        <div className="sm:hidden flex items-center space-x-1.5">
+          <span className="text-sm font-bold tracking-tight text-slate-800">MoneyFlow</span>
         </div>
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center space-x-2 sm:space-x-3">
-        {/* Quick Search Button (Command Palette Ctrl+K) */}
+      <div className="flex items-center space-x-1 sm:space-x-2.5 shrink-0">
+        {/* Quick Search Button (Desktop: Ctrl+K) */}
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="flex items-center space-x-2 px-3 py-1.5 text-xs text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-slate-700 border border-slate-200 rounded-xl transition-colors shadow-2xs cursor-pointer group"
+          className="hidden md:flex items-center space-x-2 px-3 py-1.5 text-xs text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-slate-700 border border-slate-200 rounded-xl transition-colors shadow-2xs cursor-pointer group"
           title="Tìm kiếm & Thao tác nhanh (Ctrl + K)"
         >
           <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition-colors" />
-          <span className="hidden sm:inline">Tìm nhanh...</span>
-          <kbd className="hidden md:inline-block px-1.5 py-0.5 text-3xs font-semibold text-slate-400 bg-white border border-slate-200 rounded">
+          <span className="hidden lg:inline">Tìm nhanh...</span>
+          <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-3xs font-semibold text-slate-400 bg-white border border-slate-200 rounded">
             Ctrl K
           </kbd>
         </button>
 
         {/* Time Filter Dropdown */}
-        <div className="relative" ref={timeDropdownRef}>
+        <div className="relative shrink-0" ref={timeDropdownRef}>
           <button
             onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-            className="flex items-center space-x-2 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors shadow-2xs"
+            className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors shadow-2xs cursor-pointer shrink-0"
+            title="Bộ lọc khoảng thời gian"
           >
-            <Calendar className="w-4 h-4 text-blue-600" />
-            <span className="hidden md:inline">{timeFilterLabels[timeFilter] || 'Tháng này'}</span>
-            <span className="md:hidden">
-              {timeFilter === 'this_month' ? 'Tháng này' : timeFilterLabels[timeFilter]}
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 shrink-0" />
+            <span className="hidden sm:inline">{timeFilterLabels[timeFilter] || 'Tháng này'}</span>
+            <span className="sm:hidden text-2xs font-semibold max-w-[65px] truncate">
+              {timeFilter === 'this_month' ? 'Tháng này' : timeFilterLabels[timeFilter] || 'Kỳ này'}
             </span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
           </button>
 
           {showTimeDropdown && (
@@ -229,15 +235,15 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
         </div>
 
         {/* Notifications Dropdown */}
-        <div className="relative" ref={notifDropdownRef}>
+        <div className="relative shrink-0" ref={notifDropdownRef}>
           <button
             onClick={() => setShowNotifDropdown(!showNotifDropdown)}
-            className="relative p-2 text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors shadow-2xs"
+            className="relative p-1.5 sm:p-2 text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors shadow-2xs cursor-pointer shrink-0"
             aria-label="Thông báo"
           >
             <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
             {unreadNotificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1 text-2xs font-bold text-white bg-rose-500 rounded-full border-2 border-white animate-pulse">
+              <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 text-3xs sm:text-2xs font-bold text-white bg-rose-500 rounded-full border-2 border-white animate-pulse">
                 {unreadNotificationCount}
               </span>
             )}
@@ -329,7 +335,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all shadow-2xs cursor-pointer"
+          className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
           title={theme === 'dark' ? 'Chuyển sang Chế độ Sáng' : 'Chuyển sang Chế độ Tối (Dark Mode)'}
           aria-label="Đổi giao diện sáng/tối"
         >
@@ -340,17 +346,17 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           )}
         </button>
 
-        {/* Quick Add Split Button */}
-        <div className="relative" ref={quickAddRef}>
-          <div className="inline-flex rounded-xl shadow-xs overflow-hidden">
+        {/* Quick Add Split Button (Desktop) & Compact Button (Mobile) */}
+        <div className="relative shrink-0" ref={quickAddRef}>
+          {/* Desktop Split Button */}
+          <div className="hidden sm:inline-flex rounded-xl shadow-xs overflow-hidden">
             <button
               onClick={() => openAddTxModal()}
-              className="flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all"
+              className="flex items-center space-x-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all cursor-pointer"
               title="Thêm giao dịch thu chi (Phím tắt: Ctrl + K)"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span className="font-medium hidden sm:inline">Thêm giao dịch</span>
-              <span className="font-medium sm:hidden">Thêm</span>
+              <span>Thêm giao dịch</span>
             </button>
             <button
               type="button"
@@ -361,6 +367,17 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Mobile Compact Add Button */}
+          <button
+            type="button"
+            onClick={() => setShowQuickAddMenu(!showQuickAddMenu)}
+            className="sm:hidden flex items-center justify-center w-8 h-8 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer shrink-0"
+            title="Thao tác tạo nhanh (+)"
+            aria-label="Thao tác tạo nhanh"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+          </button>
 
           {/* Quick Add Dropdown Menu */}
           {showQuickAddMenu && (
@@ -381,7 +398,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                 </div>
                 <div>
                   <span className="block font-bold">Giao dịch thu / chi</span>
-                  <span className="text-3xs text-slate-400 font-normal">Phím tắt Ctrl + K</span>
+                  <span className="text-3xs text-slate-400 font-normal">Tạo khoản thu hoặc chi</span>
                 </div>
               </button>
 
@@ -444,20 +461,20 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           <button
             type="button"
             onClick={() => openAuthModal('login')}
-            className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all border border-blue-200 cursor-pointer"
+            className="flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all border border-blue-200 cursor-pointer shrink-0"
           >
             <UserIcon className="w-3.5 h-3.5" />
-            <span>Đăng nhập</span>
+            <span className="hidden sm:inline">Đăng nhập</span>
           </button>
         ) : (
-          <div className="relative pl-1" ref={userMenuRef}>
+          <div className="relative shrink-0" ref={userMenuRef}>
             <button
               type="button"
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center space-x-2 p-1 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer group"
+              className="flex items-center space-x-1 sm:space-x-2 p-0.5 sm:p-1 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer group shrink-0"
               title="Tài khoản cá nhân"
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs group-hover:ring-2 group-hover:ring-blue-500 transition-all">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs group-hover:ring-2 group-hover:ring-blue-500 transition-all shrink-0">
                 {getUserInitials(user.fullName)}
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 hidden sm:block" />
