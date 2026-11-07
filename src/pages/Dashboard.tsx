@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  X,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -127,6 +128,13 @@ export const Dashboard: React.FC = () => {
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
+  const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('moneyflow_dismiss_assistant_banner') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const overdueDebtsCount = useMemo(() => {
     return debts.filter(
@@ -261,10 +269,27 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Top Banner: Smart Financial Assistant Highlight with Carousel */}
-      {insights.length > 0 && (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-5 sm:p-6 shadow-xl">
+      {insights.length > 0 && !isBannerDismissed && (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-5 sm:p-6 shadow-xl animate-in fade-in duration-200">
           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          
+          {/* Close button - Tối giản màn hình */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsBannerDismissed(true);
+              try {
+                localStorage.setItem('moneyflow_dismiss_assistant_banner', 'true');
+              } catch {}
+            }}
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer"
+            title="Đóng trợ lý tài chính (Tối giản giao diện)"
+            aria-label="Đóng trợ lý tài chính"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pr-6 md:pr-8">
             <div className="flex items-start space-x-3.5">
               <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md text-amber-300 flex-shrink-0 shadow-inner">
                 <Sparkles className="w-5 h-5 animate-pulse" />
@@ -331,6 +356,26 @@ export const Dashboard: React.FC = () => {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Minimal toggle pill when Assistant Banner is dismissed */}
+      {insights.length > 0 && isBannerDismissed && (
+        <div className="flex justify-end -mt-2 -mb-2">
+          <button
+            type="button"
+            onClick={() => {
+              setIsBannerDismissed(false);
+              try {
+                localStorage.removeItem('moneyflow_dismiss_assistant_banner');
+              } catch {}
+            }}
+            className="inline-flex items-center space-x-1.5 text-2xs font-semibold text-slate-500 hover:text-blue-600 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200/80 px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-2xs"
+            title="Bấm để mở lại bảng gợi ý trợ lý tài chính"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Mở trợ lý tài chính ({insights.length})</span>
+          </button>
         </div>
       )}
 
@@ -815,12 +860,12 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="divide-y divide-slate-100 flex-1 my-3">
+          <div className="divide-y divide-slate-100 flex-1 my-2">
             {recentTransactions.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-400 space-y-2">
-                <ArrowLeftRight className="w-8 h-8 text-slate-300 mx-auto" />
-                <p className="font-semibold text-slate-600">Chưa có giao dịch nào được ghi nhận</p>
-                <p className="text-3xs text-slate-400">Bắt đầu bằng cách thêm giao dịch thu nhập hoặc chi tiêu đầu tiên</p>
+              <div className="py-8 text-center text-xs text-slate-400 space-y-1.5">
+                <ArrowLeftRight className="w-6 h-6 text-slate-300 mx-auto" />
+                <p className="font-semibold text-slate-600">Chưa có giao dịch nào trong tháng này</p>
+                <p className="text-3xs text-slate-400">Ghi chép thu chi để theo dõi dòng tiền</p>
               </div>
             ) : (
               recentTransactions.map((t) => {
@@ -904,14 +949,6 @@ export const Dashboard: React.FC = () => {
               })
             )}
           </div>
-
-          <button
-            onClick={() => openAddTxModal()}
-            className="w-full py-2.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors flex items-center justify-center space-x-1.5 cursor-pointer mt-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Thêm giao dịch ngay</span>
-          </button>
         </div>
 
         {/* Widget 2: Sổ nợ & Cho vay */}
@@ -960,12 +997,9 @@ export const Dashboard: React.FC = () => {
           {/* List or Rich Empty State */}
           <div className="space-y-2.5 my-2 flex-1">
             {activeDebtsList.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400 space-y-2 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 p-4">
-                <HandCoins className="w-8 h-8 text-slate-300 mx-auto" />
-                <p className="font-semibold text-slate-700">Chưa có khoản nợ nào đang ghi nhận</p>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Ghi chép ai nợ bạn hoặc bạn nợ ai để theo dõi tiến độ trả nợ và nhận cảnh báo khi đến hạn.
-                </p>
+              <div className="py-6 text-center text-xs text-slate-400 space-y-1 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 p-3">
+                <HandCoins className="w-6 h-6 text-slate-300 mx-auto" />
+                <p className="font-semibold text-slate-600 text-xs">Chưa có khoản nợ nào đang ghi nhận</p>
               </div>
             ) : (
               activeDebtsList.slice(0, 3).map((d) => {
@@ -1022,14 +1056,6 @@ export const Dashboard: React.FC = () => {
               })
             )}
           </div>
-
-          <button
-            onClick={() => setCurrentTab('debts')}
-            className="w-full py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors mt-2 flex items-center justify-center space-x-1.5 cursor-pointer"
-          >
-            <HandCoins className="w-4 h-4 text-slate-500" />
-            <span>Quản lý chi tiết Sổ nợ</span>
-          </button>
         </div>
 
         {/* Widget 3: Cảnh báo & Tình hình ngân sách */}
@@ -1048,14 +1074,11 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-4 my-3 flex-1">
+          <div className="space-y-4 my-2 flex-1">
             {budgetPreviews.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400 space-y-2 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 p-4">
-                <PieChartIcon className="w-8 h-8 text-slate-300 mx-auto" />
-                <p className="font-semibold text-slate-700">Chưa thiết lập ngân sách chi tiêu tháng này</p>
-                <p className="text-3xs text-slate-400 max-w-xs mx-auto">
-                  Đặt giới hạn cho Ăn uống, Mua sắm, Đi lại để MoneyFlow tự động cảnh báo khi bạn chi tiêu chạm ngưỡng 80%.
-                </p>
+              <div className="py-6 text-center text-xs text-slate-400 space-y-1 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 p-3">
+                <PieChartIcon className="w-6 h-6 text-slate-300 mx-auto" />
+                <p className="font-semibold text-slate-600 text-xs">Chưa thiết lập ngân sách tháng này</p>
               </div>
             ) : (
               budgetPreviews.map((b) => (
@@ -1103,13 +1126,6 @@ export const Dashboard: React.FC = () => {
               ))
             )}
           </div>
-
-          <button
-            onClick={() => setCurrentTab('budgets')}
-            className="w-full py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer mt-2"
-          >
-            Quản lý ngân sách danh mục
-          </button>
         </div>
 
         {/* Widget 4: Mục tiêu tiết kiệm */}
@@ -1128,14 +1144,11 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-3.5 my-3 flex-1">
+          <div className="space-y-3.5 my-2 flex-1">
             {savingsGoals.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400 space-y-2 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 p-4">
-                <Target className="w-8 h-8 text-slate-300 mx-auto" />
-                <p className="font-semibold text-slate-700">Chưa có mục tiêu tiết kiệm nào</p>
-                <p className="text-3xs text-slate-400 max-w-xs mx-auto">
-                  Bạn muốn mua điện thoại, mua xe hay quỹ khẩn cấp? Đặt mục tiêu để theo dõi tích lũy mỗi ngày.
-                </p>
+              <div className="py-6 text-center text-xs text-slate-400 space-y-1 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 p-3">
+                <Target className="w-6 h-6 text-slate-300 mx-auto" />
+                <p className="font-semibold text-slate-600 text-xs">Chưa có mục tiêu tiết kiệm nào</p>
               </div>
             ) : (
               savingsGoals.slice(0, 3).map((goal) => {
@@ -1179,14 +1192,6 @@ export const Dashboard: React.FC = () => {
               })
             )}
           </div>
-
-          <button
-            onClick={() => setCurrentTab('savings')}
-            className="w-full py-2.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors flex items-center justify-center space-x-1 cursor-pointer mt-2"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Nạp thêm vào quỹ tiết kiệm</span>
-          </button>
         </div>
       </div>
     </div>
