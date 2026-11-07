@@ -218,12 +218,14 @@ export class DataService {
 
   /**
    * Tự động kiểm tra và phục hồi số dư an toàn nếu tài khoản bị âm hoặc số dư bị lệch do lỗi tính toán cũ
+   * Cam kết: Tuyệt đối KHÔNG tự động trừ tiền của người dùng và giữ nguyên vẹn 100% số dư thực tế
    */
   public healAccountsState(db: AppDatabase): boolean {
     if (!db || !db.accounts) return false;
     let changed = false;
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. Kiểm tra và loại bỏ các giao dịch cấn trừ tự động bị kích hoạt do số dư âm lỗi
+    // 1. Kiểm tra và loại bỏ các giao dịch cấn trừ tự động bị kích hoạt lỗi trước đây (nếu có)
     const hasNegativeAcc = db.accounts.some((a) => a.balance < 0);
     if (hasNegativeAcc && db.transactions) {
       const originalTxCount = db.transactions.length;
@@ -233,34 +235,15 @@ export class DataService {
       }
     }
 
-    // 1b. Dọn dẹp nếu có nhiều giao dịch sinh lời bị cộng lặp cho cùng 1 ví trong ngày hôm nay
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (db.transactions) {
-      const seenYieldAccs = new Set<string>();
-      const beforeCount = db.transactions.length;
-      db.transactions = db.transactions.filter((t) => {
-        const isYield = t.date === todayStr && (t.note?.includes('[Tự động sinh lời]') || t.note?.includes('Sinh lời'));
-        if (isYield) {
-          if (seenYieldAccs.has(t.accountId)) {
-            return false;
-          }
-          seenYieldAccs.add(t.accountId);
-        }
-        return true;
-      });
-      if (db.transactions.length !== beforeCount) {
-        changed = true;
-      }
-    }
-
-    // 2. Phục hồi và chuẩn hóa số dư cho từng tài khoản
+    // 2. Bảo toàn và chuẩn hóa số dư cho từng tài khoản, không trừ tiền, không can thiệp số dư hợp lệ
     for (const acc of db.accounts) {
-      // Đảm bảo các ví sinh lời được chốt ngày hôm nay để ngày mai mới bắt đầu sinh lời
+      // Đảm bảo các ví sinh lời có ngày chốt để không tự cộng dồn trùng lặp trong ngày hôm nay
       if (acc.isYieldEnabled && !acc.lastYieldDate) {
         acc.lastYieldDate = todayStr;
         changed = true;
       }
-      // Tính net giao dịch thực tế
+
+      // Tính tổng dòng tiền giao dịch thực tế của tài khoản này
       let txSum = 0;
       if (db.transactions) {
         for (const tx of db.transactions) {
@@ -275,42 +258,17 @@ export class DataService {
         }
       }
 
-      // Xử lý các ví mẫu mặc định nếu bị lỗi âm do bug cũ
-      if (acc.id === 'acc_momo' && (acc.balance < 0 || acc.balance < 1000000)) {
-        acc.balance = 1850000;
-        acc.initialBalance = 1850000 - txSum;
-        acc.isYieldEnabled = true;
-        acc.yieldRate = acc.yieldRate || 4.0;
-        changed = true;
-        continue;
-      }
-      if (acc.id === 'acc_cash' && acc.balance < 1000000) {
-        acc.balance = 2450000;
-        acc.initialBalance = 2450000 - txSum;
-        changed = true;
-        continue;
-      }
-      if (acc.id === 'acc_vcb' && acc.balance < 25000000) {
-        acc.balance = 42500000;
-        acc.initialBalance = 42500000 - txSum;
-        changed = true;
-        continue;
-      }
-      if (acc.id === 'acc_tcb' && acc.balance < 5000000) {
-        acc.balance = 18200000;
-        acc.initialBalance = 18200000 - txSum;
-        changed = true;
-        continue;
-      }
-
-      // Đối với tài khoản người dùng tự tạo: Nếu số dư bị âm do initialBalance chưa chuẩn:
+      // Nếu số dư bị âm do lỗi logic cũ: Phục hồi để không bị âm
       if (acc.balance < 0) {
-        acc.initialBalance = Math.max(1000000, Math.abs(txSum) + 1000000);
-        acc.balance = Math.round((acc.initialBalance + txSum) * 100) / 100;
+        acc.initialBalance = Math.max(0, Math.abs(txSum));
+        acc.balance = 0;
         changed = true;
       } else {
-        if (acc.initialBalance === undefined || acc.initialBalance === null || (acc.initialBalance + txSum) !== acc.balance) {
-          acc.initialBalance = acc.balance - txSum;
+        // Chuẩn hóa initialBalance = balance - txSum để đảm bảo cân bằng tuyệt đối
+        // Giữ nguyên 100% số dư acc.balance của người dùng, không bao giờ trừ bớt
+        const expectedInitial = acc.balance - txSum;
+        if (acc.initialBalance !== expectedInitial) {
+          acc.initialBalance = expectedInitial;
           changed = true;
         }
       }
@@ -518,21 +476,15 @@ export class DataService {
     for (const acc of this.db.accounts) {
       const txSum = this.getAccountNetTransactions(acc.id);
 
-      // Tự động chuẩn hóa initialBalance để số dư không bao giờ bị âm hoặc bị sai lệch
-      if (acc.initialBalance === undefined || acc.initialBalance === null || (acc.balance > 0 && (acc.initialBalance + txSum) < 0)) {
-        acc.initialBalance = Math.max(0, (acc.balance || 0) - txSum);
-      }
-
-      // Xử lý phục hồi các ví nếu trước đó bị lỗi số dư âm
-      if (acc.id === 'acc_momo' && (acc.balance <= 0 || (acc.initialBalance + txSum) < 0)) {
-        acc.balance = 1850000;
-        acc.initialBalance = 1850000 - txSum;
-      } else if (acc.balance < 0 && (acc.initialBalance + txSum) < 0) {
-        acc.initialBalance = Math.max(1000000, Math.abs(txSum) + 1000000);
-        acc.balance = acc.initialBalance + txSum;
+      // Nếu số dư tài khoản hợp lệ, chuẩn hóa initialBalance để số dư luôn giữ nguyên vẹn
+      if (acc.balance >= 0) {
+        if (acc.initialBalance === undefined || acc.initialBalance === null || (acc.initialBalance + txSum) !== acc.balance) {
+          acc.initialBalance = acc.balance - txSum;
+        }
       } else {
-        const calcBalance = (acc.initialBalance || 0) + txSum;
-        acc.balance = Math.round(calcBalance * 100) / 100;
+        // Nếu số dư bị âm (chi vượt quá số tiền có)
+        acc.initialBalance = Math.max(0, Math.abs(txSum));
+        acc.balance = 0;
       }
     }
     this.saveState();
