@@ -279,15 +279,6 @@ export class DataService {
         (t) => !t.note?.includes('Thu nhập thêm / Thưởng tháng 11')
       );
 
-      // Deduplicate identical transactions on same date, amount, note, type
-      const seen = new Set<string>();
-      db.transactions = db.transactions.filter((t) => {
-        const key = `${t.date}_${t.type}_${t.amount}_${t.note?.trim().toLowerCase()}_${t.accountId}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
       if (db.transactions.length !== originalTxCount) {
         changed = true;
       }

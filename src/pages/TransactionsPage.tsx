@@ -33,7 +33,6 @@ export const TransactionsPage: React.FC = () => {
     accounts,
     openAddTxModal,
     deleteTransaction,
-    cleanupDuplicateTransactions,
   } = useFinancial();
 
   // Search & Filter state
@@ -309,35 +308,21 @@ export const TransactionsPage: React.FC = () => {
             ))}
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center space-x-2 shrink-0">
-            <button
-              type="button"
-              onClick={cleanupDuplicateTransactions}
-              className="flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 transition-all cursor-pointer shadow-2xs"
-              title="Dọn dẹp các giao dịch trùng lặp và bảo toàn 100% số dư tài khoản"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden md:inline">Dọn trùng lặp (Bảo toàn tiền)</span>
-              <span className="md:hidden">Dọn trùng</span>
-            </button>
-
-            {/* Advanced Filter Toggle Button */}
-            <button
-              onClick={() => setShowFilterDrawer(!showFilterDrawer)}
-              className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
-                hasActiveFilters
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>Bộ lọc</span>
-              {hasActiveFilters && (
-                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-              )}
-            </button>
-          </div>
+          {/* Advanced Filter Toggle Button */}
+          <button
+            onClick={() => setShowFilterDrawer(!showFilterDrawer)}
+            className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
+              hasActiveFilters
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            <span>Bộ lọc nâng cao</span>
+            {hasActiveFilters && (
+              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+            )}
+          </button>
         </div>
 
         {/* Expandable Advanced Filters Box */}
