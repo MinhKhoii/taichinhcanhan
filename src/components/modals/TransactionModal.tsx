@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useFinancial } from '../../context/FinancialContext';
-import { TransactionType, PaymentMethod } from '../../types';
+import { TransactionType, PaymentMethod, Account } from '../../types';
 import { X, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Check, Calendar, CreditCard, Tag, Wallet, Sparkles, FileText, Zap, RotateCcw } from 'lucide-react';
 import { DynamicIcon } from '../common/DynamicIcon';
 import {
@@ -20,6 +20,7 @@ export const TransactionModal: React.FC = () => {
     editingTransaction,
     categories,
     accounts,
+    user,
     createTransaction,
     updateTransaction,
   } = useFinancial();
@@ -47,8 +48,30 @@ export const TransactionModal: React.FC = () => {
       setType('expense');
       setAmountStr('');
       setDate(new Date().toISOString().split('T')[0]);
-      // Ưu tiên chọn tài khoản có số dư dương để tránh âm ví
-      const defaultAcc = accounts.find((a) => a.balance > 0) || accounts[0];
+      // Ưu tiên chọn tài khoản mặc định:
+      // 1. Cài đặt tài khoản mặc định của người dùng (user.defaultAccountId)
+      // 2. Tài khoản đã dùng gần nhất được lưu (localStorage: moneyflow_last_used_account)
+      // 3. Ưu tiên Ngân hàng (bank) hoặc Ví MoMo (ewallet) có số dư dương (tránh chọn Tiền mặt mặc định)
+      // 4. Ưu tiên Ngân hàng hoặc Ví MoMo bất kỳ
+      // 5. Nếu không có mới chọn tài khoản bất kỳ có tiền hoặc tài khoản đầu tiên
+      const savedLastId = localStorage.getItem('moneyflow_last_used_account');
+      const isBankOrMoMo = (a: Account) =>
+        a.type === 'bank' ||
+        a.type === 'ewallet' ||
+        (a.name || '').toLowerCase().includes('momo') ||
+        (a.name || '').toLowerCase().includes('bank') ||
+        (a.name || '').toLowerCase().includes('vietin') ||
+        (a.name || '').toLowerCase().includes('vietcom') ||
+        (a.name || '').toLowerCase().includes('mb');
+
+      const defaultAcc =
+        (user?.defaultAccountId && accounts.find((a) => a.id === user.defaultAccountId)) ||
+        (savedLastId && accounts.find((a) => a.id === savedLastId)) ||
+        accounts.find((a) => isBankOrMoMo(a) && a.balance > 0) ||
+        accounts.find((a) => isBankOrMoMo(a)) ||
+        accounts.find((a) => a.balance > 0) ||
+        accounts[0];
+
       setAccountId(defaultAcc?.id || '');
       const otherAcc = accounts.find((a) => a.id !== defaultAcc?.id) || accounts[0];
       setToAccountId(otherAcc?.id || '');
@@ -59,7 +82,7 @@ export const TransactionModal: React.FC = () => {
       const firstExp = categories.find((c) => c.type === 'expense');
       setCategoryId(firstExp?.id || '');
     }
-  }, [editingTransaction, isAddTxOpen, accounts, categories]);
+  }, [editingTransaction, isAddTxOpen, accounts, categories, user?.defaultAccountId]);
 
   useModalEscape(closeAddTxModal, isAddTxOpen);
 
@@ -145,6 +168,13 @@ export const TransactionModal: React.FC = () => {
         paymentMethod,
         note,
       });
+    }
+
+    // Ghi nhớ tài khoản vừa sử dụng để tự động điền cho lần sau
+    try {
+      localStorage.setItem('moneyflow_last_used_account', accountId);
+    } catch {
+      // ignore
     }
   };
 
@@ -387,6 +417,35 @@ export const TransactionModal: React.FC = () => {
                     </option>
                   ))}
                 </select>
+
+                {/* Quick Switch Pills for Accounts */}
+                {accounts.length > 1 && (
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {accounts.map((a) => {
+                      const isSelected = a.id === accountId;
+                      const isBank = a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') || (a.name || '').toLowerCase().includes('vietin');
+                      const isEwallet = a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo');
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => {
+                            setAccountId(a.id);
+                            setPaymentMethod(getDefaultPaymentMethodForAccount(a));
+                          }}
+                          className={`px-2.5 py-1 rounded-xl text-2xs font-semibold transition-all flex items-center gap-1 cursor-pointer select-none ${
+                            isSelected
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                          }`}
+                        >
+                          <span>{isBank ? '🏦' : isEwallet ? '👛' : '💵'}</span>
+                          <span className="truncate max-w-[110px]">{a.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {(() => {
                   const currentAcc = accounts.find((a) => a.id === accountId);
                   if (currentAcc && type === 'expense' && parsedAmount > currentAcc.balance) {

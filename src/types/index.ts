@@ -15,6 +15,7 @@ export interface User {
   avatarUrl?: string;
   currency: string;
   dateFormat: string;
+  defaultAccountId?: string; // Tài khoản chi tiêu mặc định khi tạo giao dịch mới (Ngân hàng / Ví MoMo / Tiền mặt)
   autoOffsetNegative?: boolean; // Tự động cấn trừ số dư âm từ tài khoản có tiền
   fontSize?: FontSizePreference; // Tùy chọn cỡ chữ: nhỏ gọn, vừa vặn, lớn, rất lớn
   theme?: ThemePreference; // Chế độ giao diện: sáng / tối

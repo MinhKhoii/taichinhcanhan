@@ -34,6 +34,7 @@ import {
   Sparkles,
   Bot,
   ExternalLink,
+  Wallet,
 } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { DynamicIcon } from '../components/common/DynamicIcon';
@@ -813,6 +814,51 @@ export const SettingsPage: React.FC = () => {
               <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 whitespace-nowrap shrink-0">
                 Tự động lưu
               </span>
+            </div>
+          </div>
+
+          {/* Default Account Preference (Tài khoản thanh toán mặc định) */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="flex items-center space-x-2.5">
+              <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div>
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                  Tài khoản thanh toán mặc định
+                </h3>
+                <p className="text-2xs text-slate-500 dark:text-slate-400">
+                  Chọn tài khoản ưu tiên tự động điền trước khi bạn mở bảng "Thêm giao dịch mới"
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <select
+                value={user.defaultAccountId || 'auto'}
+                onChange={(e) => {
+                  const val = e.target.value === 'auto' ? undefined : e.target.value;
+                  updateUser({ defaultAccountId: val });
+                  const chosenAcc = accounts.find((a) => a.id === val);
+                  showToast(
+                    chosenAcc
+                      ? `Đã đặt "${chosenAcc.name}" làm tài khoản mặc định khi thêm giao dịch!`
+                      : 'Đã đặt: Tự động ưu tiên Ngân hàng / Ví MoMo & nhớ tài khoản dùng gần nhất',
+                    'success'
+                  );
+                }}
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              >
+                <option value="auto">
+                  🔄 Tự động: Ưu tiên Ngân hàng / Ví MoMo & nhớ lần dùng gần nhất (Khuyên dùng)
+                </option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') ? '🏦' : a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo') ? '👛' : '💵'} {a.name} ({formatVND(a.balance)})
+                  </option>
+                ))}
+              </select>
+              <p className="text-3xs text-slate-400 mt-2 leading-relaxed">
+                💡 Bạn có thể chọn cố định là <strong>Ngân hàng</strong> hoặc <strong>Ví MoMo</strong>, hoặc chọn <strong>Tự động</strong> để hệ thống tự ưu tiên Ngân hàng / MoMo và nhớ tài khoản bạn dùng gần nhất.
+              </p>
             </div>
           </div>
         </div>
