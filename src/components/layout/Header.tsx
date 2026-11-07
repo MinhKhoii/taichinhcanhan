@@ -128,12 +128,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-3 sm:px-4 md:px-8 bg-white border-b border-slate-200 shadow-xs max-w-full">
+    <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-3.5 sm:px-6 md:px-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs max-w-full">
       {/* Left: Mobile hamburger & Greeting */}
       <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
         <button
           onClick={onToggleMobileMenu}
-          className="p-2 -ml-1 text-slate-600 rounded-xl lg:hidden hover:bg-slate-100 cursor-pointer"
+          className="p-2 -ml-1 text-slate-600 dark:text-slate-300 rounded-xl lg:hidden hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
           aria-label="Mở menu"
         >
           <Menu className="w-5 h-5" />
@@ -168,32 +168,31 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
         {/* Mobile Brand Title & Auto-Cloud status */}
         <div className="sm:hidden flex items-center space-x-1.5">
-          <span className="text-sm font-bold tracking-tight text-slate-800 dark:text-slate-100 hidden min-[370px]:inline">MoneyFlow</span>
+          <span className="text-sm font-bold tracking-tight text-slate-800 dark:text-slate-100">MoneyFlow</span>
           {isCloudConfigured && (
             <button
               type="button"
               onClick={() => syncToCloud()}
               disabled={isCloudSyncing}
-              className={`inline-flex items-center gap-1 text-3xs font-semibold px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
+              className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
                 isCloudSyncing
                   ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
                   : 'bg-emerald-50 text-emerald-700 border-emerald-200 active:scale-95 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
               }`}
-              title={isCloudSyncing ? 'Đang tự động đồng bộ với Cloud...' : 'Bấm để đồng bộ Cloud'}
+              title={isCloudSyncing ? 'Đang tự động đồng bộ với Cloud...' : 'Supabase Cloud đã kết nối. Bấm để đồng bộ tức thì'}
             >
               {isCloudSyncing ? (
-                <RefreshCw className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 animate-spin" />
+                <RefreshCw className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 animate-spin" />
               ) : (
-                <Cloud className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                <Cloud className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               )}
-              <span className="text-3xs">{isCloudSyncing ? 'Đồng bộ...' : 'Cloud'}</span>
             </button>
           )}
         </div>
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center space-x-1 sm:space-x-2.5 shrink-0">
+      <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
         {/* Quick Search Button (Desktop: Ctrl+K) */}
         <button
           type="button"
@@ -365,11 +364,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           )}
         </div>
 
-        {/* Dark / Light Mode Toggle Button */}
+        {/* Dark / Light Mode Toggle Button (Desktop & Tablet) */}
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
+          className="hidden sm:flex p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
           title={theme === 'dark' ? 'Chuyển sang Chế độ Sáng' : 'Chuyển sang Chế độ Tối (Dark Mode)'}
           aria-label="Đổi giao diện sáng/tối"
         >

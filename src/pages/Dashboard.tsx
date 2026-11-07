@@ -269,10 +269,10 @@ export const Dashboard: React.FC = () => {
               <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md text-amber-300 flex-shrink-0 shadow-inner">
                 <Sparkles className="w-5 h-5 animate-pulse" />
               </div>
-              <div>
-                <div className="flex items-center space-x-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center flex-wrap gap-1.5">
                   <span className="text-2xs uppercase tracking-wider font-bold text-blue-300">
-                    Trợ lý tài chính thông minh MoneyFlow
+                    Trợ lý tài chính thông minh
                   </span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   {insights.length > 1 && (
