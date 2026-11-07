@@ -5,6 +5,9 @@ import { dataService } from './dataService';
 const STORAGE_KEY = 'moneyflow_gemini_api_key';
 
 const CANDIDATE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
   'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
   'gemini-3-flash-preview',
@@ -129,6 +132,95 @@ class AIService {
       return { success: true, message: 'Kết nối Google Gemini AI thành công rực rỡ! 🎉' };
     } catch (err: any) {
       return { success: false, message: `Lỗi kết nối Gemini: ${err?.message || 'Không rõ'}` };
+    }
+  }
+
+  // 2.1 Multimodal Receipt / Bill Scanner via Gemini Vision
+  async scanReceiptImage(
+    base64Data: string,
+    mimeType: string,
+    categories: Category[],
+    accounts: Account[]
+  ): Promise<ParsedTransactionAI> {
+    const key = this.getApiKey();
+    if (!key) {
+      throw new Error('Chưa cấu hình API Key Google Gemini. Bạn hãy vào Cài đặt -> Trợ lý AI để nhập key!');
+    }
+
+    const categoryNames = categories.map((c) => `${c.id}:${c.name} (${c.type})`).join(', ');
+    const accountNames = accounts.map((a) => `${a.id}:${a.name} (${a.type})`).join(', ');
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const prompt = `Bạn là trợ lý AI chuyên bóc tách thông tin từ ảnh chụp hóa đơn, biên lai tính tiền, bill siêu thị, quán cà phê hoặc ảnh chụp màn hình chuyển khoản ngân hàng Việt Nam.
+Ngày hôm nay: ${todayStr}.
+Danh sách danh mục thu/chi: [${categoryNames}].
+Danh sách tài khoản ví: [${accountNames}].
+
+Hãy quan sát kỹ ảnh hóa đơn này và trích xuất thông tin dưới định dạng JSON thuần túy (không bọc trong markdown hay bất cứ ký tự nào khác):
+{
+  "type": "expense",
+  "amount": 50000,
+  "note": "Tên quán hoặc tên mặt hàng chính (ví dụ: Highland Coffee, Cơm tấm, Siêu thị WinMart)",
+  "categoryId": "mã danh mục khớp nhất",
+  "categoryName": "tên danh mục khớp nhất",
+  "paymentMethod": "transfer",
+  "date": "${todayStr}",
+  "confidence": 0.95,
+  "explanation": "Tóm tắt ngắn gọn hóa đơn"
+}`;
+
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data: base64Data,
+              },
+            },
+            {
+              text: prompt,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 600,
+      },
+    };
+
+    const res = await callGeminiAPI(key, payload);
+    const textOutput = res?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!textOutput) {
+      throw new Error('AI không nhận diện được hóa đơn này. Hãy chụp rõ nét hơn hoặc góc đủ sáng!');
+    }
+
+    try {
+      const cleanJson = textOutput.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+
+      const matchedAccount =
+        accounts.find((a) => parsed.paymentMethod === 'ewallet' && (a.type === 'ewallet' || a.name.toLowerCase().includes('momo'))) ||
+        accounts.find((a) => parsed.paymentMethod === 'transfer' && a.type === 'bank') ||
+        accounts[0];
+
+      return {
+        type: parsed.type || 'expense',
+        amount: Number(parsed.amount) || 0,
+        note: parsed.note || 'Chi tiêu theo hóa đơn',
+        categoryId: parsed.categoryId || categories[0]?.id,
+        categoryName: parsed.categoryName || categories[0]?.name,
+        accountId: matchedAccount?.id || accounts[0]?.id || '',
+        accountName: matchedAccount?.name,
+        paymentMethod: parsed.paymentMethod || 'transfer',
+        date: parsed.date || todayStr,
+        confidence: parsed.confidence || 0.9,
+        explanation: parsed.explanation,
+      };
+    } catch (err: any) {
+      throw new Error(`Lỗi đọc hóa đơn từ AI: ${err.message || 'Không thể giải mã kết quả'}`);
     }
   }
 

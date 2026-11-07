@@ -37,6 +37,7 @@ import { formatVND, formatCompactVND, formatDateVN } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { subMonths, isSameMonth, parseISO, format } from 'date-fns';
 import { calculateFinancialHealthScore, calculate503020Rule } from '../utils/financialAssistant';
+import { MonthlyWrappedModal } from '../components/modals/MonthlyWrappedModal';
 
 export const Dashboard: React.FC = () => {
   const {
@@ -56,6 +57,8 @@ export const Dashboard: React.FC = () => {
     isPrivacyMode,
     togglePrivacyMode,
   } = useFinancial();
+
+  const [isWrappedOpen, setIsWrappedOpen] = useState(false);
 
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -360,6 +363,16 @@ export const Dashboard: React.FC = () => {
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => setIsWrappedOpen(true)}
+                className="flex items-center space-x-1 px-3.5 py-2 text-xs font-bold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 rounded-xl transition-all shadow-md flex-shrink-0 cursor-pointer"
+                title="Khám phá tổng kết thu chi tháng này phong cách Wrapped"
+              >
+                <span>🎁</span>
+                <span>Wrapped {new Date().getMonth() + 1}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1213,6 +1226,11 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <MonthlyWrappedModal
+        isOpen={isWrappedOpen}
+        onClose={() => setIsWrappedOpen(false)}
+      />
     </div>
   );
 };

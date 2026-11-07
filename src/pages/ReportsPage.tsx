@@ -36,6 +36,7 @@ import { formatVND, formatCompactVND, formatDateVN } from '../utils/formatters';
 import { exportComprehensiveReportToExcel, exportTransactionsToCSV } from '../utils/exportData';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { format, parseISO, subMonths } from 'date-fns';
+import { MonthlyWrappedModal } from '../components/modals/MonthlyWrappedModal';
 
 type ReportTab = 'overview' | 'income' | 'categories' | 'month_comparison' | 'top_expenses';
 
@@ -51,6 +52,7 @@ export const ReportsPage: React.FC = () => {
 
   const [activeReportTab, setActiveReportTab] = useState<ReportTab>('overview');
   const [timeRangeMonths, setTimeRangeMonths] = useState<number>(6);
+  const [isWrappedOpen, setIsWrappedOpen] = useState(false);
 
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -259,6 +261,17 @@ export const ReportsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
+          {/* Button Xem Wrapped */}
+          <button
+            type="button"
+            onClick={() => setIsWrappedOpen(true)}
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+            title="Xem báo cáo tổng kết tháng phong cách Wrapped"
+          >
+            <span>🎁</span>
+            <span>Wrapped {new Date().getMonth() + 1}</span>
+          </button>
+
           {/* Filter Range */}
           <div className="flex items-center space-x-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold">
             <button
@@ -949,6 +962,11 @@ export const ReportsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <MonthlyWrappedModal
+        isOpen={isWrappedOpen}
+        onClose={() => setIsWrappedOpen(false)}
+      />
     </div>
   );
 };

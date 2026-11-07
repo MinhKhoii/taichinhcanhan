@@ -18,7 +18,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { QuickAmountInput } from '../common/QuickAmountInput';
-import { formatVND, getDefaultPaymentMethodForAccount } from '../../utils/formatters';
+import { formatVND, formatCompactVND, getDefaultPaymentMethodForAccount } from '../../utils/formatters';
 import { useModalEscape } from '../../hooks/useModalEscape';
 
 interface RecurringModalProps {
@@ -236,6 +236,11 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
               ) : (
                 recurringItems.map((item) => {
                   const acc = accounts.find((a) => a.id === item.accountId);
+                  const isExp = item.type === 'expense';
+                  const todayDay = new Date().getDate();
+                  const diff = item.dayOfMonth - todayDay;
+                  const daysLeft = diff >= 0 ? diff : diff + 30;
+
                   return (
                     <div
                       key={item.id}
@@ -245,9 +250,27 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center space-x-3 min-w-0">
                           {/* Date Badge */}
-                          <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-700 flex flex-col items-center justify-center font-black shadow-2xs shrink-0">
-                            <span className="text-3xs uppercase tracking-wider text-emerald-600 font-semibold leading-none">Ngày</span>
-                            <span className="text-base font-black leading-tight text-emerald-800">{String(item.dayOfMonth).padStart(2, '0')}</span>
+                          <div
+                            className={`w-11 h-11 rounded-2xl border flex flex-col items-center justify-center font-black shadow-2xs shrink-0 ${
+                              isExp
+                                ? 'bg-rose-50 border-rose-200/80 text-rose-700'
+                                : 'bg-emerald-50 border-emerald-200/80 text-emerald-700'
+                            }`}
+                          >
+                            <span
+                              className={`text-3xs uppercase tracking-wider font-semibold leading-none ${
+                                isExp ? 'text-rose-600' : 'text-emerald-600'
+                              }`}
+                            >
+                              Ngày
+                            </span>
+                            <span
+                              className={`text-base font-black leading-tight ${
+                                isExp ? 'text-rose-800' : 'text-emerald-800'
+                              }`}
+                            >
+                              {String(item.dayOfMonth).padStart(2, '0')}
+                            </span>
                           </div>
 
                           {/* Name & Details */}
@@ -259,26 +282,57 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
                               <span
                                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-2xs font-semibold whitespace-nowrap shrink-0 ${
                                   item.isActive
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    ? isExp
+                                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                     : 'bg-slate-100 text-slate-600 border border-slate-200'
                                 }`}
                               >
-                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${item.isActive ? 'bg-emerald-600 animate-pulse' : 'bg-slate-400'}`} />
-                                {item.isActive ? 'Đang tự động' : 'Tạm tắt'}
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                    item.isActive
+                                      ? isExp
+                                        ? 'bg-rose-600 animate-pulse'
+                                        : 'bg-emerald-600 animate-pulse'
+                                      : 'bg-slate-400'
+                                  }`}
+                                />
+                                {item.isActive ? (isExp ? 'Gói định kỳ' : 'Đang tự động') : 'Tạm tắt'}
                               </span>
+
+                              {isExp && item.isActive && (
+                                <span
+                                  className={`text-3xs font-semibold px-2 py-0.5 rounded-md ${
+                                    daysLeft <= 3
+                                      ? 'bg-amber-100 text-amber-800 animate-bounce'
+                                      : 'bg-slate-100 text-slate-600'
+                                  }`}
+                                >
+                                  ⏰ Còn {daysLeft} ngày
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-1.5">
-                              <span>Nạp tự động vào <strong>ngày {item.dayOfMonth}</strong> hàng tháng</span>
+                              <span>
+                                {isExp ? 'Trừ tiền định kỳ' : 'Cộng tiền tự động'} vào <strong>ngày {item.dayOfMonth}</strong> hàng tháng
+                              </span>
                               <span className="text-slate-300">•</span>
-                              <span>Ví nhận: <strong className="text-slate-700">{acc?.name || 'Tài khoản'}</strong></span>
+                              <span>
+                                {isExp ? 'Ví thanh toán:' : 'Ví nhận:'}{' '}
+                                <strong className="text-slate-700">{acc?.name || 'Tài khoản'}</strong>
+                              </span>
                             </p>
                           </div>
                         </div>
 
                         {/* Amount */}
                         <div className="text-right shrink-0">
-                          <span className="text-base sm:text-lg font-black text-emerald-600 tracking-tight block whitespace-nowrap">
-                            +{formatVND(item.amount)}
+                          <span
+                            className={`text-base sm:text-lg font-black tracking-tight block whitespace-nowrap ${
+                              isExp ? 'text-rose-600' : 'text-emerald-600'
+                            }`}
+                          >
+                            {isExp ? '-' : '+'}{formatVND(item.amount)}
                           </span>
                           <span className="text-3xs text-slate-400 font-medium">Hàng tháng</span>
                         </div>
@@ -373,22 +427,50 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               />
-              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                {[
-                  'Lương cố định công ty',
-                  'Lương cứng hàng tháng',
-                  'Thuê nhà nhận tiền',
-                  'Tiền thưởng kinh doanh',
-                ].map((presetName) => (
-                  <button
-                    type="button"
-                    key={presetName}
-                    onClick={() => setName(presetName)}
-                    className="px-2 py-0.5 text-3xs font-medium rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
-                  >
-                    {presetName}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="text-3xs text-slate-400 font-semibold mr-1">
+                  {type === 'expense' ? 'Gợi ý gói dịch vụ:' : 'Gợi ý nhanh:'}
+                </span>
+                {type === 'expense'
+                  ? [
+                      { name: 'Netflix', amount: '260000', icon: '🎬' },
+                      { name: 'Spotify Premium', amount: '59000', icon: '🎵' },
+                      { name: 'iCloud 50GB', amount: '19000', icon: '☁️' },
+                      { name: 'YouTube Premium', amount: '79000', icon: '▶️' },
+                      { name: 'ChatGPT Plus', amount: '500000', icon: '🤖' },
+                      { name: 'Gói cước 4G', amount: '90000', icon: '📶' },
+                      { name: 'Tiền mạng WiFi', amount: '220000', icon: '🌐' },
+                      { name: 'Tiền thuê nhà trọ', amount: '3500000', icon: '🏠' },
+                    ].map((p) => (
+                      <button
+                        type="button"
+                        key={p.name}
+                        onClick={() => {
+                          setName(p.name);
+                          setAmountStr(p.amount);
+                          setType('expense');
+                        }}
+                        className="px-2 py-1 text-2xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 flex items-center gap-1 cursor-pointer transition-all"
+                      >
+                        <span>{p.icon}</span>
+                        <span>{p.name} ({formatCompactVND(Number(p.amount))})</span>
+                      </button>
+                    ))
+                  : [
+                      'Lương cố định công ty',
+                      'Lương cứng hàng tháng',
+                      'Thuê nhà nhận tiền',
+                      'Tiền thưởng kinh doanh',
+                    ].map((presetName) => (
+                      <button
+                        type="button"
+                        key={presetName}
+                        onClick={() => setName(presetName)}
+                        className="px-2 py-0.5 text-3xs font-medium rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+                      >
+                        {presetName}
+                      </button>
+                    ))}
               </div>
             </div>
 

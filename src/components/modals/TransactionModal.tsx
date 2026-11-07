@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFinancial } from '../../context/FinancialContext';
 import { TransactionType, PaymentMethod, Account } from '../../types';
-import { X, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Check, Calendar, CreditCard, Tag, Wallet, Sparkles, FileText, Zap, RotateCcw } from 'lucide-react';
+import { X, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Check, Calendar, CreditCard, Tag, Wallet, Sparkles, FileText, Zap, RotateCcw, Camera, Loader2 } from 'lucide-react';
 import { DynamicIcon } from '../common/DynamicIcon';
 import {
   formatVND,
@@ -12,6 +12,7 @@ import {
   parseQuickAmountInput,
 } from '../../utils/formatters';
 import { useModalEscape } from '../../hooks/useModalEscape';
+import { aiService } from '../../services/aiService';
 
 export const TransactionModal: React.FC = () => {
   const {
@@ -23,6 +24,7 @@ export const TransactionModal: React.FC = () => {
     user,
     createTransaction,
     updateTransaction,
+    showToast,
   } = useFinancial();
 
   const [type, setType] = useState<TransactionType>('expense');
@@ -33,6 +35,8 @@ export const TransactionModal: React.FC = () => {
   const [date, setDate] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
     if (editingTransaction) {
@@ -127,6 +131,56 @@ export const TransactionModal: React.FC = () => {
   const parsedAmount = parseInt(amountStr || '0', 10);
   const smartSuggestions = getSmartAmountSuggestions(parsedAmount);
 
+  const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input so same file can be picked again if needed
+    e.target.value = '';
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Vui lòng chọn file hình ảnh (JPG, PNG)', 'error');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Ảnh quá lớn (> 10MB), vui lòng chọn ảnh dung lượng nhỏ hơn', 'error');
+      return;
+    }
+
+    setIsScanning(true);
+    showToast('AI Gemini đang đọc hóa đơn & bóc tách thông tin...', 'info');
+
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const res = reader.result as string;
+          const commaIdx = res.indexOf(',');
+          resolve(commaIdx >= 0 ? res.slice(commaIdx + 1) : res);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const parsed = await aiService.scanReceiptImage(base64Data, file.type, categories, accounts);
+
+      if (parsed.type) setType(parsed.type);
+      if (parsed.amount) setAmountStr(parsed.amount.toString());
+      if (parsed.note) setNote(parsed.note);
+      if (parsed.categoryId) setCategoryId(parsed.categoryId);
+      if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
+      if (parsed.date) setDate(parsed.date);
+      if (parsed.accountId) setAccountId(parsed.accountId);
+
+      showToast(`✨ Đã nhận diện: ${parsed.note} (${formatVND(parsed.amount)})!`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Không thể đọc được hóa đơn này', 'error');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!parsedAmount || parsedAmount <= 0) {
@@ -188,9 +242,41 @@ export const TransactionModal: React.FC = () => {
       <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col modal-content-scroll">
         {/* Header - Cố định trên cùng */}
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 flex-shrink-0 bg-white">
-          <h3 className="text-base sm:text-lg font-bold text-slate-800">
-            {editingTransaction ? 'Chỉnh sửa giao dịch' : 'Thêm giao dịch mới'}
-          </h3>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-base sm:text-lg font-bold text-slate-800">
+              {editingTransaction ? 'Chỉnh sửa giao dịch' : 'Thêm giao dịch mới'}
+            </h3>
+            {!editingTransaction && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isScanning}
+                  className="flex items-center gap-1.5 px-3 py-1 text-2xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 rounded-full border border-indigo-200/80 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                  title="Chụp ảnh hoặc tải ảnh bill/hóa đơn/biên lai để AI đọc tự động"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                      <span>AI đang đọc bill...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>📸 Quét Bill AI</span>
+                    </>
+                  )}
+                </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleScanReceipt}
+                />
+              </>
+            )}
+          </div>
           <button
             type="button"
             onClick={closeAddTxModal}
