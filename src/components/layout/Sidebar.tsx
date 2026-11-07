@@ -16,7 +16,6 @@ import {
   AlertCircle,
   Sun,
   Moon,
-  Smartphone,
 } from 'lucide-react';
 import { formatVND } from '../../utils/formatters';
 
@@ -34,8 +33,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     theme,
     toggleTheme,
     openAIModal,
-    isInstalled,
-    promptInstall,
   } = useFinancial();
 
   const totalNetWorth = accounts.reduce((sum, a) => sum + a.balance, 0);
@@ -164,19 +161,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           >
             <Sparkles className="w-4 h-4 mr-3 text-indigo-400 group-hover:scale-110 transition-transform" />
             <span className="truncate">Trợ lý giọng nói</span>
-          </button>
-
-          {/* PWA Install Button */}
-          <button
-            type="button"
-            onClick={() => {
-              promptInstall();
-              onCloseMobile();
-            }}
-            className="flex items-center w-full px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 text-blue-400 hover:text-white hover:bg-blue-600/20 group shadow-2xs mt-1 cursor-pointer"
-          >
-            <Smartphone className="w-4 h-4 mr-3 text-blue-400 group-hover:scale-110 transition-transform" />
-            <span className="truncate">{isInstalled ? 'Ứng dụng đã cài (HD)' : '📲 Cài ra màn hình chính'}</span>
           </button>
         </nav>
 

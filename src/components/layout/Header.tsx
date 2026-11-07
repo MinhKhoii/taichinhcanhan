@@ -27,8 +27,6 @@ import {
   Sparkles,
   Eye,
   EyeOff,
-  Smartphone,
-  Download,
 } from 'lucide-react';
 import { formatDateVN, getNameInitials } from '../../utils/formatters';
 import { useModalEscape } from '../../hooks/useModalEscape';
@@ -64,8 +62,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     openAuthModal,
     logout,
     lockApp,
-    isInstalled,
-    promptInstall,
   } = useFinancial();
 
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
@@ -410,19 +406,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           )}
         </button>
 
-        {/* PWA Install Button (Chỉ hiển thị trên thiết bị di động / Tablet, ẩn trên Desktop PC để thanh Header luôn gọn gàng) */}
-        {!isInstalled && (
-          <button
-            type="button"
-            onClick={promptInstall}
-            className="flex lg:hidden items-center space-x-1 px-2 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
-            title="Cài đặt MoneyFlow ra màn hình chính để dùng như App"
-          >
-            <Smartphone className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-            <span className="text-2xs">Cài App</span>
-          </button>
-        )}
-
         {/* Dark / Light Mode Toggle Button (Desktop & Tablet) */}
         <button
           type="button"
@@ -574,18 +557,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                 </div>
 
                 <div className="p-1 space-y-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      promptInstall();
-                    }}
-                    className="w-full px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/80 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-xl flex items-center space-x-2 transition-colors cursor-pointer"
-                  >
-                    <Smartphone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>{isInstalled ? '✅ Đã cài đặt (Xem HD)' : '📲 Cài ra màn hình chính'}</span>
-                  </button>
-
                   <button
                     type="button"
                     onClick={() => {
