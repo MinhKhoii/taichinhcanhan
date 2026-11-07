@@ -18,6 +18,8 @@ import {
   ChevronRight,
   Activity,
   X,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -50,6 +52,9 @@ export const Dashboard: React.FC = () => {
     openAddTxModal,
     openAIModal,
     setCurrentTab,
+    formatMoney,
+    isPrivacyMode,
+    togglePrivacyMode,
   } = useFinancial();
 
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
@@ -384,16 +389,30 @@ export const Dashboard: React.FC = () => {
         {/* Card 1: Tổng tài sản hiện có */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Tổng tài sản hiện có
-            </span>
+            <div className="flex items-center space-x-1.5">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Tổng tài sản hiện có
+              </span>
+              <button
+                type="button"
+                onClick={togglePrivacyMode}
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+                title={isPrivacyMode ? 'Bấm để hiện số tiền' : 'Bấm để ẩn số tiền (Chống nhìn lén)'}
+              >
+                {isPrivacyMode ? (
+                  <EyeOff className="w-3.5 h-3.5 text-amber-500" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
             <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
               <Wallet className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-              {formatVND(totalNetWorth)}
+              {formatMoney(totalNetWorth)}
             </h3>
             <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1 font-medium">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -420,7 +439,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-black text-emerald-600 tracking-tight">
-              {formatVND(curIncome)}
+              {formatMoney(curIncome)}
             </h3>
             <div className="flex items-center space-x-1.5 mt-1.5 text-xs">
               {incomeMoMPct >= 0 ? (
@@ -451,7 +470,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-black text-rose-600 tracking-tight">
-              {formatVND(curExpense)}
+              {formatMoney(curExpense)}
             </h3>
             <div className="flex items-center space-x-1.5 mt-1.5 text-xs">
               {expenseMoMPct > 0 ? (
@@ -483,7 +502,7 @@ export const Dashboard: React.FC = () => {
           <div className="mt-4">
             <div className="flex items-baseline justify-between">
               <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                {formatVND(curSavings)}
+                {formatMoney(curSavings)}
               </h3>
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
                 {savingsRate}%

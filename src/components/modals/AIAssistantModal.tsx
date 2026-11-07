@@ -20,6 +20,8 @@ import {
   Mic,
   MicOff,
   Volume2,
+  Camera,
+  ClipboardPaste,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -62,6 +64,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   const [quickAddText, setQuickAddText] = useState('');
   const [isParsingQuickAdd, setIsParsingQuickAdd] = useState(false);
   const [parsedPreview, setParsedPreview] = useState<ParsedTransactionAI | null>(null);
+  const [isScanningReceipt, setIsScanningReceipt] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // API Key Settings toggle
   const [showApiKeySetting, setShowApiKeySetting] = useState(false);
@@ -441,6 +445,91 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     }
   };
 
+  // Receipt Scanner trigger
+  const handleTriggerReceiptUpload = () => {
+    if (!aiService.hasApiKey()) {
+      setShowApiKeySetting(true);
+      showToast('Tính năng quét ảnh hóa đơn yêu cầu Google Gemini API Key. Bạn vui lòng dán key miễn phí để sử dụng nhé!', 'info');
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  // Receipt Image file change
+  const handleReceiptFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    e.target.value = '';
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Ảnh quá lớn (tối đa 10MB). Vui lòng chọn ảnh nhỏ hơn!', 'error');
+      return;
+    }
+
+    setIsScanningReceipt(true);
+    showToast('Đang quét và bóc tách hóa đơn bằng Gemini AI... 🔍', 'info');
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const parsed = await aiService.parseReceiptImage(
+            base64,
+            file.type || 'image/jpeg',
+            categories,
+            accounts
+          );
+          setParsedPreview(parsed);
+          setQuickAddText(`[Hóa đơn] ${parsed.note} - ${formatVND(parsed.amount)}`);
+          showToast(`Đã nhận diện: ${parsed.note} (${formatVND(parsed.amount)}) ✨`, 'success');
+        } catch (err: any) {
+          showToast(err?.message || 'Không thể đọc hóa đơn này. Hãy thử ảnh rõ hơn!', 'error');
+        } finally {
+          setIsScanningReceipt(false);
+        }
+      };
+      reader.onerror = () => {
+        showToast('Lỗi khi đọc tệp ảnh!', 'error');
+        setIsScanningReceipt(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setIsScanningReceipt(false);
+      showToast('Có lỗi xảy ra khi tải ảnh lên.', 'error');
+    }
+  };
+
+  // Paste bank SMS / notification
+  const handlePasteFromClipboard = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        showToast('Trình duyệt chưa hỗ trợ đọc clipboard tự động. Bạn hãy dán (Ctrl+V) vào ô nhập nhé!', 'info');
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        showToast('Bộ nhớ tạm (Clipboard) đang trống! Hãy copy tin nhắn ngân hàng rồi bấm lại.', 'info');
+        return;
+      }
+      setQuickAddText(text.trim());
+      setIsParsingQuickAdd(true);
+      showToast('Đang phân tích tin nhắn ngân hàng... ⚡', 'info');
+      try {
+        const parsed = await aiService.parseNaturalLanguageTransaction(text.trim(), categories, accounts);
+        setParsedPreview(parsed);
+        showToast(`Đã nhận diện: ${parsed.note} (${formatVND(parsed.amount)}) ✨`, 'success');
+      } catch {
+        showToast('Không thể phân tích nội dung này.', 'error');
+      } finally {
+        setIsParsingQuickAdd(false);
+      }
+    } catch {
+      showToast('Vui lòng cho phép quyền truy cập Clipboard hoặc dán (Ctrl+V) trực tiếp vào ô nhập!', 'info');
+    }
+  };
+
   const quickPrompts = [
     'Tháng này chi tiêu thế nào?',
     'Làm sao tiết kiệm 20% thu nhập?',
@@ -449,8 +538,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
 
   const quickAddExamples = [
     'Ăn phở 45k momo',
-    'Đổ xăng 70k vietinbank',
-    'Mua áo 200k tiền mặt',
+    'VCB: -85,000VND. ND: Cafe',
+    'Đổ xăng 70k tiền mặt',
     'Nhận lương 15tr',
   ];
 
@@ -615,6 +704,45 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                   <Zap className={`w-3 h-3 ${autoSaveEnabled ? 'text-emerald-500 fill-emerald-500' : 'text-slate-400'}`} />
                   <span>Tự động lưu: <strong>{autoSaveEnabled ? 'BẬT (3s)' : 'TẮT'}</strong></span>
                 </button>
+
+                {/* 2 Killer Features: Scan Receipt & Paste Bank SMS */}
+                <div className="flex items-center justify-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={handleTriggerReceiptUpload}
+                    disabled={isScanningReceipt}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-2xs sm:text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-60"
+                    title="Chụp hoặc tải ảnh hóa đơn / bill thanh toán"
+                  >
+                    {isScanningReceipt ? (
+                      <RotateCcw className="w-3.5 h-3.5 text-blue-600 animate-spin" />
+                    ) : (
+                      <Camera className="w-3.5 h-3.5 text-blue-600" />
+                    )}
+                    <span>{isScanningReceipt ? 'Đang đọc bill...' : 'Quét hóa đơn'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    disabled={isParsingQuickAdd}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-2xs sm:text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-400 hover:text-indigo-600 transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-60"
+                    title="Dán tin nhắn SMS hoặc thông báo biến động số dư ngân hàng"
+                  >
+                    <ClipboardPaste className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Dán SMS ngân hàng</span>
+                  </button>
+                </div>
+
+                {/* Hidden file input for receipt scanner */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleReceiptFileChange}
+                />
               </div>
 
               {/* Text Input Row as Alternative */}

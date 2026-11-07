@@ -16,6 +16,7 @@ import {
 import { dataService } from '../services/dataService';
 import { authService } from '../services/authService';
 import { generateFinancialInsights, FinancialInsight } from '../utils/financialAssistant';
+import { formatVND } from '../utils/formatters';
 import {
   isSameDay,
   isSameWeek,
@@ -145,6 +146,11 @@ interface FinancialContextType {
   toggleTheme: () => void;
   setTheme: (theme: 'light' | 'dark') => void;
 
+  // Privacy Mode (Ẩn số tiền riêng tư)
+  isPrivacyMode: boolean;
+  togglePrivacyMode: () => void;
+  formatMoney: (amount: number, showSign?: boolean) => string;
+
   // Authentication & Security
   session: AuthSession;
   isAuthenticated: boolean;
@@ -263,6 +269,27 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       root.setAttribute('data-theme', 'light');
     }
   }, [theme]);
+
+  // Privacy Mode (Ẩn số tiền nhạy cảm khi ở nơi công cộng)
+  const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(() => {
+    return localStorage.getItem('moneyflow_privacy_mode') === 'true';
+  });
+
+  const togglePrivacyMode = useCallback(() => {
+    setIsPrivacyMode((prev) => {
+      const next = !prev;
+      localStorage.setItem('moneyflow_privacy_mode', String(next));
+      return next;
+    });
+  }, []);
+
+  const formatMoney = useCallback(
+    (amount: number, showSign: boolean = false) => {
+      if (isPrivacyMode) return '••••••••';
+      return formatVND(amount, showSign);
+    },
+    [isPrivacyMode]
+  );
 
   // Toast handler
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -952,6 +979,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         theme,
         toggleTheme,
         setTheme,
+        isPrivacyMode,
+        togglePrivacyMode,
+        formatMoney,
         session,
         isAuthenticated: session.isLoggedIn,
         isAdmin: authService.isAdmin(),

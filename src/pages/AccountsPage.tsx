@@ -41,6 +41,7 @@ export const AccountsPage: React.FC = () => {
     autoOffsetAllNegativeAccounts,
     recalculateAccountBalances,
     forceCalculateYield,
+    formatMoney,
   } = useFinancial();
 
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -221,7 +222,7 @@ export const AccountsPage: React.FC = () => {
           </div>
           <div className="mt-4">
             <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {formatVND(totalBalance)}
+              {formatMoney(totalBalance)}
             </h3>
             <p className="text-2xs text-slate-500 mt-1.5 flex items-center gap-1.5 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -243,7 +244,7 @@ export const AccountsPage: React.FC = () => {
           </div>
           <div className="mt-4">
             <h3 className="text-xl font-black text-slate-800">
-              {formatVND(accountsByType['bank']?.total || 0)}
+              {formatMoney(accountsByType['bank']?.total || 0)}
             </h3>
             <p className="text-2xs text-slate-400 mt-1">
               {accountsByType['bank']?.count || 0} tài khoản ngân hàng
@@ -264,7 +265,7 @@ export const AccountsPage: React.FC = () => {
           </div>
           <div className="mt-4">
             <h3 className="text-xl font-black text-slate-800">
-              {formatVND(accountsByType['savings']?.total || 0)}
+              {formatMoney(accountsByType['savings']?.total || 0)}
             </h3>
             <p className="text-2xs text-slate-400 mt-1">
               {accountsByType['savings']?.count || 0} sổ tiết kiệm sinh lời
@@ -285,7 +286,7 @@ export const AccountsPage: React.FC = () => {
           </div>
           <div className="mt-4">
             <h3 className="text-xl font-black text-slate-800">
-              {formatVND(
+              {formatMoney(
                 (accountsByType['cash']?.total || 0) + (accountsByType['ewallet']?.total || 0)
               )}
             </h3>
@@ -432,7 +433,7 @@ export const AccountsPage: React.FC = () => {
                     <div className={`text-xl font-extrabold mt-0.5 tracking-tight ${
                       acc.balance < 0 ? 'text-rose-600' : 'text-slate-900'
                     }`}>
-                      {formatVND(acc.balance)}
+                      {formatMoney(acc.balance)}
                     </div>
                   </div>
 

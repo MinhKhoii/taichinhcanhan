@@ -144,14 +144,10 @@ class AIService {
 
     // Detect type
     let type: 'expense' | 'income' | 'transfer' = 'expense';
-    if (
-      lower.includes('nhận') ||
-      lower.includes('lương') ||
-      lower.includes('thưởng') ||
-      lower.includes('thu nhập') ||
-      lower.includes('tiền vào') ||
-      lower.includes('hoàn tiền')
-    ) {
+    
+    // Check if it's a Vietnamese bank SMS / Notification
+    const isBankNotification = /[-+]\s*[\d.,]+\s*(?:vnd|vnđ|d|đ|\b)/i.test(lower) || /nd:|nội dung:|noi dung:|gd:|sodu:|số dư:|so du:/i.test(lower);
+    if (/(\+|\bcộng\b|\bnhận\b|\blương\b|\bthưởng\b|\btiền vào\b|\bhoàn tiền\b|\bthu nhập\b)/i.test(lower) && !/-\s*[\d.,]+/i.test(lower)) {
       type = 'income';
     } else if (
       lower.includes('chuyển khoản sang') ||
@@ -163,21 +159,38 @@ class AIService {
       type = 'transfer';
     }
 
-    // Extract amount: e.g. "45k", "2tr", "1.5tr", "500000", "500.000", "50k", "2 củ", "5 lít"
+    // Extract amount:
+    // If it's a bank SMS, prevent picking the "Số dư" (remaining balance)
     let amount = 0;
-    const amountRegex = /(\d+(?:[.,]\d+)?)\s*(k|nghìn|ngan|tr|trieu|triệu|m|củ|cu|lít|lit|đ|vnd)?\b/i;
-    const match = lower.match(amountRegex);
-    if (match) {
-      let num = parseFloat(match[1].replace(/\./g, '').replace(/,/g, '.'));
-      const unit = (match[2] || '').toLowerCase();
-      if (unit === 'k' || unit === 'nghìn' || unit === 'ngan') {
-        num *= 1000;
-      } else if (unit === 'tr' || unit === 'trieu' || unit === 'triệu' || unit === 'm' || unit === 'củ' || unit === 'cu') {
-        num *= 1000000;
-      } else if (unit === 'lít' || unit === 'lit') {
-        num *= 100000;
+    let textToScan = lower;
+    if (isBankNotification) {
+      // Find GD: -xx or GD: +xx or -xxx,xxxVND
+      const bankTxMatch = textToScan.match(/(?:gd\s*:\s*)?([+-])\s*([\d.,]+)\s*(?:vnd|vnđ|d|đ|\b)/i);
+      if (bankTxMatch) {
+        if (bankTxMatch[1] === '+') type = 'income';
+        if (bankTxMatch[1] === '-') type = 'expense';
+        const rawNum = bankTxMatch[2].replace(/\./g, '').replace(/,/g, '');
+        amount = parseInt(rawNum, 10) || 0;
       }
-      amount = Math.round(num);
+    }
+
+    let amountMatch: RegExpMatchArray | null = null;
+    if (amount === 0) {
+      // e.g. "45k", "2tr", "1.5tr", "500000", "500.000", "50k", "2 củ", "5 lít"
+      const amountRegex = /(\d+(?:[.,]\d+)?)\s*(k|nghìn|ngan|tr|trieu|triệu|m|củ|cu|lít|lit|đ|vnd)?\b/i;
+      amountMatch = lower.match(amountRegex);
+      if (amountMatch) {
+        let num = parseFloat(amountMatch[1].replace(/\./g, '').replace(/,/g, '.'));
+        const unit = (amountMatch[2] || '').toLowerCase();
+        if (unit === 'k' || unit === 'nghìn' || unit === 'ngan') {
+          num *= 1000;
+        } else if (unit === 'tr' || unit === 'trieu' || unit === 'triệu' || unit === 'm' || unit === 'củ' || unit === 'cu') {
+          num *= 1000000;
+        } else if (unit === 'lít' || unit === 'lit') {
+          num *= 100000;
+        }
+        amount = Math.round(num);
+      }
     }
 
     // Detect Account
@@ -185,7 +198,21 @@ class AIService {
     if (!selectedAccount) {
       if (lower.includes('momo')) {
         selectedAccount = accounts.find((a) => a.name.toLowerCase().includes('momo') || a.type === 'ewallet');
-      } else if (lower.includes('ngân hàng') || lower.includes('vietin') || lower.includes('tech') || lower.includes('vcb') || lower.includes('mb')) {
+      } else if (lower.includes('zalopay')) {
+        selectedAccount = accounts.find((a) => a.name.toLowerCase().includes('zalopay') || a.type === 'ewallet');
+      } else if (lower.includes('vietcombank') || lower.includes('vcb')) {
+        selectedAccount = accounts.find((a) => a.name.toLowerCase().includes('vietcombank') || a.name.toLowerCase().includes('vcb'));
+      } else if (lower.includes('techcombank') || lower.includes('tcb')) {
+        selectedAccount = accounts.find((a) => a.name.toLowerCase().includes('techcombank') || a.name.toLowerCase().includes('tcb'));
+      } else if (lower.includes('mbbank') || lower.includes('mb bank') || lower.includes('mb')) {
+        selectedAccount = accounts.find((a) => a.name.toLowerCase().includes('mb'));
+      } else if (lower.includes('vpbank') || lower.includes('vpb')) {
+        selectedAccount = accounts.find((a) => a.name.toLowerCase().includes('vpbank') || a.name.toLowerCase().includes('vpb'));
+      } else if (lower.includes('tpbank') || lower.includes('tpb')) {
+        selectedAccount = accounts.find((a) => a.name.toLowerCase().includes('tpbank') || a.name.toLowerCase().includes('tpb'));
+      } else if (lower.includes('acb')) {
+        selectedAccount = accounts.find((a) => a.name.toLowerCase().includes('acb'));
+      } else if (lower.includes('ngân hàng') || lower.includes('vietin')) {
         selectedAccount = accounts.find((a) => a.type === 'bank');
       } else if (lower.includes('tiền mặt') || lower.includes('ví tiền')) {
         selectedAccount = accounts.find((a) => a.type === 'cash');
@@ -201,13 +228,13 @@ class AIService {
 
     // Keyword mapping
     if (type === 'expense') {
-      if (/(ăn|uống|phở|cơm|bún|trưa|tối|sáng|cà phê|cafe|trà|bánh|nhậu|lẩu|gà)/i.test(lower)) {
+      if (/(ăn|uống|phở|cơm|bún|trưa|tối|sáng|cà phê|cafe|trà|bánh|nhậu|lẩu|gà|highland|starbuck|phuc long)/i.test(lower)) {
         selectedCat = targetCats.find((c) => /ăn|uống|thực phẩm/i.test(c.name));
       } else if (/(xăng|xe|grab|be|taxi|gửi xe|rửa xe|vé xe|tàu)/i.test(lower)) {
         selectedCat = targetCats.find((c) => /đi lại|xăng|xe/i.test(c.name));
       } else if (/(nhà|tiền nhà|phòng|thuê nhà|điện|nước|mạng|internet|rác)/i.test(lower)) {
         selectedCat = targetCats.find((c) => /nhà|tiện ích|hóa đơn/i.test(c.name));
-      } else if (/(mua|áo|quần|giày|shopee|lazada|tiki|máy|điện thoại)/i.test(lower)) {
+      } else if (/(mua|áo|quần|giày|shopee|lazada|tiki|máy|điện thoại|winmart|coop|circle k|bách hóa)/i.test(lower)) {
         selectedCat = targetCats.find((c) => /mua sắm|tiêu dùng/i.test(c.name));
       } else if (/(thuốc|bệnh|khám|bác sĩ|viện|răng|gym)/i.test(lower)) {
         selectedCat = targetCats.find((c) => /sức khỏe|y tế/i.test(c.name));
@@ -240,13 +267,22 @@ class AIService {
 
     // Clean note: remove words like "momo", amount, etc.
     let note = raw;
-    if (match) {
-      note = note.replace(match[0], '').trim();
+    // Check if there is an explicit bank note like "ND: ...", "Nội dung: ...", "cho ..."
+    const ndMatch = raw.match(/(?:nd|nội dung|noi dung|lý do|ly do)\s*:\s*([^.;\n\r]+)/i);
+    const merchantMatch = raw.match(/(?:thanh toán|thanh toan)\s+(?:cho\s+)?([^.;\n\r]+)/i);
+    if (ndMatch && ndMatch[1].trim()) {
+      note = ndMatch[1].trim();
+    } else if (merchantMatch && merchantMatch[1].trim()) {
+      note = merchantMatch[1].trim();
+    } else {
+      if (amountMatch) {
+        note = note.replace(amountMatch[0], '').trim();
+      }
+      if (selectedAccount && selectedAccount.name) {
+        note = note.replace(new RegExp(selectedAccount.name, 'gi'), '').trim();
+      }
+      note = note.replace(/^(vừa|đã|mới|hôm nay|chi|tiêu|chuyển|nhận)\s+/i, '').trim();
     }
-    if (selectedAccount && selectedAccount.name) {
-      note = note.replace(new RegExp(selectedAccount.name, 'gi'), '').trim();
-    }
-    note = note.replace(/^(vừa|đã|mới|hôm nay|chi|tiêu|chuyển|nhận)\s+/i, '').trim();
     if (!note) {
       note = selectedCat?.name || (type === 'income' ? 'Khoản thu' : 'Khoản chi');
     }
@@ -290,20 +326,26 @@ class AIService {
         type: a.type,
       }));
 
-      const systemPrompt = `Bạn là Trợ lý AI Tài chính MoneyFlow chuyên bóc tách câu giao dịch tiếng Việt thành JSON có cấu trúc.
+      const systemPrompt = `Bạn là Trợ lý AI Tài chính MoneyFlow chuyên bóc tách câu giao dịch hoặc tin nhắn thông báo biến động số dư ngân hàng tiếng Việt thành JSON có cấu trúc.
 Hôm nay là: ${todayStr}.
 Danh sách danh mục hợp lệ: ${JSON.stringify(categoriesSummary)}
 Danh sách tài khoản hợp lệ: ${JSON.stringify(accountsSummary)}
 
 QUY TẮC PHÂN TÍCH:
-1. Xác định "type": "expense" (chi tiêu), "income" (thu nhập) hoặc "transfer" (chuyển tiền giữa các tài khoản).
-2. "amount": số tiền dạng số nguyên VND (VD: 45k -> 45000, 2tr/2m -> 2000000, 1.5tr -> 1500000).
-3. "categoryId": chọn id khớp nhất từ danh sách danh mục có type tương ứng.
-4. "accountId": chọn id khớp nhất từ danh sách tài khoản. Nếu không nói rõ tài khoản, ưu tiên tài khoản có nhiều số dư hoặc tài khoản tiền mặt/ngân hàng phổ biến.
-5. "toAccountId": chỉ dùng khi type là "transfer" (tài khoản nhận).
-6. "paymentMethod": 'cash'|'transfer'|'card'|'qr'|'ewallet'.
-7. "note": mô tả ngắn gọn nội dung chi tiêu bằng tiếng Việt (viết hoa chữ đầu, lược bỏ số tiền và tên tài khoản đã bóc tách).
-8. "date": định dạng YYYY-MM-DD. Nếu nói "hôm qua" thì lùi 1 ngày, nếu không nói gì thì dùng hôm nay.
+1. Xác định "type": "expense" (chi tiêu, tiền trừ -), "income" (thu nhập, tiền cộng +) hoặc "transfer" (chuyển tiền giữa các tài khoản).
+2. ĐẶC BIỆT XỬ LÝ TIN NHẮN BIẾN ĐỘNG SỐ DƯ NGÂN HÀNG (Vietcombank, MBBank, Techcombank, VPBank, ACB, Momo, ZaloPay...):
+   - Nếu tin nhắn có "GD: -xx" hoặc "-xx VND" hoặc thanh toán tiền -> "type": "expense".
+   - Nếu tin nhắn có "GD: +xx" hoặc "+xx VND" hoặc nhận tiền/lương -> "type": "income".
+   - Trích xuất ĐÚNG số tiền giao dịch, TUYỆT ĐỐI không lấy số dư sau giao dịch (sau chữ "Số dư" / "So du").
+   - Trích xuất nội dung chuyển khoản (sau "ND:" hoặc "Nội dung:" hoặc tên cửa hàng) để làm "note".
+   - Tự động nhận diện ngân hàng gửi tin nhắn để gán đúng "accountId".
+3. "amount": số tiền dạng số nguyên VND (VD: 45k -> 45000, 2tr/2m -> 2000000, 1.5tr -> 1500000).
+4. "categoryId": chọn id khớp nhất từ danh sách danh mục có type tương ứng.
+5. "accountId": chọn id khớp nhất từ danh sách tài khoản. Nếu không nói rõ tài khoản, ưu tiên tài khoản có nhiều số dư hoặc tài khoản tiền mặt/ngân hàng phổ biến.
+6. "toAccountId": chỉ dùng khi type là "transfer" (tài khoản nhận).
+7. "paymentMethod": 'cash'|'transfer'|'card'|'qr'|'ewallet'.
+8. "note": mô tả ngắn gọn nội dung chi tiêu bằng tiếng Việt (viết hoa chữ đầu, lược bỏ số tiền và tên tài khoản đã bóc tách).
+9. "date": định dạng YYYY-MM-DD. Nếu nói "hôm qua" thì lùi 1 ngày, nếu không nói gì thì dùng hôm nay.
 
 CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TRÚC SAU (Không viết thêm bất kỳ lời giải thích nào ngoài JSON):
 {
@@ -351,6 +393,98 @@ CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TR�
       console.warn('Gemini AI parse failed, falling back to local heuristics:', err);
       return this.parseWithLocalHeuristics(text, categories, accounts);
     }
+  }
+
+  // 4b. Receipt / Bill Image Scanner via Gemini Vision
+  async parseReceiptImage(
+    base64Data: string,
+    mimeType: string,
+    categories: Category[],
+    accounts: Account[]
+  ): Promise<ParsedTransactionAI> {
+    const key = this.getApiKey();
+    if (!key) {
+      throw new Error('Bạn cần nhập Google Gemini API Key để sử dụng tính năng bóc tách ảnh hóa đơn.');
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const categoriesSummary = categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+    }));
+    const accountsSummary = accounts.map((a) => ({
+      id: a.id,
+      name: a.name,
+      type: a.type,
+    }));
+
+    const systemPrompt = `Bạn là Trợ lý AI Tài chính MoneyFlow chuyên nhận diện ảnh chụp Hóa đơn (Bill / Receipt / Siêu thị / Quán ăn) hoặc Ảnh chụp màn hình chuyển khoản ngân hàng Việt Nam.
+Hôm nay là: ${todayStr}.
+Danh sách danh mục có sẵn: ${JSON.stringify(categoriesSummary)}
+Danh sách tài khoản có sẵn: ${JSON.stringify(accountsSummary)}
+
+QUY TẮC NHẬN DIỆN:
+1. Đọc kỹ hình ảnh hóa đơn hoặc biên lai chuyển khoản.
+2. Tìm số TỔNG TIỀN thanh toán thực tế (Total / Tổng cộng / Thành tiền / Số tiền giao dịch). Dạng số nguyên VND (VD: 150000).
+3. "type": Đa số hóa đơn là "expense" (chi tiêu). Nếu là biên lai nhận tiền/cộng tiền thì là "income".
+4. "date": Lấy ngày trên hóa đơn định dạng YYYY-MM-DD. Nếu không thấy hoặc mờ, dùng ngày hôm nay (${todayStr}).
+5. "note": Tên ngắn gọn của nơi mua sắm hoặc dịch vụ (VD: "Hóa đơn WinMart", "Cà phê Highland", "Ăn nhà hàng", "Chuyển khoản Grab",...).
+6. "categoryId": Chọn danh mục khớp nhất từ danh sách danh mục (VD: Ăn uống, Mua sắm, Đi lại,...).
+7. "accountId": Chọn tài khoản phù hợp nhất từ danh sách tài khoản (nếu hóa đơn ghi trả tiền mặt -> tiền mặt; quẹt thẻ/chuyển khoản/momo -> ngân hàng/momo).
+8. "paymentMethod": 'cash'|'transfer'|'card'|'qr'|'ewallet'.
+
+CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TRÚC SAU (Không viết thêm chữ nào ngoài JSON):
+{
+  "type": "expense" | "income" | "transfer",
+  "amount": number,
+  "categoryId": string,
+  "categoryName": string,
+  "accountId": string,
+  "accountName": string,
+  "toAccountId": null,
+  "toAccountName": null,
+  "note": string,
+  "paymentMethod": "cash" | "transfer" | "card" | "qr" | "ewallet",
+  "date": "YYYY-MM-DD",
+  "confidence": number,
+  "explanation": string
+}`;
+
+    const cleanBase64 = base64Data.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+
+    const resData = await callGeminiAPI(key, {
+      contents: [
+        {
+          parts: [
+            {
+              inline_data: {
+                mime_type: mimeType || 'image/jpeg',
+                data: cleanBase64,
+              },
+            },
+            {
+              text: systemPrompt,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const rawJson = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawJson) {
+      throw new Error('AI không đọc được nội dung trên hóa đơn. Vui lòng chụp rõ nét hơn!');
+    }
+
+    const parsed: ParsedTransactionAI = JSON.parse(rawJson);
+    return {
+      ...parsed,
+      confidence: parsed.confidence || 0.95,
+    };
   }
 
   // 5. Conversational Financial Advisor Q&A

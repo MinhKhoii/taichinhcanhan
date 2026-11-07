@@ -25,6 +25,8 @@ import {
   KeyRound,
   Settings as SettingsIcon,
   Sparkles,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { formatDateVN, getNameInitials } from '../../utils/formatters';
 import { useModalEscape } from '../../hooks/useModalEscape';
@@ -50,6 +52,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     setCurrentTab,
     theme,
     toggleTheme,
+    isPrivacyMode,
+    togglePrivacyMode,
     isCloudConfigured,
     isCloudSyncing,
     syncToCloud,
@@ -371,6 +375,25 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
             </div>
           )}
         </div>
+
+        {/* Privacy Mode Toggle (Ẩn số tiền) */}
+        <button
+          type="button"
+          onClick={togglePrivacyMode}
+          className={`p-1.5 sm:p-2 rounded-xl border transition-all cursor-pointer shrink-0 ${
+            isPrivacyMode
+              ? 'bg-amber-50 text-amber-600 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+              : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+          }`}
+          title={isPrivacyMode ? 'Đang ẩn số dư riêng tư (Bấm để hiện số)' : 'Ẩn số dư riêng tư (Chống nhìn lén)'}
+          aria-label="Chế độ riêng tư"
+        >
+          {isPrivacyMode ? (
+            <EyeOff className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400" />
+          ) : (
+            <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-400" />
+          )}
+        </button>
 
         {/* Dark / Light Mode Toggle Button (Desktop & Tablet) */}
         <button
