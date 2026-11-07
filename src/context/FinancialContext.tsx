@@ -106,7 +106,7 @@ interface FinancialContextType {
   toggleRecurringItem: (id: string) => void;
   checkAndProcessRecurring: () => void;
   processDailyYield: () => number;
-  forceCalculateYield: (accountId: string) => { success: boolean; amount: number; message: string };
+  forceCalculateYield: (accountId: string, forceToday?: boolean) => { success: boolean; amount: number; message: string; alreadyDoneToday?: boolean };
 
   createDebt: (
     data: Omit<DebtItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
@@ -581,8 +581,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return dataService.processDailyYield();
   };
 
-  const forceCalculateYield = (accountId: string) => {
-    const res = dataService.forceCalculateYield(accountId);
+  const forceCalculateYield = (accountId: string, forceToday?: boolean) => {
+    const res = dataService.forceCalculateYield(accountId, forceToday);
     if (res.success) {
       showToast(res.message, 'success');
     } else {

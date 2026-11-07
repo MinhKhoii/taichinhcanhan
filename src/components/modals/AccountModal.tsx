@@ -77,6 +77,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     }
     const balance = parseInt(balanceStr || '0', 10);
     const parsedYieldRate = isYieldEnabled ? Math.max(0.1, Number(yieldRate) || 4.0) : undefined;
+    const todayStr = new Date().toISOString().split('T')[0];
 
     if (editingAccount) {
       updateAccount(editingAccount.id, {
@@ -89,6 +90,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         icon,
         isYieldEnabled,
         yieldRate: parsedYieldRate,
+        lastYieldDate: isYieldEnabled ? (editingAccount.lastYieldDate || todayStr) : undefined,
       });
     } else {
       createAccount({
@@ -102,6 +104,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         icon,
         isYieldEnabled,
         yieldRate: parsedYieldRate,
+        lastYieldDate: isYieldEnabled ? todayStr : undefined,
       });
     }
     onClose();
@@ -259,6 +262,9 @@ export const AccountModal: React.FC<AccountModalProps> = ({
 
             {isYieldEnabled && (
               <div className="pt-3 border-t border-pink-100/80 space-y-3 animate-in fade-in duration-200">
+                <div className="p-2.5 rounded-xl bg-pink-100/70 border border-pink-200/80 text-3xs text-pink-900 leading-relaxed">
+                  📅 <strong>Quy tắc MoMo:</strong> Tiền gửi hoặc số dư nạp hôm nay sẽ được chốt sổ. Hệ thống sẽ <strong>tự động sinh lời và cộng dồn vào ví từ ngày mai</strong> (tránh tự cộng trùng ngay trong ngày nạp).
+                </div>
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-semibold text-slate-700">

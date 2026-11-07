@@ -233,8 +233,33 @@ export class DataService {
       }
     }
 
+    // 1b. Dọn dẹp nếu có nhiều giao dịch sinh lời bị cộng lặp cho cùng 1 ví trong ngày hôm nay
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (db.transactions) {
+      const seenYieldAccs = new Set<string>();
+      const beforeCount = db.transactions.length;
+      db.transactions = db.transactions.filter((t) => {
+        const isYield = t.date === todayStr && (t.note?.includes('[Tự động sinh lời]') || t.note?.includes('Sinh lời'));
+        if (isYield) {
+          if (seenYieldAccs.has(t.accountId)) {
+            return false;
+          }
+          seenYieldAccs.add(t.accountId);
+        }
+        return true;
+      });
+      if (db.transactions.length !== beforeCount) {
+        changed = true;
+      }
+    }
+
     // 2. Phục hồi và chuẩn hóa số dư cho từng tài khoản
     for (const acc of db.accounts) {
+      // Đảm bảo các ví sinh lời được chốt ngày hôm nay để ngày mai mới bắt đầu sinh lời
+      if (acc.isYieldEnabled && !acc.lastYieldDate) {
+        acc.lastYieldDate = todayStr;
+        changed = true;
+      }
       // Tính net giao dịch thực tế
       let txSum = 0;
       if (db.transactions) {
@@ -1381,8 +1406,15 @@ export class DataService {
         return;
       }
 
-      // Kiểm tra nếu hôm nay đã tính lãi rồi thì bỏ qua
-      if (acc.lastYieldDate === todayStr) {
+      // Nếu ví mới tạo hoặc vừa bật sinh lời mà chưa có ngày chốt:
+      // Đánh dấu ngày hôm nay là ngày chốt tiền gửi, ngày mai mới bắt đầu sinh lời (chuẩn quy tắc MoMo)
+      if (!acc.lastYieldDate) {
+        acc.lastYieldDate = todayStr;
+        return;
+      }
+
+      // Kiểm tra nếu hôm nay đã tính lãi rồi (hoặc ví mới nạp hôm nay) thì bỏ qua
+      if (acc.lastYieldDate >= todayStr) {
         return;
       }
 
@@ -1439,18 +1471,32 @@ export class DataService {
   /**
    * Kích hoạt tính tiền lời ngay cho một ví tích lũy (dành cho người dùng muốn thử nghiệm hoặc kiểm tra ngay)
    */
-  public forceCalculateYield(accountId: string): { success: boolean; amount: number; message: string } {
+  public forceCalculateYield(accountId: string, forceToday = false): { success: boolean; amount: number; message: string; alreadyDoneToday?: boolean } {
     const acc = this.db.accounts.find((a) => a.id === accountId);
     if (!acc) return { success: false, amount: 0, message: 'Không tìm thấy tài khoản/ví này' };
     if (!acc.isYieldEnabled) return { success: false, amount: 0, message: 'Tài khoản chưa bật tính năng tích lũy sinh lời hàng ngày' };
     if (acc.balance <= 0) return { success: false, amount: 0, message: 'Số dư hiện tại phải lớn hơn 0 để tính lãi' };
 
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    // Kiểm tra xem ví này hôm nay đã nhận tiền lời chưa
+    const hasYieldToday = this.db.transactions.some(
+      (t) => t.date === todayStr && t.accountId === acc.id && (t.note?.includes('[Tự động sinh lời]') || t.note?.includes('Sinh lời'))
+    );
+
+    if ((acc.lastYieldDate === todayStr || hasYieldToday) && !forceToday) {
+      return {
+        success: false,
+        amount: 0,
+        alreadyDoneToday: true,
+        message: `Ví "${acc.name}" hôm nay đã được chốt số dư rồi! Theo quy tắc MoMo (nạp hôm nay, nhận lãi ngày mai), tiền lời tiếp theo sẽ tự động cộng vào ngày mai.`,
+      };
+    }
+
     const rate = acc.yieldRate || 4.0;
     const dailyYield = Math.round((acc.balance * (rate / 100)) / 365);
     if (dailyYield < 1) return { success: false, amount: 0, message: 'Số dư quá nhỏ để sinh lời tối thiểu 1 ₫/ngày' };
-
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     let investCategory = this.db.categories.find(
       (c) => c.id === 'cat_inc_invest' || c.name.toLowerCase().includes('lãi') || c.name.toLowerCase().includes('tiết kiệm')
