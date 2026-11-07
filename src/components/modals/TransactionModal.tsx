@@ -4,7 +4,7 @@ import { useFinancial } from '../../context/FinancialContext';
 import { TransactionType, PaymentMethod } from '../../types';
 import { X, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Check, Calendar, CreditCard, Tag, Wallet, Sparkles, FileText } from 'lucide-react';
 import { DynamicIcon } from '../common/DynamicIcon';
-import { formatVND, getReadableVNDWords } from '../../utils/formatters';
+import { formatVND, getReadableVNDWords, getDefaultPaymentMethodForAccount } from '../../utils/formatters';
 import { useModalEscape } from '../../hooks/useModalEscape';
 
 export const TransactionModal: React.FC = () => {
@@ -46,7 +46,8 @@ export const TransactionModal: React.FC = () => {
       setAccountId(defaultAcc?.id || '');
       const otherAcc = accounts.find((a) => a.id !== defaultAcc?.id) || accounts[0];
       setToAccountId(otherAcc?.id || '');
-      setPaymentMethod('cash');
+      // Tự động gán phương thức thanh toán tương ứng với loại tài khoản (ngân hàng -> chuyển khoản, MoMo -> ví điện tử, tiền mặt -> tiền mặt)
+      setPaymentMethod(getDefaultPaymentMethodForAccount(defaultAcc));
       setNote('');
       // Default to first expense category
       const firstExp = categories.find((c) => c.type === 'expense');
@@ -285,7 +286,13 @@ export const TransactionModal: React.FC = () => {
               </label>
               <select
                 value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setAccountId(newId);
+                  const selectedAcc = accounts.find((a) => a.id === newId);
+                  // Tự động đồng bộ phương thức thanh toán tương ứng với loại tài khoản được chọn
+                  setPaymentMethod(getDefaultPaymentMethodForAccount(selectedAcc));
+                }}
                 className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 {accounts.map((a) => (

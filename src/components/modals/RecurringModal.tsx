@@ -18,7 +18,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { QuickAmountInput } from '../common/QuickAmountInput';
-import { formatVND } from '../../utils/formatters';
+import { formatVND, getDefaultPaymentMethodForAccount } from '../../utils/formatters';
 import { useModalEscape } from '../../hooks/useModalEscape';
 
 interface RecurringModalProps {
@@ -438,7 +438,12 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
                 </label>
                 <select
                   value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    setAccountId(newId);
+                    const selectedAcc = accounts.find((a) => a.id === newId);
+                    setPaymentMethod(getDefaultPaymentMethodForAccount(selectedAcc));
+                  }}
                   className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
                 >
                   {accounts.map((a) => (

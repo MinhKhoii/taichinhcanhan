@@ -1,5 +1,6 @@
 import { format, parseISO, isValid } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { Account, PaymentMethod } from '../types';
 
 /**
  * Format currency in Vietnamese Dong (VND)
@@ -148,4 +149,70 @@ export function getRelationshipIcon(rel?: string): string {
   if (lower.includes('đối tác') || lower.includes('khách hàng')) return '💼';
   return '👤';
 }
+
+/**
+ * Tự động xác định phương thức thanh toán phù hợp với tài khoản:
+ * - Tài khoản ngân hàng / tiết kiệm -> 'transfer' (Chuyển khoản)
+ * - Ví điện tử (MoMo, ZaloPay, ...) -> 'ewallet' (Ví điện tử)
+ * - Tiền mặt ví cá nhân -> 'cash' (Tiền mặt)
+ * - Thẻ tín dụng / ghi nợ -> 'card' (Thẻ tín dụng / ghi nợ)
+ */
+export function getDefaultPaymentMethodForAccount(acc?: Account | null): PaymentMethod {
+  if (!acc) return 'cash';
+
+  // 1. Kiểm tra theo thuộc tính type
+  if (acc.type === 'ewallet') return 'ewallet';
+  if (acc.type === 'bank' || acc.type === 'savings' || acc.type === 'investment') return 'transfer';
+  if (acc.type === 'cash') return 'cash';
+
+  // 2. Kiểm tra theo tên tài khoản hoặc tên ngân hàng
+  const nameLower = (acc.name || '').toLowerCase();
+  const bankLower = (acc.bankName || '').toLowerCase();
+
+  if (
+    nameLower.includes('thẻ') ||
+    nameLower.includes('credit') ||
+    nameLower.includes('debit') ||
+    nameLower.includes('visa') ||
+    nameLower.includes('mastercard')
+  ) {
+    return 'card';
+  }
+
+  if (
+    nameLower.includes('momo') ||
+    nameLower.includes('zalopay') ||
+    nameLower.includes('zalo') ||
+    nameLower.includes('viettel') ||
+    nameLower.includes('shopee')
+  ) {
+    return 'ewallet';
+  }
+
+  if (
+    bankLower ||
+    nameLower.includes('bank') ||
+    nameLower.includes('ngân hàng') ||
+    nameLower.includes('vietin') ||
+    nameLower.includes('vcb') ||
+    nameLower.includes('mb') ||
+    nameLower.includes('techcom') ||
+    nameLower.includes('bidv') ||
+    nameLower.includes('acb') ||
+    nameLower.includes('tpbank')
+  ) {
+    return 'transfer';
+  }
+
+  if (
+    nameLower.includes('tiền mặt') ||
+    nameLower.includes('ví cá nhân') ||
+    nameLower.includes('bóp')
+  ) {
+    return 'cash';
+  }
+
+  return 'transfer';
+}
+
 
