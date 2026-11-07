@@ -18,6 +18,7 @@ import {
   Sun,
   Moon,
   Cloud,
+  RefreshCw,
   LogOut,
   User as UserIcon,
   Lock,
@@ -49,6 +50,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     theme,
     toggleTheme,
     isCloudConfigured,
+    isCloudSyncing,
+    syncToCloud,
     isAuthenticated,
     openAuthModal,
     logout,
@@ -140,21 +143,52 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           <div className="flex items-center space-x-2">
             <p className="text-xs font-medium text-slate-400">Xin chào trở lại,</p>
             {isCloudConfigured && (
-              <span
-                className="inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                title="Hệ thống tự động sao lưu & đồng bộ liên tục với Supabase Cloud"
+              <button
+                type="button"
+                onClick={() => syncToCloud()}
+                disabled={isCloudSyncing}
+                className={`inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                  isCloudSyncing
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                }`}
+                title={isCloudSyncing ? 'Hệ thống đang tự động đồng bộ dữ liệu với Cloud...' : 'Cloud đã đồng bộ tự động. Bấm để đồng bộ tức thì'}
               >
-                <Cloud className="w-3 h-3 text-emerald-500" />
-                <span>Cloud Sync</span>
-              </span>
+                {isCloudSyncing ? (
+                  <RefreshCw className="w-3 h-3 text-blue-600 dark:text-blue-400 animate-spin" />
+                ) : (
+                  <Cloud className="w-3 h-3 text-emerald-500" />
+                )}
+                <span>{isCloudSyncing ? 'Đang đồng bộ...' : 'Cloud Synced'}</span>
+              </button>
             )}
           </div>
-          <h2 className="text-base font-semibold text-slate-800 line-clamp-1">{user.fullName}</h2>
+          <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100 line-clamp-1">{user.fullName}</h2>
         </div>
 
-        {/* Mobile Brand Title on left */}
+        {/* Mobile Brand Title & Auto-Cloud status */}
         <div className="sm:hidden flex items-center space-x-1.5">
-          <span className="text-sm font-bold tracking-tight text-slate-800 hidden min-[370px]:inline">MoneyFlow</span>
+          <span className="text-sm font-bold tracking-tight text-slate-800 dark:text-slate-100 hidden min-[370px]:inline">MoneyFlow</span>
+          {isCloudConfigured && (
+            <button
+              type="button"
+              onClick={() => syncToCloud()}
+              disabled={isCloudSyncing}
+              className={`inline-flex items-center gap-1 text-3xs font-semibold px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
+                isCloudSyncing
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 active:scale-95 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+              }`}
+              title={isCloudSyncing ? 'Đang tự động đồng bộ với Cloud...' : 'Bấm để đồng bộ Cloud'}
+            >
+              {isCloudSyncing ? (
+                <RefreshCw className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 animate-spin" />
+              ) : (
+                <Cloud className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+              )}
+              <span className="text-3xs">{isCloudSyncing ? 'Đồng bộ...' : 'Cloud'}</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -130,6 +130,8 @@ interface FinancialContextType {
 
   // Cloud Sync
   isCloudConfigured: boolean;
+  isCloudSyncing: boolean;
+  lastCloudSyncTime: string;
   syncToCloud: () => Promise<{ success: boolean; message: string }>;
   pullFromCloud: () => Promise<{ success: boolean; message: string }>;
 
@@ -515,27 +517,98 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Cloud Sync
   const isCloudConfigured = dataService.isCloudConfigured();
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>(
+    () => localStorage.getItem('moneyflow_last_cloud_sync_at') || ''
+  );
 
   const syncToCloud = async () => {
-    const result = await dataService.syncToSupabase();
-    if (result.success) {
-      showToast(result.message, 'success');
-    } else {
-      showToast(result.message, 'error');
+    setIsCloudSyncing(true);
+    try {
+      const result = await dataService.syncToSupabase();
+      if (result.success) {
+        const now = new Date().toISOString();
+        setLastCloudSyncTime(now);
+        showToast(result.message, 'success');
+      } else {
+        showToast(result.message, 'error');
+      }
+      return result;
+    } finally {
+      setIsCloudSyncing(false);
     }
-    return result;
   };
 
   const pullFromCloud = async () => {
-    const result = await dataService.pullFromSupabase();
-    if (result.success) {
-      syncState();
-      showToast(result.message, 'success');
-    } else {
-      showToast(result.message, 'error');
+    setIsCloudSyncing(true);
+    try {
+      const result = await dataService.pullFromSupabase();
+      if (result.success) {
+        syncState();
+        const now = new Date().toISOString();
+        setLastCloudSyncTime(now);
+        showToast(result.message, 'success');
+      } else {
+        showToast(result.message, 'error');
+      }
+      return result;
+    } finally {
+      setIsCloudSyncing(false);
     }
-    return result;
   };
+
+  // TỰ ĐỘNG ĐỒNG BỘ 2 CHIỀU VỚI CLOUD SUPABASE (ĐIỆN THOẠI & MÁY TÍNH TỰ CẬP NHẬT TỨC THÌ)
+  useEffect(() => {
+    if (!isCloudConfigured) return;
+
+    const performAutoPull = async (silent = true) => {
+      try {
+        setIsCloudSyncing(true);
+        const res = await dataService.autoPullFromSupabase();
+        if (res.updated) {
+          syncState();
+          const syncTime = localStorage.getItem('moneyflow_last_cloud_sync_at') || new Date().toISOString();
+          setLastCloudSyncTime(syncTime);
+          if (!silent) {
+            showToast('☁️ Đã tự động đồng bộ dữ liệu mới nhất từ Cloud!', 'info');
+          }
+        }
+      } catch (err) {
+        console.warn('Auto cloud sync notice:', err);
+      } finally {
+        setIsCloudSyncing(false);
+      }
+    };
+
+    // 1. Tự động kiểm tra và kéo dữ liệu mới nhất ngay khi mở app
+    performAutoPull(true);
+
+    // 2. Tự động đồng bộ mỗi khi người dùng mở lại điện thoại hoặc quay lại tab này
+    let lastCheck = 0;
+    const handleVisibilityOrFocus = () => {
+      const now = Date.now();
+      if (document.visibilityState === 'visible' && now - lastCheck > 8000) {
+        lastCheck = now;
+        performAutoPull(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+
+    // 3. Định kỳ kiểm tra ngầm mỗi 30 giây nếu đang mở app
+    const intervalTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        handleVisibilityOrFocus();
+      }
+    }, 30000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      clearInterval(intervalTimer);
+    };
+  }, [isCloudConfigured, syncState]);
 
   // Recurring Items
   const saveRecurringItem = (
@@ -859,6 +932,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         autoOffsetAllNegativeAccounts,
         recalculateAccountBalances,
         isCloudConfigured,
+        isCloudSyncing,
+        lastCloudSyncTime,
         syncToCloud,
         pullFromCloud,
         theme,

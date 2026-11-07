@@ -31,6 +31,7 @@ import {
   CheckCircle2,
   ChevronDown,
   FileSpreadsheet,
+  Sparkles,
 } from 'lucide-react';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { dataService } from '../services/dataService';
@@ -1364,6 +1365,16 @@ export const SettingsPage: React.FC = () => {
                     <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
                       Bảo mật RLS Cấp Hàng
                     </span>
+                  </div>
+
+                  <div className="p-2.5 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-emerald-200/60 dark:border-emerald-900/40 text-2xs text-slate-600 dark:text-slate-300 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Tự động đồng bộ 2 chiều (Real-time Cloud Sync)</span>
+                    </div>
+                    <p className="text-3xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      Khi mở app trên điện thoại hoặc máy tính, hệ thống sẽ <strong>tự động kéo dữ liệu mới nhất ngầm từ Cloud</strong> mà không cần bạn phải thao tác. Khi thêm/sửa giao dịch, hệ thống sẽ tự động sao lưu lên Cloud.
+                    </p>
                   </div>
 
                   <div className="flex items-center space-x-2 flex-wrap gap-y-2 pt-1">

@@ -397,11 +397,13 @@ export class DataService {
       } catch (err) {
         console.warn('Auto cloud sync notice:', err);
       }
-    }, 2500);
+    }, 1500);
   }
 
   private saveState(): void {
     try {
+      const nowIso = new Date().toISOString();
+      localStorage.setItem('moneyflow_last_local_updated_at', nowIso);
       const key = this.getStorageKey();
       localStorage.setItem(key, JSON.stringify(this.db));
 
@@ -951,6 +953,7 @@ export class DataService {
 
       const effectiveUserId = supaUserId || this.db.user.id || 'usr_default';
       const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
+      const nowIso = new Date().toISOString();
 
       const { error } = await supabase
         .from('cloud_backups')
@@ -962,10 +965,10 @@ export class DataService {
             user: {
               ...this.db.user,
               id: effectiveUserId,
-              updatedAt: new Date().toISOString(),
+              updatedAt: nowIso,
             },
           },
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
         });
 
       // Cập nhật hàng mặc định nếu là tài khoản chính Khôi
@@ -977,7 +980,7 @@ export class DataService {
               id: 'moneyflow_cloud_state',
               user_id: effectiveUserId,
               data: this.db,
-              updated_at: new Date().toISOString(),
+              updated_at: nowIso,
             });
         } catch {}
       }
@@ -997,6 +1000,9 @@ export class DataService {
         }
         return { success: false, message: `Lỗi Supabase: ${error.message}` };
       }
+
+      localStorage.setItem('moneyflow_last_local_updated_at', nowIso);
+      localStorage.setItem('moneyflow_last_cloud_sync_at', nowIso);
       return { success: true, message: 'Đồng bộ toàn bộ dữ liệu lên Supabase Cloud thành công!' };
     } catch (e: any) {
       return { success: false, message: `Lỗi kết nối: ${e.message || e}` };
@@ -1054,13 +1060,77 @@ export class DataService {
 
       if (data && data.data) {
         this.db = data.data;
-        this.recalculateAccountBalances();
-        this.saveState();
-        return { success: true, message: 'Khôi phục dữ liệu từ Supabase Cloud thành công!' };
+        this.healAccountsState(this.db);
+        const key = this.getStorageKey();
+        localStorage.setItem(key, JSON.stringify(this.db));
+        const syncTime = data.updated_at || new Date().toISOString();
+        localStorage.setItem('moneyflow_last_local_updated_at', syncTime);
+        localStorage.setItem('moneyflow_last_cloud_sync_at', syncTime);
+        this.notifyListeners();
+        return { success: true, message: 'Đồng bộ dữ liệu từ Supabase Cloud thành công!' };
       }
       return { success: false, message: 'Dữ liệu trên Cloud rỗng!' };
     } catch (e: any) {
       return { success: false, message: `Lỗi kết nối: ${e.message || e}` };
+    }
+  }
+
+  /**
+   * Tự động kiểm tra và tải bản dữ liệu mới nhất từ Supabase Cloud về máy (nếu trên Cloud mới hơn máy này)
+   */
+  public async autoPullFromSupabase(): Promise<{ updated: boolean; message?: string }> {
+    if (!supabase || !isSupabaseConfigured) {
+      return { updated: false };
+    }
+
+    const userEmail = (this.db.user.email || 'default').toLowerCase().trim();
+
+    try {
+      let supaUserId: string | null = null;
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data && data.user) {
+          supaUserId = data.user.id;
+        }
+      } catch {}
+
+      const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
+
+      // 1. Kiểm tra nhanh updated_at trên Cloud
+      let cloudRes = await supabase
+        .from('cloud_backups')
+        .select('updated_at')
+        .eq('id', backupId)
+        .single();
+
+      if (cloudRes.error && (userEmail.includes('minhkhoj') || userEmail.includes('khoi'))) {
+        cloudRes = await supabase
+          .from('cloud_backups')
+          .select('updated_at')
+          .eq('id', 'moneyflow_cloud_state')
+          .single();
+      }
+
+      if (cloudRes.error || !cloudRes.data?.updated_at) {
+        return { updated: false };
+      }
+
+      const cloudTime = new Date(cloudRes.data.updated_at).getTime();
+      const localTimeStr = localStorage.getItem('moneyflow_last_local_updated_at');
+      const localTime = localTimeStr ? new Date(localTimeStr).getTime() : 0;
+
+      // Nếu trên Cloud mới hơn dữ liệu trên máy hiện tại ít nhất 2 giây:
+      if (cloudTime > localTime + 2000) {
+        const pullRes = await this.pullFromSupabase();
+        if (pullRes.success) {
+          return { updated: true, message: 'Đã tự động đồng bộ dữ liệu mới nhất từ Cloud!' };
+        }
+      }
+
+      return { updated: false };
+    } catch (e) {
+      console.warn('Auto cloud pull notice:', e);
+      return { updated: false };
     }
   }
 

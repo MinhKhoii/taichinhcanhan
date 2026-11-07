@@ -18,6 +18,10 @@ export default defineConfig({
     tailwindcss(),
   ],
 
+  define: {
+    __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
+
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
