@@ -11,6 +11,8 @@ interface QuickAmountInputProps {
   className?: string;
   presets?: { label: string; value: number }[];
   addChips?: { label: string; value: number }[];
+  maxSuggestion?: number;
+  hideSuggestions?: boolean;
 }
 
 export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
@@ -36,12 +38,19 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
     { label: '+500k', value: 500000 },
     { label: '+1 Tr', value: 1000000 },
   ],
+  maxSuggestion,
+  hideSuggestions = false,
 }) => {
+  const [hasUserTyped, setHasUserTyped] = React.useState(false);
   const numValue = parseInt(value.replace(/[^0-9]/g, '') || '0', 10);
   const readableWords = getReadableVNDWords(numValue);
   const smartSuggestions = getSmartAmountSuggestions(numValue);
+  const filteredSuggestions = maxSuggestion
+    ? smartSuggestions.filter((s) => s.amount <= maxSuggestion)
+    : smartSuggestions;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setHasUserTyped(true);
     const rawVal = e.target.value;
     const quickParsed = parseQuickAmountInput(rawVal);
     if (quickParsed !== null && (rawVal.toLowerCase().includes('k') || rawVal.toLowerCase().includes('tr') || rawVal.toLowerCase().includes('m'))) {
@@ -54,20 +63,24 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
   };
 
   const setPreset = (val: number) => {
+    setHasUserTyped(true);
     onChange(val.toString());
   };
 
   const multiplyAmount = (factor: number) => {
     if (numValue > 0) {
+      setHasUserTyped(true);
       onChange((numValue * factor).toString());
     }
   };
 
   const addAmount = (val: number) => {
+    setHasUserTyped(true);
     onChange((numValue + val).toString());
   };
 
   const resetAmount = () => {
+    setHasUserTyped(false);
     onChange('0');
   };
 
@@ -114,8 +127,8 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
         </div>
       )}
 
-      {/* SMART BANKING SUGGESTIONS - CHỈ HIỆN KHI ĐÃ GÕ SỐ (ĐỒNG BỘ 100% GIAO DIỆN VỚI TRANSACTION MODAL) */}
-      {numValue > 0 && (
+      {/* SMART BANKING SUGGESTIONS - CHỈ HIỆN KHI NGƯỜI DÙNG CHỦ ĐỘNG GÕ SỐ (ĐỒNG BỘ 100% VỚI TRANSACTION MODAL) */}
+      {!hideSuggestions && hasUserTyped && numValue > 0 && (filteredSuggestions.length > 0 || (maxSuggestion ? numValue * 1000 <= maxSuggestion : numValue < 10000000)) && (
         <div className="pt-2.5 mt-1 border-t border-slate-200/70 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
           {/* Header row with Reset */}
           <div className="flex items-center justify-between px-0.5">
@@ -135,7 +148,7 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
 
           {/* Suggestion Chips */}
           <div className="flex items-center flex-wrap gap-1.5">
-            {smartSuggestions.map((item) => {
+            {filteredSuggestions.map((item) => {
               const isSelected = numValue === item.amount;
               return (
                 <button
@@ -165,25 +178,25 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
             })}
 
             {/* Quick Multipliers */}
-            {numValue < 10000000 && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => multiplyAmount(1000)}
-                  className="px-2.5 py-1.5 text-xs font-extrabold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
-                  title="Thêm 3 số 0 (Nhân 1.000đ)"
-                >
-                  +000
-                </button>
-                <button
-                  type="button"
-                  onClick={() => multiplyAmount(1000000)}
-                  className="px-2.5 py-1.5 text-xs font-extrabold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
-                  title="Thêm 6 số 0 (Nhân 1.000.000đ)"
-                >
-                  +000.000
-                </button>
-              </>
+            {numValue < 10000000 && (!maxSuggestion || numValue * 1000 <= maxSuggestion) && (
+              <button
+                type="button"
+                onClick={() => multiplyAmount(1000)}
+                className="px-2.5 py-1.5 text-xs font-extrabold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+                title="Thêm 3 số 0 (Nhân 1.000đ)"
+              >
+                +000
+              </button>
+            )}
+            {numValue < 10000000 && (!maxSuggestion || numValue * 1000000 <= maxSuggestion) && (
+              <button
+                type="button"
+                onClick={() => multiplyAmount(1000000)}
+                className="px-2.5 py-1.5 text-xs font-extrabold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+                title="Thêm 6 số 0 (Nhân 1.000.000đ)"
+              >
+                +000.000
+              </button>
             )}
           </div>
         </div>

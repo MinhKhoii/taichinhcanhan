@@ -34,7 +34,8 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
 }) => {
   const { accounts, recordDebtPayment, showToast } = useFinancial();
 
-  const [amountStr, setAmountStr] = useState('500000');
+  // Khởi tạo rỗng '' giống hệt TransactionModal (chỉ khi người dùng gõ số thì mới hiện gợi ý)
+  const [amountStr, setAmountStr] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [balanceAction, setBalanceAction] = useState<DebtBalanceAction>(
@@ -45,15 +46,8 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
   useEffect(() => {
     if (debt) {
       setBalanceAction(debt.type === 'lend' ? 'credit' : 'debit');
-      const rem = Math.max(0, debt.totalAmount - debt.paidAmount);
-      // Gợi ý số tiền phù hợp: nếu còn ít (<=500k) thì đề xuất trả hết, nếu nhiều thì gợi ý đợt nhỏ 500k hoặc 1Tr
-      if (rem <= 500000) {
-        setAmountStr(rem.toString());
-      } else if (rem <= 2000000) {
-        setAmountStr('500000');
-      } else {
-        setAmountStr('1000000');
-      }
+      // Bắt đầu rỗng như bên Thêm chi tiêu để không tự động hiện gợi ý thừa
+      setAmountStr('');
       const preferredAcc =
         accounts.find((a) => a.id === debt.accountId) ||
         accounts.find((a) => a.balance > 0) ||
@@ -236,21 +230,8 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
               label=""
               value={amountStr}
               onChange={setAmountStr}
-              presets={[
-                { label: '100k', value: 100000 },
-                { label: '200k', value: 200000 },
-                { label: '500k', value: 500000 },
-                { label: '1 Tr', value: 1000000 },
-                { label: '2 Tr', value: 2000000 },
-                { label: 'Tất toán', value: remaining },
-              ]}
-              addChips={[
-                { label: '+50k', value: 50000 },
-                { label: '+100k', value: 100000 },
-                { label: '+200k', value: 200000 },
-                { label: '+500k', value: 500000 },
-                { label: '+1 Tr', value: 1000000 },
-              ]}
+              maxSuggestion={remaining}
+              hideSuggestions={isPayingFull}
             />
           </div>
 

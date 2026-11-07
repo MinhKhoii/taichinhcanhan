@@ -782,6 +782,15 @@ export class DataService {
       }
     }
 
+    // Lưu ID vào danh sách đã xóa để khi đồng bộ Cloud không bị kéo lại
+    try {
+      const deletedIds = JSON.parse(localStorage.getItem('moneyflow_deleted_tx_ids') || '[]');
+      if (!deletedIds.includes(id)) {
+        deletedIds.push(id);
+        localStorage.setItem('moneyflow_deleted_tx_ids', JSON.stringify(deletedIds.slice(-500)));
+      }
+    } catch {}
+
     this.db.transactions.splice(index, 1);
     this.saveState();
   }
@@ -1154,24 +1163,40 @@ export class DataService {
           localStorage.setItem('moneyflow_last_recovery_snapshot', JSON.stringify(this.db));
         } catch {}
 
-        // 2. HỢP NHẤT THÔNG MINH 2 CHIỀU (BIDIRECTIONAL MERGE):
-        // Tuyệt đối KHÔNG xóa các giao dịch, tài khoản mới tạo trên máy này chưa kịp đồng bộ!
-        
-        // Hợp nhất Tài khoản:
-        const mergedAccounts = [...(cloudDb.accounts || [])];
-        for (const localAcc of (this.db.accounts || [])) {
-          const exists = mergedAccounts.some((a) => a.id === localAcc.id || a.name.trim().toLowerCase() === localAcc.name.trim().toLowerCase());
-          if (!exists) {
-            mergedAccounts.push(localAcc);
-          }
-        }
+        // 2. HỢP NHẤT THÔNG MINH BẢO VỆ DỮ LIỆU LOCAL TUYỆT ĐỐI:
+        // Danh sách ID giao dịch đã bị xóa chủ động: KHÔNG BAO GIỜ hồi sinh lại từ Cloud!
+        let deletedTxIds: string[] = [];
+        try {
+          deletedTxIds = JSON.parse(localStorage.getItem('moneyflow_deleted_tx_ids') || '[]');
+        } catch {}
+        const deletedSet = new Set(deletedTxIds);
 
-        // Hợp nhất Giao dịch theo ID:
-        const cloudTxMap = new Map((cloudDb.transactions || []).map((t) => [t.id, t]));
-        const mergedTransactions = [...(cloudDb.transactions || [])];
-        for (const localTx of (this.db.transactions || [])) {
-          if (!cloudTxMap.has(localTx.id)) {
-            mergedTransactions.push(localTx);
+        // Hợp nhất Tài khoản: ƯU TIÊN 100% số dư thực tế của Local (tránh Cloud cũ kéo lùi số dư)
+        const localAccMap = new Map((this.db.accounts || []).map((a) => [a.id, a]));
+        const mergedAccounts = (this.db.accounts && this.db.accounts.length > 0)
+          ? this.db.accounts.map((localAcc) => {
+              const cloudAcc = (cloudDb.accounts || []).find((ca) => ca.id === localAcc.id || ca.name.trim().toLowerCase() === localAcc.name.trim().toLowerCase());
+              return {
+                ...(cloudAcc || {}),
+                ...localAcc,
+                balance: localAcc.balance,
+                initialBalance: localAcc.initialBalance,
+              };
+            })
+          : (cloudDb.accounts || []);
+
+        // Hợp nhất Giao dịch:
+        // - Bắt đầu từ toàn bộ giao dịch hiện tại của Local (đã chỉnh sửa, đã xóa bản ghi thừa)
+        // - Chỉ bổ sung từ Cloud các giao dịch THỰC SỰ MỚI (chưa có ở Local VÀ CHƯA TỪNG BỊ XÓA)
+        const localTxMap = new Map((this.db.transactions || []).map((t) => [t.id, t]));
+        const mergedTransactions = [...(this.db.transactions || [])];
+
+        for (const cloudTx of (cloudDb.transactions || [])) {
+          if (deletedSet.has(cloudTx.id)) {
+            continue; // Bỏ qua giao dịch đã bị xóa
+          }
+          if (!localTxMap.has(cloudTx.id)) {
+            mergedTransactions.push(cloudTx);
           }
         }
 
@@ -1347,9 +1372,21 @@ export class DataService {
         }
       }
 
+      const cloudUpdatedAt = data?.updated_at ? new Date(data.updated_at).getTime() : 0;
+      const localUpdatedAtStr = localStorage.getItem('moneyflow_last_local_updated_at');
+      const localUpdatedAt = localUpdatedAtStr ? new Date(localUpdatedAtStr).getTime() : 0;
+
       if (data?.data) {
-        // Cloud đã có dữ liệu -> Kéo về và HỢP NHẤT THÔNG MINH 2 CHIỀU với dữ liệu Local
-        await this.pullFromSupabase();
+        // NẾU LOCAL MỚI HƠN HOẶC BẰNG CLOUD (Người dùng vừa thao tác trên máy này):
+        // Tuyệt đối KHÔNG kéo đè dữ liệu cũ của Cloud về làm mất thông tin người dùng vừa nhập!
+        // Thay vào đó: Tự động ĐẨY BẢN LOCAL MỚI NHẤT LÊN CLOUD để Cloud cập nhật tức thì!
+        if (localUpdatedAt >= cloudUpdatedAt && (this.db.transactions.length > 0 || this.db.accounts.some((a) => a.balance > 0))) {
+          this.isCloudInitialCheckDone = true;
+          await this.syncToSupabase();
+        } else {
+          // Cloud thực sự mới hơn Local (ví dụ thao tác từ điện thoại khác vừa mới xong)
+          await this.pullFromSupabase();
+        }
       } else {
         // Cloud hoàn toàn trống: Nếu local đã có giao dịch thật thì mới đẩy lên Cloud
         if (this.db.transactions.length > 0 || this.db.accounts.some((a) => a.balance > 0)) {
