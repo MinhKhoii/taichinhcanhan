@@ -350,9 +350,19 @@ export class DataService {
   }
 
   private autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
+  private isCloudInitialCheckDone: boolean = false;
+
+  public setCloudInitialCheckDone(): void {
+    this.isCloudInitialCheckDone = true;
+  }
 
   private triggerAutoCloudSync(): void {
     if (!isSupabaseConfigured || !supabase) return;
+    // BẢO VỆ CHỐNG ĐÈ DỮ LIỆU:
+    // Tuyệt đối KHÔNG tự động đẩy lên Cloud nếu chưa hoàn tất kiểm tra và hợp nhất dữ liệu ban đầu từ Cloud!
+    if (!this.isCloudInitialCheckDone) {
+      return;
+    }
     if (this.autoSyncTimer) {
       clearTimeout(this.autoSyncTimer);
     }
@@ -1207,6 +1217,64 @@ export class DataService {
     } catch (e) {
       console.warn('Auto cloud pull notice:', e);
       return { updated: false };
+    }
+  }
+
+  /**
+   * Khởi tạo đồng bộ an toàn khi ứng dụng vừa mở trên bất kỳ thiết bị nào (điện thoại hoặc máy tính)
+   * Luôn ưu tiên kiểm tra dữ liệu từ Cloud về trước để tránh phiên mới đè mất dữ liệu cũ
+   */
+  public async initCloudSync(): Promise<{ success: boolean; message: string }> {
+    if (!supabase || !isSupabaseConfigured) {
+      this.isCloudInitialCheckDone = true;
+      return { success: false, message: 'Chưa cấu hình Supabase' };
+    }
+
+    try {
+      const userEmail = (this.db.user.email || 'default').toLowerCase().trim();
+      let supaUserId: string | null = null;
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) supaUserId = data.user.id;
+      } catch {}
+
+      const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
+
+      // 1. Kiểm tra xem trên Cloud đã có bản sao lưu của người dùng chưa
+      let { data, error } = await supabase
+        .from('cloud_backups')
+        .select('data, updated_at')
+        .eq('id', backupId)
+        .single();
+
+      if (error && (userEmail.includes('minhkhoj') || userEmail.includes('khoi'))) {
+        const legacyRes = await supabase
+          .from('cloud_backups')
+          .select('data, updated_at')
+          .eq('id', 'moneyflow_cloud_state')
+          .single();
+        if (!legacyRes.error && legacyRes.data) {
+          data = legacyRes.data;
+          error = null;
+        }
+      }
+
+      if (data?.data) {
+        // Cloud đã có dữ liệu -> Kéo về và HỢP NHẤT THÔNG MINH 2 CHIỀU với dữ liệu Local
+        await this.pullFromSupabase();
+      } else {
+        // Cloud hoàn toàn trống: Nếu local đã có giao dịch thật thì mới đẩy lên Cloud
+        if (this.db.transactions.length > 0 || this.db.accounts.some((a) => a.balance > 0)) {
+          this.isCloudInitialCheckDone = true;
+          await this.syncToSupabase();
+        }
+      }
+
+      this.isCloudInitialCheckDone = true;
+      return { success: true, message: 'Khởi tạo đồng bộ đám mây an toàn thành công!' };
+    } catch (e: any) {
+      this.isCloudInitialCheckDone = true;
+      return { success: false, message: `Lỗi khởi tạo đồng bộ: ${e.message || e}` };
     }
   }
 

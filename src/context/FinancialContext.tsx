@@ -613,11 +613,32 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     if (!isCloudConfigured) return;
 
+    let isMounted = true;
+
+    // 1. Luôn ưu tiên khởi tạo đồng bộ an toàn từ Cloud về trước khi cho phép auto push!
+    const initSync = async () => {
+      try {
+        setIsCloudSyncing(true);
+        await dataService.initCloudSync();
+        if (isMounted) {
+          syncState();
+          const syncTime = localStorage.getItem('moneyflow_last_cloud_sync_at') || new Date().toISOString();
+          setLastCloudSyncTime(syncTime);
+        }
+      } catch (err) {
+        console.warn('Initial cloud sync notice:', err);
+      } finally {
+        if (isMounted) setIsCloudSyncing(false);
+      }
+    };
+
+    initSync();
+
     const performAutoPull = async (silent = true) => {
       try {
         setIsCloudSyncing(true);
         const res = await dataService.autoPullFromSupabase();
-        if (res.updated) {
+        if (res.updated && isMounted) {
           syncState();
           const syncTime = localStorage.getItem('moneyflow_last_cloud_sync_at') || new Date().toISOString();
           setLastCloudSyncTime(syncTime);
@@ -628,12 +649,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } catch (err) {
         console.warn('Auto cloud sync notice:', err);
       } finally {
-        setIsCloudSyncing(false);
+        if (isMounted) setIsCloudSyncing(false);
       }
     };
-
-    // 1. Tự động kiểm tra và kéo dữ liệu mới nhất ngay khi mở app
-    performAutoPull(true);
 
     // 2. Tự động đồng bộ mỗi khi người dùng mở lại điện thoại hoặc quay lại tab này
     let lastCheck = 0;
@@ -656,6 +674,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 30000);
 
     return () => {
+      isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
       clearInterval(intervalTimer);
