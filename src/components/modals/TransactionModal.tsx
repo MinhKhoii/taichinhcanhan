@@ -2,7 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFinancial } from '../../context/FinancialContext';
 import { TransactionType, PaymentMethod, Account } from '../../types';
-import { X, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Check, Calendar, CreditCard, Tag, Wallet, Sparkles, FileText, Zap, RotateCcw, Camera, Loader2 } from 'lucide-react';
+import {
+  X,
+  ArrowDownRight,
+  ArrowUpRight,
+  ArrowLeftRight,
+  Check,
+  Calendar,
+  CreditCard,
+  Tag,
+  Wallet,
+  Sparkles,
+  FileText,
+  Zap,
+  RotateCcw,
+  Camera,
+  Loader2,
+  Plus,
+  Calculator,
+} from 'lucide-react';
 import { DynamicIcon } from '../common/DynamicIcon';
 import {
   formatVND,
@@ -11,6 +29,12 @@ import {
   getSmartAmountSuggestions,
   parseQuickAmountInput,
 } from '../../utils/formatters';
+import {
+  evaluateMathExpression,
+  detectCategoryFromNote,
+  getQuickNoteTagsForCategory,
+  POPULAR_AMOUNT_PRESETS,
+} from '../../utils/transactionHelpers';
 import { useModalEscape } from '../../hooks/useModalEscape';
 import { aiService } from '../../services/aiService';
 
@@ -35,8 +59,18 @@ export const TransactionModal: React.FC = () => {
   const [date, setDate] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState<string>('');
+  const [autoDetectedCategory, setAutoDetectedCategory] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
+
+  const getTodayStr = () => new Date().toISOString().split('T')[0];
+  const getYesterdayStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  };
 
   useEffect(() => {
     if (editingTransaction) {
@@ -48,16 +82,14 @@ export const TransactionModal: React.FC = () => {
       setDate(editingTransaction.date);
       setPaymentMethod(editingTransaction.paymentMethod);
       setNote(editingTransaction.note || '');
+      setAutoDetectedCategory(null);
     } else {
       setType('expense');
       setAmountStr('');
-      setDate(new Date().toISOString().split('T')[0]);
-      // Ưu tiên chọn tài khoản mặc định:
-      // 1. Cài đặt tài khoản mặc định của người dùng (user.defaultAccountId)
-      // 2. Tài khoản đã dùng gần nhất được lưu (localStorage: moneyflow_last_used_account)
-      // 3. Ưu tiên Ngân hàng (bank) hoặc Ví MoMo (ewallet) có số dư dương (tránh chọn Tiền mặt mặc định)
-      // 4. Ưu tiên Ngân hàng hoặc Ví MoMo bất kỳ
-      // 5. Nếu không có mới chọn tài khoản bất kỳ có tiền hoặc tài khoản đầu tiên
+      setDate(getTodayStr());
+      setAutoDetectedCategory(null);
+
+      // Ưu tiên chọn tài khoản mặc định
       const savedLastId = localStorage.getItem('moneyflow_last_used_account');
       const isBankOrMoMo = (a: Account) =>
         a.type === 'bank' ||
@@ -79,9 +111,9 @@ export const TransactionModal: React.FC = () => {
       setAccountId(defaultAcc?.id || '');
       const otherAcc = accounts.find((a) => a.id !== defaultAcc?.id) || accounts[0];
       setToAccountId(otherAcc?.id || '');
-      // Tự động gán phương thức thanh toán tương ứng với loại tài khoản (ngân hàng -> chuyển khoản, MoMo -> ví điện tử, tiền mặt -> tiền mặt)
       setPaymentMethod(getDefaultPaymentMethodForAccount(defaultAcc));
       setNote('');
+
       // Default to first expense category
       const firstExp = categories.find((c) => c.type === 'expense');
       setCategoryId(firstExp?.id || '');
@@ -94,12 +126,34 @@ export const TransactionModal: React.FC = () => {
 
   // Filter categories by selected type
   const availableCategories = categories.filter((c) => c.type === type);
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+
+  // Tính toán số tiền hợp lệ từ input (hỗ trợ phép tính toán trực tiếp: 35k + 20k, 120k * 2)
+  const mathCalculated = evaluateMathExpression(amountStr);
+  const parsedAmount =
+    mathCalculated !== null
+      ? mathCalculated
+      : parseQuickAmountInput(amountStr) ?? parseInt(amountStr.replace(/[^0-9]/g, '') || '0', 10);
+
+  const isMathExpression = /[+\-*\/]/.test(amountStr);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value;
+
+    // Cho phép nhập phép toán (+, -, *, /) và đơn vị k, tr, m
+    if (/[+\-*\/]/.test(rawVal)) {
+      setAmountStr(rawVal);
+      return;
+    }
+
     // Hỗ trợ gõ tắt kiểu ngân hàng: 50k, 250k, 2tr, 1.5tr, 2m, v.v.
     const quickParsed = parseQuickAmountInput(rawVal);
-    if (quickParsed !== null && (rawVal.toLowerCase().includes('k') || rawVal.toLowerCase().includes('tr') || rawVal.toLowerCase().includes('m'))) {
+    if (
+      quickParsed !== null &&
+      (rawVal.toLowerCase().includes('k') ||
+        rawVal.toLowerCase().includes('tr') ||
+        rawVal.toLowerCase().includes('m'))
+    ) {
       setAmountStr(quickParsed.toString());
       return;
     }
@@ -113,29 +167,37 @@ export const TransactionModal: React.FC = () => {
   };
 
   const multiplyAmount = (factor: number) => {
-    const cur = parseInt(amountStr || '0', 10);
-    if (cur > 0) {
-      setAmountStr((cur * factor).toString());
+    if (parsedAmount > 0) {
+      setAmountStr((parsedAmount * factor).toString());
     }
-  };
-
-  const addQuickAmount = (val: number) => {
-    const current = parseInt(amountStr || '0', 10);
-    setAmountStr((current + val).toString());
   };
 
   const clearAmount = () => {
     setAmountStr('');
+    amountInputRef.current?.focus();
   };
 
-  const parsedAmount = parseInt(amountStr || '0', 10);
   const smartSuggestions = getSmartAmountSuggestions(parsedAmount);
+
+  // Xử lý khi người dùng gõ Ghi chú: Tự động đoán Danh mục phù hợp
+  const handleNoteChange = (val: string) => {
+    setNote(val);
+    if (type !== 'transfer') {
+      const detected = detectCategoryFromNote(val, categories);
+      if (detected) {
+        if (detected.matchedType !== type) {
+          setType(detected.matchedType);
+        }
+        setCategoryId(detected.category.id);
+        setAutoDetectedCategory(detected.category.name);
+      }
+    }
+  };
 
   const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset input so same file can be picked again if needed
     e.target.value = '';
 
     if (!file.type.startsWith('image/')) {
@@ -181,24 +243,29 @@ export const TransactionModal: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateTransaction = (): boolean => {
     if (!parsedAmount || parsedAmount <= 0) {
-      alert('Vui lòng nhập số tiền hợp lệ lớn hơn 0');
-      return;
+      showToast('Vui lòng nhập số tiền hợp lệ lớn hơn 0', 'error');
+      return false;
     }
     if (!accountId) {
-      alert('Vui lòng chọn tài khoản thanh toán');
-      return;
+      showToast('Vui lòng chọn tài khoản thanh toán', 'error');
+      return false;
     }
     if (type === 'transfer' && (!toAccountId || toAccountId === accountId)) {
-      alert('Vui lòng chọn tài khoản nhận khác với tài khoản nguồn');
-      return;
+      showToast('Vui lòng chọn tài khoản nhận khác với tài khoản nguồn', 'error');
+      return false;
     }
     if (type !== 'transfer' && !categoryId) {
-      alert('Vui lòng chọn một danh mục thu/chi');
-      return;
+      showToast('Vui lòng chọn một danh mục thu/chi', 'error');
+      return false;
     }
+    return true;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateTransaction()) return;
 
     if (editingTransaction) {
       updateTransaction(editingTransaction.id, {
@@ -224,12 +291,42 @@ export const TransactionModal: React.FC = () => {
       });
     }
 
-    // Ghi nhớ tài khoản vừa sử dụng để tự động điền cho lần sau
     try {
       localStorage.setItem('moneyflow_last_used_account', accountId);
     } catch {
       // ignore
     }
+  };
+
+  // Tính năng "Lưu & Tiếp tục nhập" siêu tốc
+  const handleSaveAndContinue = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!validateTransaction()) return;
+
+    createTransaction({
+      type,
+      amount: parsedAmount,
+      categoryId: type === 'transfer' ? undefined : categoryId,
+      accountId,
+      toAccountId: type === 'transfer' ? toAccountId : undefined,
+      date,
+      paymentMethod,
+      note,
+    });
+
+    try {
+      localStorage.setItem('moneyflow_last_used_account', accountId);
+    } catch {
+      // ignore
+    }
+
+    showToast(`✅ Đã lưu ${formatVND(parsedAmount)}! Sẵn sàng nhập tiếp...`, 'success');
+
+    // Reset lại để nhập giao dịch tiếp theo ngay lập tức
+    setAmountStr('');
+    setNote('');
+    setAutoDetectedCategory(null);
+    amountInputRef.current?.focus();
   };
 
   return createPortal(
@@ -241,7 +338,7 @@ export const TransactionModal: React.FC = () => {
     >
       <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col modal-content-scroll">
         {/* Header - Cố định trên cùng */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 flex-shrink-0 bg-white">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-100 flex-shrink-0 bg-white">
           <div className="flex items-center gap-2.5">
             <h3 className="text-base sm:text-lg font-bold text-slate-800">
               {editingTransaction ? 'Chỉnh sửa giao dịch' : 'Thêm giao dịch mới'}
@@ -253,7 +350,7 @@ export const TransactionModal: React.FC = () => {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isScanning}
                   className="flex items-center gap-1.5 px-3 py-1 text-2xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 rounded-full border border-indigo-200/80 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                  title="Chụp ảnh hoặc tải ảnh bill/hóa đơn/biên lai để AI đọc tự động"
+                  title="Chụp ảnh hoặc tải ảnh bill/hóa đơn để AI đọc tự động"
                 >
                   {isScanning ? (
                     <>
@@ -298,8 +395,9 @@ export const TransactionModal: React.FC = () => {
                   setType('expense');
                   const firstExp = categories.find((c) => c.type === 'expense');
                   if (firstExp) setCategoryId(firstExp.id);
+                  setAutoDetectedCategory(null);
                 }}
-                className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   type === 'expense'
                     ? 'bg-rose-500 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
@@ -314,8 +412,9 @@ export const TransactionModal: React.FC = () => {
                   setType('income');
                   const firstInc = categories.find((c) => c.type === 'income');
                   if (firstInc) setCategoryId(firstInc.id);
+                  setAutoDetectedCategory(null);
                 }}
-                className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   type === 'income'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
@@ -326,8 +425,11 @@ export const TransactionModal: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setType('transfer')}
-                className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                onClick={() => {
+                  setType('transfer');
+                  setAutoDetectedCategory(null);
+                }}
+                className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   type === 'transfer'
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
@@ -338,24 +440,68 @@ export const TransactionModal: React.FC = () => {
               </button>
             </div>
 
-            {/* Amount Input with big focus & Smart Banking Suggestions */}
+            {/* Amount Input with big focus, Math Calculator & Smart Banking Suggestions */}
             <div className="bg-slate-50/90 p-4 sm:p-5 rounded-2xl border border-slate-200/90 text-center transition-all">
-              <label className="text-3xs uppercase tracking-wider font-bold text-slate-400 block mb-1">
-                Số tiền giao dịch (VNĐ)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-3xs uppercase tracking-wider font-bold text-slate-400">
+                  Số tiền giao dịch (VNĐ)
+                </label>
+                <span className="text-3xs text-slate-400 font-medium">
+                  💡 Hỗ trợ gõ tắt: <code className="text-blue-600 font-mono">50k</code>, <code className="text-blue-600 font-mono">2tr</code> hoặc phép tính <code className="text-indigo-600 font-mono">35k + 20k</code>
+                </span>
+              </div>
 
               {/* Main Display Input */}
               <div className="flex items-center justify-center space-x-1 relative">
                 <input
+                  ref={amountInputRef}
                   type="text"
                   autoFocus
                   placeholder="0"
-                  value={amountStr ? parseInt(amountStr, 10).toLocaleString('vi-VN') : ''}
+                  value={
+                    isMathExpression
+                      ? amountStr
+                      : parsedAmount > 0
+                      ? parsedAmount.toLocaleString('vi-VN')
+                      : amountStr
+                  }
                   onChange={handleAmountChange}
                   className="w-full text-center text-3xl sm:text-4xl font-black text-slate-900 bg-transparent focus:outline-hidden tracking-tight"
                 />
                 <span className="text-xl sm:text-2xl font-bold text-slate-400">₫</span>
               </div>
+
+              {/* LIVE MATH RESULT (Khi người dùng gõ phép tính: 35k + 20k) */}
+              {isMathExpression && mathCalculated !== null && (
+                <div className="flex items-center justify-center space-x-1.5 py-1 px-3 mt-2 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-700 max-w-sm mx-auto animate-in fade-in">
+                  <Calculator className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Kết quả phép tính: = {formatVND(mathCalculated)}</span>
+                </div>
+              )}
+
+              {/* PRESETS KHI CHƯA GÕ SỐ (1 chạm điền nhanh các mốc phổ biến 20k, 50k, 100k...) */}
+              {parsedAmount === 0 && !isMathExpression && (
+                <div className="pt-2.5 mt-2 border-t border-slate-200/70 space-y-1.5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-3xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                      <span>Mốc tiền nhanh (1 chạm):</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center flex-wrap gap-1.5">
+                    {POPULAR_AMOUNT_PRESETS.map((p) => (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => setAmountDirectly(p.value)}
+                        className="px-3 py-1.5 text-xs font-bold bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border border-slate-200 hover:border-blue-300 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* SMART BANKING SUGGESTIONS - CHỈ HIỆN KHI NGƯỜI DÙNG BẮT ĐẦU GÕ SỐ */}
               {parsedAmount > 0 && (
@@ -438,7 +584,7 @@ export const TransactionModal: React.FC = () => {
               )}
             </div>
 
-            {/* Category Selector (If not transfer) - Bỏ thanh cuộn lồng nhau để cuộn cả trang mượt mà */}
+            {/* Category Selector (If not transfer) - Lưới thẻ trực quan, thoáng mắt */}
             {type !== 'transfer' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -446,30 +592,43 @@ export const TransactionModal: React.FC = () => {
                     <Tag className="w-3.5 h-3.5 text-slate-400" />
                     <span>Danh mục {type === 'expense' ? 'chi tiêu' : 'thu nhập'}</span>
                   </label>
-                  <span className="text-3xs text-slate-400 font-medium">Bấm chọn 1 danh mục</span>
+                  {autoDetectedCategory ? (
+                    <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 animate-in fade-in">
+                      <Sparkles className="w-3 h-3 text-emerald-600" />
+                      Tự động chọn: {autoDetectedCategory}
+                    </span>
+                  ) : (
+                    <span className="text-3xs text-slate-400 font-medium">Bấm chọn 1 danh mục</span>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-0.5">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-0.5">
                   {availableCategories.map((c) => {
                     const isSelected = categoryId === c.id;
                     return (
                       <button
                         type="button"
                         key={c.id}
-                        onClick={() => setCategoryId(c.id)}
-                        className={`flex items-center space-x-2 p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                        onClick={() => {
+                          setCategoryId(c.id);
+                          setAutoDetectedCategory(null);
+                        }}
+                        className={`flex flex-col items-center justify-center p-2 rounded-2xl border text-center transition-all cursor-pointer relative ${
                           isSelected
                             ? 'border-blue-600 bg-blue-50/80 text-blue-900 font-bold shadow-xs ring-2 ring-blue-500/20'
                             : 'border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700'
                         }`}
                         title={c.name}
                       >
+                        {isSelected && (
+                          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600" />
+                        )}
                         <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-2xs shrink-0"
+                          className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-2xs mb-1 shrink-0"
                           style={{ backgroundColor: c.color }}
                         >
-                          <DynamicIcon name={c.icon} className="w-3.5 h-3.5" />
+                          <DynamicIcon name={c.icon} className="w-4 h-4" />
                         </div>
-                        <span className="text-xs font-semibold leading-tight line-clamp-1 truncate">
+                        <span className="text-2xs font-semibold leading-tight line-clamp-1 w-full truncate">
                           {c.name}
                         </span>
                       </button>
@@ -484,7 +643,7 @@ export const TransactionModal: React.FC = () => {
               <div>
                 <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700 mb-1.5 h-6">
                   <Wallet className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{type === 'transfer' ? 'Tài khoản nguồn' : 'Tài khoản'}</span>
+                  <span>{type === 'transfer' ? 'Tài khoản nguồn' : 'Tài khoản thanh toán'}</span>
                 </label>
                 <select
                   value={accountId}
@@ -492,10 +651,9 @@ export const TransactionModal: React.FC = () => {
                     const newId = e.target.value;
                     setAccountId(newId);
                     const selectedAcc = accounts.find((a) => a.id === newId);
-                    // Tự động đồng bộ phương thức thanh toán tương ứng với loại tài khoản được chọn
                     setPaymentMethod(getDefaultPaymentMethodForAccount(selectedAcc));
                   }}
-                  className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -514,7 +672,7 @@ export const TransactionModal: React.FC = () => {
                   <select
                     value={toAccountId}
                     onChange={(e) => setToAccountId(e.target.value)}
-                    className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   >
                     {accounts
                       .filter((a) => a.id !== accountId)
@@ -534,7 +692,7 @@ export const TransactionModal: React.FC = () => {
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   >
                     <option value="cash">Tiền mặt</option>
                     <option value="transfer">Chuyển khoản</option>
@@ -546,13 +704,16 @@ export const TransactionModal: React.FC = () => {
                 </div>
               )}
 
-              {/* Quick Switch Pills for Accounts - LUÔN TRÊN 1 HÀNG DUY NHẤT */}
+              {/* Quick Switch Pills for Accounts - Chọn nhanh tài khoản 1 chạm */}
               {accounts.length > 1 && (
                 <div className="col-span-1 sm:col-span-2 -mt-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap py-0.5">
                   <span className="text-3xs text-slate-400 font-semibold shrink-0">Chọn nhanh:</span>
                   {accounts.map((a) => {
                     const isSelected = a.id === accountId;
-                    const isBank = a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') || (a.name || '').toLowerCase().includes('vietin');
+                    const isBank =
+                      a.type === 'bank' ||
+                      (a.name || '').toLowerCase().includes('bank') ||
+                      (a.name || '').toLowerCase().includes('vietin');
                     const isEwallet = a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo');
                     return (
                       <button
@@ -565,7 +726,7 @@ export const TransactionModal: React.FC = () => {
                         className={`px-2.5 py-1 rounded-xl text-2xs font-semibold whitespace-nowrap shrink-0 transition-all flex items-center gap-1 cursor-pointer select-none ${
                           isSelected
                             ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
                         <span>{isBank ? '🏦' : isEwallet ? '👛' : '💵'}</span>
@@ -591,13 +752,39 @@ export const TransactionModal: React.FC = () => {
               })()}
             </div>
 
-            {/* Date & Note */}
+            {/* Date & Note (with Today/Yesterday shortcuts & Quick Note Tags) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700 mb-1.5 h-6">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Ngày giao dịch</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5 h-6">
+                  <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Ngày giao dịch</span>
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setDate(getTodayStr())}
+                      className={`px-2 py-0.5 rounded-md text-3xs font-bold transition-all cursor-pointer ${
+                        date === getTodayStr()
+                          ? 'bg-blue-600 text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Hôm nay
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDate(getYesterdayStr())}
+                      className={`px-2 py-0.5 rounded-md text-3xs font-bold transition-all cursor-pointer ${
+                        date === getYesterdayStr()
+                          ? 'bg-blue-600 text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Hôm qua
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="date"
                   value={date}
@@ -605,38 +792,87 @@ export const TransactionModal: React.FC = () => {
                   className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
               <div>
-                <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700 mb-1.5 h-6">
-                  <FileText className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Ghi chú nội dung</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5 h-6">
+                  <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700">
+                    <FileText className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Ghi chú nội dung</span>
+                  </label>
+                </div>
                 <input
                   type="text"
-                  placeholder="VD: Ăn tối cùng bạn bè..."
+                  placeholder="VD: Đổ xăng, Ăn trưa, Cà phê..."
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={(e) => handleNoteChange(e.target.value)}
                   className="w-full h-10 px-3 py-2 text-xs sm:text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Gợi ý ghi chú nhanh 1 chạm theo danh mục đang chọn */}
+              {type !== 'transfer' && (
+                <div className="col-span-1 sm:col-span-2 -mt-1">
+                  <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 flex-nowrap">
+                    <span className="text-3xs text-slate-400 font-semibold shrink-0">Gợi ý nhanh:</span>
+                    {getQuickNoteTagsForCategory(selectedCategory?.name || '', type).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          setNote(tag);
+                          const detected = detectCategoryFromNote(tag, categories);
+                          if (detected) {
+                            setCategoryId(detected.category.id);
+                            setAutoDetectedCategory(detected.category.name);
+                          }
+                        }}
+                        className={`px-2.5 py-1 text-2xs font-medium rounded-lg border transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+                          note === tag
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-bold'
+                            : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Submit Actions - Cố định ở chân modal để bấm nhanh mọi lúc */}
-          <div className="flex items-center justify-end space-x-3 px-5 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex-shrink-0">
+          <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex-shrink-0">
             <button
               type="button"
               onClick={closeAddTxModal}
-              className="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+              className="px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
             >
               Hủy bỏ
             </button>
-            <button
-              type="submit"
-              className="flex items-center space-x-2 px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
-            >
-              <Check className="w-4 h-4" />
-              <span>{editingTransaction ? 'Lưu cập nhật' : 'Hoàn tất ghi nhận'}</span>
-            </button>
+
+            <div className="flex items-center gap-2">
+              {!editingTransaction && (
+                <button
+                  type="button"
+                  onClick={handleSaveAndContinue}
+                  className="flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl border border-blue-200/80 transition-all cursor-pointer shadow-2xs"
+                  title="Lưu giao dịch này và tiếp tục nhập món mới ngay lập tức"
+                >
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <span className="hidden sm:inline">Lưu &</span>
+                  <span>Nhập tiếp</span>
+                </button>
+              )}
+
+              <button
+                type="submit"
+                className="flex items-center space-x-1.5 px-5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>{editingTransaction ? 'Lưu cập nhật' : 'Hoàn tất'}</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -644,4 +880,3 @@ export const TransactionModal: React.FC = () => {
     document.body
   );
 };
-

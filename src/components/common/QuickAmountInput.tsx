@@ -1,5 +1,6 @@
 import React from 'react';
 import { getReadableVNDWords, getSmartAmountSuggestions, parseQuickAmountInput } from '../../utils/formatters';
+import { evaluateMathExpression } from '../../utils/transactionHelpers';
 import { Sparkles, RotateCcw, Zap } from 'lucide-react';
 
 interface QuickAmountInputProps {
@@ -52,6 +53,13 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setHasUserTyped(true);
     const rawVal = e.target.value;
+
+    const mathParsed = evaluateMathExpression(rawVal);
+    if (mathParsed !== null) {
+      onChange(mathParsed.toString());
+      return;
+    }
+
     const quickParsed = parseQuickAmountInput(rawVal);
     if (quickParsed !== null && (rawVal.toLowerCase().includes('k') || rawVal.toLowerCase().includes('tr') || rawVal.toLowerCase().includes('m'))) {
       onChange(quickParsed.toString());
@@ -124,6 +132,30 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
         <div className="flex items-center justify-center space-x-1.5 py-1.5 px-3 bg-blue-50/80 border border-blue-100 rounded-xl text-xs font-bold text-blue-700 animate-in fade-in duration-150">
           <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />
           <span className="break-words leading-tight">{readableWords}</span>
+        </div>
+      )}
+
+      {/* Mốc tiền nhanh (1 chạm) khi chưa gõ số */}
+      {numValue === 0 && presets.length > 0 && (
+        <div className="pt-2 mt-1 border-t border-slate-200/70 space-y-1.5 animate-in fade-in duration-150">
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-3xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+              <span>Mốc tiền nhanh (1 chạm):</span>
+            </span>
+          </div>
+          <div className="flex items-center flex-wrap gap-1.5">
+            {presets.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => setPreset(p.value)}
+                className="px-3 py-1.5 text-xs font-bold bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border border-slate-200 hover:border-blue-300 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
