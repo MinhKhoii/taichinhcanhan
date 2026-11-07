@@ -456,16 +456,18 @@ export const Dashboard: React.FC = () => {
       {/* Financial Health Score & 50/30/20 Rule Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left 1 col: Financial Health Score */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center space-x-2">
                 <Activity className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-sm font-bold text-slate-800">Sức khỏe Tài chính</h3>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Sức khỏe Tài chính</h3>
               </div>
               <span
                 className={`text-3xs font-bold px-2.5 py-0.5 rounded-full ${
-                  healthScore.rating === 'excellent'
+                  !healthScore.hasData
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    : healthScore.rating === 'excellent'
                     ? 'bg-emerald-100 text-emerald-700'
                     : healthScore.rating === 'good'
                     ? 'bg-blue-100 text-blue-700'
@@ -479,55 +481,67 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-4 my-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex flex-col items-center justify-center shadow-md shrink-0">
-                <span className="text-xl font-black">{healthScore.score}</span>
+              <div
+                className={`w-16 h-16 rounded-2xl text-white flex flex-col items-center justify-center shadow-md shrink-0 ${
+                  !healthScore.hasData
+                    ? 'bg-slate-400 dark:bg-slate-700'
+                    : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+                }`}
+              >
+                <span className="text-xl font-black">{healthScore.hasData ? healthScore.score : '--'}</span>
                 <span className="text-3xs uppercase tracking-wider opacity-80">/ 100</span>
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-800">{healthScore.title}</h4>
-                <p className="text-2xs text-slate-500 mt-0.5 leading-relaxed">
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">{healthScore.title}</h4>
+                <p className="text-2xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
                   {healthScore.description}
                 </p>
               </div>
             </div>
 
             {/* Sub-scores */}
-            <div className="space-y-2 pt-2 border-t border-slate-100 text-2xs">
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-2xs">
               <div>
-                <div className="flex justify-between text-slate-600 mb-1">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
                   <span>Tích lũy thu nhập</span>
-                  <span className="font-bold text-slate-800">{healthScore.savingsScore}/40đ</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {healthScore.hasData ? `${healthScore.savingsScore}/40đ` : '--/40đ'}
+                  </span>
                 </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                   <div
                     className="bg-emerald-500 h-full rounded-full transition-all"
-                    style={{ width: `${(healthScore.savingsScore / 40) * 100}%` }}
+                    style={{ width: `${healthScore.hasData ? (healthScore.savingsScore / 40) * 100 : 0}%` }}
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between text-slate-600 mb-1">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
                   <span>Kiểm soát nghĩa vụ nợ</span>
-                  <span className="font-bold text-slate-800">{healthScore.debtScore}/30đ</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {healthScore.hasData ? `${healthScore.debtScore}/30đ` : '--/30đ'}
+                  </span>
                 </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                   <div
                     className="bg-blue-500 h-full rounded-full transition-all"
-                    style={{ width: `${(healthScore.debtScore / 30) * 100}%` }}
+                    style={{ width: `${healthScore.hasData ? (healthScore.debtScore / 30) * 100 : 0}%` }}
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between text-slate-600 mb-1">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
                   <span>Kỷ luật ngân sách</span>
-                  <span className="font-bold text-slate-800">{healthScore.budgetScore}/30đ</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {healthScore.hasData ? `${healthScore.budgetScore}/30đ` : '--/30đ'}
+                  </span>
                 </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                   <div
                     className="bg-indigo-500 h-full rounded-full transition-all"
-                    style={{ width: `${(healthScore.budgetScore / 30) * 100}%` }}
+                    style={{ width: `${healthScore.hasData ? (healthScore.budgetScore / 30) * 100 : 0}%` }}
                   />
                 </div>
               </div>
@@ -536,13 +550,13 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Right 2 cols: 50/30/20 Rule Breakdown */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center space-x-2">
                 <PieChartIcon className="w-5 h-5 text-indigo-600" />
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                     Phân bổ Dòng tiền theo Quy tắc 50/30/20
                   </h3>
                   <p className="text-3xs text-slate-400">
@@ -550,30 +564,36 @@ export const Dashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <span className="text-3xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">
+              <span className="text-3xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
                 {periodLabel}
               </span>
             </div>
 
             {/* 3-segment progress bar */}
             <div className="my-4 space-y-2">
-              <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                <div
-                  className="bg-blue-600 h-full transition-all"
-                  style={{ width: `${Math.min(100, rule503020.needsPct)}%` }}
-                  title={`Thiết yếu: ${rule503020.needsPct}%`}
-                />
-                <div
-                  className="bg-amber-500 h-full transition-all"
-                  style={{ width: `${Math.min(100, rule503020.wantsPct)}%` }}
-                  title={`Sở thích: ${rule503020.wantsPct}%`}
-                />
-                <div
-                  className="bg-emerald-500 h-full transition-all"
-                  style={{ width: `${Math.min(100, rule503020.savingsPct)}%` }}
-                  title={`Tích lũy: ${rule503020.savingsPct}%`}
-                />
-              </div>
+              {!rule503020.hasData ? (
+                <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-3xs text-slate-400 font-medium">
+                  Chưa phát sinh chi tiêu trong kỳ này
+                </div>
+              ) : (
+                <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                  <div
+                    className="bg-blue-600 h-full transition-all"
+                    style={{ width: `${Math.min(100, rule503020.needsPct)}%` }}
+                    title={`Thiết yếu: ${rule503020.needsPct}%`}
+                  />
+                  <div
+                    className="bg-amber-500 h-full transition-all"
+                    style={{ width: `${Math.min(100, rule503020.wantsPct)}%` }}
+                    title={`Sở thích: ${rule503020.wantsPct}%`}
+                  />
+                  <div
+                    className="bg-emerald-500 h-full transition-all"
+                    style={{ width: `${Math.min(100, rule503020.savingsPct)}%` }}
+                    title={`Tích lũy: ${rule503020.savingsPct}%`}
+                  />
+                </div>
+              )}
 
               {/* Legend & Amounts */}
               <div className="grid grid-cols-3 gap-2 pt-1 text-center">
@@ -583,7 +603,7 @@ export const Dashboard: React.FC = () => {
                     <span>Thiết yếu (50%)</span>
                   </div>
                   <span className="text-sm sm:text-base font-black text-blue-900 block mt-1">
-                    {rule503020.needsPct}%
+                    {rule503020.hasData ? `${rule503020.needsPct}%` : '0%'}
                   </span>
                   <span className="text-3xs text-blue-600 block mt-0.5 font-medium truncate">
                     {formatCompactVND(rule503020.needsAmount)}
@@ -596,7 +616,7 @@ export const Dashboard: React.FC = () => {
                     <span>Sở thích (30%)</span>
                   </div>
                   <span className="text-sm sm:text-base font-black text-amber-900 block mt-1">
-                    {rule503020.wantsPct}%
+                    {rule503020.hasData ? `${rule503020.wantsPct}%` : '0%'}
                   </span>
                   <span className="text-3xs text-amber-600 block mt-0.5 font-medium truncate">
                     {formatCompactVND(rule503020.wantsAmount)}
@@ -609,7 +629,7 @@ export const Dashboard: React.FC = () => {
                     <span>Tích lũy (20%)</span>
                   </div>
                   <span className="text-sm sm:text-base font-black text-emerald-900 block mt-1">
-                    {rule503020.savingsPct}%
+                    {rule503020.hasData ? `${rule503020.savingsPct}%` : '0%'}
                   </span>
                   <span className="text-3xs text-emerald-600 block mt-0.5 font-medium truncate">
                     {formatCompactVND(rule503020.savingsAmount)}
@@ -619,7 +639,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Advice note */}
-            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-2xs text-slate-600 flex items-start space-x-2">
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-2xs text-slate-600 dark:text-slate-300 flex items-start space-x-2">
               <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <span>
                 <strong>Nhận định chuyên gia:</strong> {rule503020.advice}

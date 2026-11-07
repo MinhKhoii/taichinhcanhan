@@ -196,12 +196,23 @@ export function generateFinancialInsights(
 
   // Fallback if no specific insight
   if (insights.length === 0) {
-    insights.push({
-      id: 'default-welcome',
-      type: 'info',
-      title: 'Trợ lý MoneyFlow sẵn sàng',
-      message: 'Hệ thống đang liên tục phân tích dữ liệu giao dịch thực tế của bạn để đưa ra các đề xuất dòng tiền tối ưu.',
-    });
+    if (currentMonthTx.length === 0) {
+      insights.push({
+        id: 'new-account-guide',
+        type: 'info',
+        title: 'Chào mừng bạn đến với MoneyFlow!',
+        message: 'Tài khoản chưa có giao dịch nào trong tháng này. Hãy bấm nút "+ Thêm" ở thanh trên cùng để ghi chép khoản thu/chi đầu tiên và kích hoạt trợ lý tài chính!',
+        actionText: '+ Thêm giao dịch',
+        actionTab: 'transactions',
+      });
+    } else {
+      insights.push({
+        id: 'default-welcome',
+        type: 'info',
+        title: 'Trợ lý MoneyFlow sẵn sàng',
+        message: 'Hệ thống đang liên tục phân tích dữ liệu giao dịch thực tế của bạn để đưa ra các đề xuất dòng tiền tối ưu.',
+      });
+    }
   }
 
   return insights;
@@ -209,12 +220,13 @@ export function generateFinancialInsights(
 
 export interface FinancialHealthScore {
   score: number; // 0 - 100
-  rating: 'excellent' | 'good' | 'average' | 'poor';
+  rating: 'excellent' | 'good' | 'average' | 'poor' | 'no_data';
   title: string;
   description: string;
   savingsScore: number;
   debtScore: number;
   budgetScore: number;
+  hasData: boolean;
 }
 
 export interface Rule503020Result {
@@ -227,6 +239,7 @@ export interface Rule503020Result {
   totalIncome: number;
   totalExpense: number;
   advice: string;
+  hasData: boolean;
 }
 
 export function calculateFinancialHealthScore(
@@ -235,6 +248,20 @@ export function calculateFinancialHealthScore(
   overdueDebtsCount: number,
   budgetsExceededCount: number
 ): FinancialHealthScore {
+  // Nếu hoàn toàn chưa có dòng tiền thu hay chi nào trong kỳ
+  if (income === 0 && expense === 0) {
+    return {
+      score: 0,
+      rating: 'no_data',
+      title: 'Chưa đủ dữ liệu',
+      description: 'Chưa có khoản thu hoặc chi nào trong kỳ này. Hãy ghi lại các giao dịch để hệ thống chấm điểm sức khỏe tài chính cho bạn.',
+      savingsScore: 0,
+      debtScore: overdueDebtsCount > 0 ? Math.max(0, 30 - overdueDebtsCount * 15) : 0,
+      budgetScore: 0,
+      hasData: false,
+    };
+  }
+
   let savingsScore = 0;
   if (income > 0) {
     const savings = income - expense;
@@ -245,7 +272,8 @@ export function calculateFinancialHealthScore(
     else if (rate > 0) savingsScore = 10;
     else savingsScore = 0;
   } else {
-    savingsScore = expense > 0 ? 0 : 20;
+    // Chỉ có chi mà không có thu
+    savingsScore = 0;
   }
 
   let debtScore = 30;
@@ -290,6 +318,7 @@ export function calculateFinancialHealthScore(
     savingsScore,
     debtScore,
     budgetScore,
+    hasData: true,
   };
 }
 
@@ -326,15 +355,33 @@ export function calculate503020Rule(
   }
 
   const totalExpense = needsAmount + wantsAmount;
-  const baseTotal = income > 0 ? income : totalExpense;
+  const hasData = income > 0 || totalExpense > 0;
 
+  if (!hasData) {
+    return {
+      needsAmount: 0,
+      needsPct: 0,
+      wantsAmount: 0,
+      wantsPct: 0,
+      savingsAmount: 0,
+      savingsPct: 0,
+      totalIncome: 0,
+      totalExpense: 0,
+      advice: 'Chưa phát sinh chi tiêu trong kỳ này. Hãy ghi chép các khoản chi thiết yếu, sở thích và tích lũy để theo dõi tỷ lệ chuẩn 50/30/20.',
+      hasData: false,
+    };
+  }
+
+  const baseTotal = income > 0 ? income : totalExpense;
   const savingsAmount = Math.max(0, income - totalExpense);
   const needsPct = baseTotal > 0 ? Math.round((needsAmount / baseTotal) * 100) : 0;
   const wantsPct = baseTotal > 0 ? Math.round((wantsAmount / baseTotal) * 100) : 0;
   const savingsPct = baseTotal > 0 ? Math.round((savingsAmount / baseTotal) * 100) : 0;
 
   let advice = '';
-  if (needsPct > 60) {
+  if (income === 0 && totalExpense > 0) {
+    advice = 'Bạn đang phát sinh chi tiêu nhưng chưa ghi nhận thu nhập trong kỳ này. Hãy bổ sung nguồn thu để theo dõi cơ cấu tích lũy chính xác.';
+  } else if (needsPct > 60) {
     advice = 'Chi phí thiết yếu đang chiếm trên 60% dòng tiền. Hãy tìm cách tối ưu các khoản điện nước, xăng xe hoặc tiền nhà.';
   } else if (wantsPct > 35) {
     advice = 'Khoản chi tiêu sở thích & mua sắm đang chiếm tỷ lệ hơi cao (>35%). Hãy áp dụng quy tắc cân nhắc 48h trước khi mua sắm.';
@@ -354,6 +401,7 @@ export function calculate503020Rule(
     totalIncome: income,
     totalExpense,
     advice,
+    hasData: true,
   };
 }
 
