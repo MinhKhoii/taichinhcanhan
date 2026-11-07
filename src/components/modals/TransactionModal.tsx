@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useFinancial } from '../../context/FinancialContext';
 import { TransactionType, PaymentMethod } from '../../types';
-import { X, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Check, Calendar, CreditCard, Tag, Wallet, Sparkles, FileText } from 'lucide-react';
+import { X, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Check, Calendar, CreditCard, Tag, Wallet, Sparkles, FileText, Zap, RotateCcw } from 'lucide-react';
 import { DynamicIcon } from '../common/DynamicIcon';
-import { formatVND, getReadableVNDWords, getDefaultPaymentMethodForAccount } from '../../utils/formatters';
+import {
+  formatVND,
+  getReadableVNDWords,
+  getDefaultPaymentMethodForAccount,
+  getSmartAmountSuggestions,
+  parseQuickAmountInput,
+} from '../../utils/formatters';
 import { useModalEscape } from '../../hooks/useModalEscape';
 
 export const TransactionModal: React.FC = () => {
@@ -63,8 +69,27 @@ export const TransactionModal: React.FC = () => {
   const availableCategories = categories.filter((c) => c.type === type);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^0-9]/g, '');
+    const rawVal = e.target.value;
+    // Hỗ trợ gõ tắt kiểu ngân hàng: 50k, 250k, 2tr, 1.5tr, 2m, v.v.
+    const quickParsed = parseQuickAmountInput(rawVal);
+    if (quickParsed !== null && (rawVal.toLowerCase().includes('k') || rawVal.toLowerCase().includes('tr') || rawVal.toLowerCase().includes('m'))) {
+      setAmountStr(quickParsed.toString());
+      return;
+    }
+
+    const raw = rawVal.replace(/[^0-9]/g, '');
     setAmountStr(raw);
+  };
+
+  const setAmountDirectly = (val: number) => {
+    setAmountStr(val.toString());
+  };
+
+  const multiplyAmount = (factor: number) => {
+    const cur = parseInt(amountStr || '0', 10);
+    if (cur > 0) {
+      setAmountStr((cur * factor).toString());
+    }
   };
 
   const addQuickAmount = (val: number) => {
@@ -72,7 +97,12 @@ export const TransactionModal: React.FC = () => {
     setAmountStr((current + val).toString());
   };
 
+  const clearAmount = () => {
+    setAmountStr('');
+  };
+
   const parsedAmount = parseInt(amountStr || '0', 10);
+  const smartSuggestions = getSmartAmountSuggestions(parsedAmount);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,49 +222,129 @@ export const TransactionModal: React.FC = () => {
               </button>
             </div>
 
-            {/* Amount Input with big focus */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-center">
-              <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1">
-                Số tiền giao dịch (VNĐ)
-              </label>
-              <div className="flex items-center justify-center space-x-1">
+            {/* Amount Input with big focus & Smart Banking Suggestions */}
+            <div className="bg-slate-50/90 p-4 sm:p-5 rounded-2xl border border-slate-200/90 text-center space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-3xs uppercase tracking-wider font-bold text-slate-400">
+                  Số tiền giao dịch (VNĐ)
+                </span>
+                {parsedAmount > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearAmount}
+                    className="text-3xs font-semibold text-rose-500 hover:text-rose-700 flex items-center space-x-1 cursor-pointer transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Xóa nhập lại</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Main Display Input */}
+              <div className="flex items-center justify-center space-x-1 relative">
                 <input
                   type="text"
                   autoFocus
                   placeholder="0"
                   value={amountStr ? parseInt(amountStr, 10).toLocaleString('vi-VN') : ''}
                   onChange={handleAmountChange}
-                  className="w-full text-center text-3xl font-extrabold text-slate-900 bg-transparent focus:outline-hidden tracking-tight"
+                  className="w-full text-center text-3xl sm:text-4xl font-black text-slate-900 bg-transparent focus:outline-hidden tracking-tight"
                 />
-                <span className="text-xl font-bold text-slate-400">₫</span>
+                <span className="text-xl sm:text-2xl font-bold text-slate-400">₫</span>
               </div>
 
+              {/* Vietnamese Words Readout */}
               {parsedAmount > 0 && getReadableVNDWords(parsedAmount) && (
-                <div className="flex items-center justify-center space-x-1.5 mt-2 py-1 px-3 bg-blue-50/80 border border-blue-100 rounded-xl text-xs font-bold text-blue-700 animate-in fade-in duration-150 max-w-md mx-auto">
+                <div className="flex items-center justify-center space-x-1.5 py-1 px-3 bg-blue-50/80 border border-blue-100 rounded-xl text-xs font-bold text-blue-700 animate-in fade-in duration-150 max-w-md mx-auto">
                   <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
                   <span className="break-words leading-tight">{getReadableVNDWords(parsedAmount)}</span>
                 </div>
               )}
 
-              {/* Quick amount chips */}
-              <div className="flex items-center justify-center flex-wrap gap-1.5 mt-3 pt-3 border-t border-slate-200/60">
-                {[
-                  { label: '+50k', val: 50000 },
-                  { label: '+100k', val: 100000 },
-                  { label: '+200k', val: 200000 },
-                  { label: '+500k', val: 500000 },
-                  { label: '+1tr', val: 1000000 },
-                  { label: '+5tr', val: 5000000 },
-                ].map((chip) => (
-                  <button
-                    type="button"
-                    key={chip.val}
-                    onClick={() => addQuickAmount(chip.val)}
-                    className="px-3 py-1 text-2xs font-bold bg-white hover:bg-emerald-50 text-emerald-700 hover:border-emerald-300 rounded-xl border border-slate-200 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                  >
-                    {chip.label}
-                  </button>
-                ))}
+              {/* SMART BANKING SUGGESTIONS (Gợi ý thông minh như App Ngân hàng) */}
+              <div className="pt-2.5 border-t border-slate-200/70 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-3xs font-bold text-slate-500 flex items-center space-x-1">
+                    <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                    <span>
+                      {parsedAmount > 0
+                        ? `Gợi ý theo số "${parsedAmount.toLocaleString('vi-VN')}":`
+                        : 'Mốc tiền phổ biến:'}
+                    </span>
+                  </span>
+                  <span className="text-3xs text-slate-400 hidden sm:inline">
+                    {parsedAmount > 0 ? 'Bấm để chọn nhanh' : 'Hoặc gõ 5, 25, 50k để nhận gợi ý'}
+                  </span>
+                </div>
+
+                {/* Suggestion Chips */}
+                <div className="flex items-center justify-center flex-wrap gap-1.5">
+                  {smartSuggestions.map((item) => (
+                    <button
+                      type="button"
+                      key={item.amount}
+                      onClick={() => setAmountDirectly(item.amount)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center space-x-1 ${
+                        parsedAmount === item.amount
+                          ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-500/20'
+                          : 'bg-white hover:bg-blue-50 hover:border-blue-300 text-blue-700 border-slate-200'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      {item.shortLabel && item.shortLabel !== item.label && (
+                        <span
+                          className={`text-3xs px-1.5 py-0.5 rounded-md ${
+                            parsedAmount === item.amount
+                              ? 'bg-white/20 text-white'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {item.shortLabel}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Quick Zero Multipliers & Fast Increments (Phím nhân nhanh kiểu App Ngân Hàng) */}
+                <div className="flex items-center justify-center flex-wrap gap-1.5 pt-1">
+                  {parsedAmount > 0 && parsedAmount < 10000000 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => multiplyAmount(1000)}
+                        className="px-2.5 py-1 text-2xs font-extrabold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+                        title="Thêm 3 số 0 (Nhân 1.000đ)"
+                      >
+                        +000 (nghìn)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => multiplyAmount(1000000)}
+                        className="px-2.5 py-1 text-2xs font-extrabold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+                        title="Thêm 6 số 0 (Nhân 1.000.000đ)"
+                      >
+                        +000.000 (triệu)
+                      </button>
+                    </>
+                  )}
+                  {[
+                    { label: '+50k', val: 50000 },
+                    { label: '+100k', val: 100000 },
+                    { label: '+200k', val: 200000 },
+                    { label: '+500k', val: 500000 },
+                    { label: '+1tr', val: 1000000 },
+                  ].map((chip) => (
+                    <button
+                      type="button"
+                      key={chip.val}
+                      onClick={() => addQuickAmount(chip.val)}
+                      className="px-2.5 py-1 text-2xs font-bold bg-white hover:bg-emerald-50 text-emerald-700 hover:border-emerald-300 rounded-xl border border-slate-200 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 

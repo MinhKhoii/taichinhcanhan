@@ -215,4 +215,115 @@ export function getDefaultPaymentMethodForAccount(acc?: Account | null): Payment
   return 'transfer';
 }
 
+export interface SmartAmountSuggestion {
+  label: string;       // e.g. "250.000 ₫"
+  amount: number;      // e.g. 250000
+  shortLabel: string;  // e.g. "250k" or "2.5tr"
+}
+
+/**
+ * Sinh gợi ý số tiền thông minh theo phong cách các app ngân hàng (VCB, Techcombank, MB, MoMo):
+ * Khi người dùng gõ 1 số (vd: 5, 25, 120), hệ thống tự động suy đoán các mốc tiền thực tế
+ * mà người dùng thường giao dịch (nghìn, trăm nghìn, triệu, chục triệu).
+ */
+export function getSmartAmountSuggestions(val: number): SmartAmountSuggestion[] {
+  if (!val || val <= 0) {
+    // Mặc định các mốc tiền phổ biến khi chưa gõ
+    const defaults = [20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000];
+    return defaults.map((amt) => {
+      let shortLabel = `${amt.toLocaleString('vi-VN')} ₫`;
+      if (amt >= 1000000) shortLabel = `${(amt / 1000000).toLocaleString('vi-VN')}tr`;
+      else if (amt >= 1000) shortLabel = `${(amt / 1000).toLocaleString('vi-VN')}k`;
+      return {
+        label: `${amt.toLocaleString('vi-VN')} ₫`,
+        amount: amt,
+        shortLabel,
+      };
+    });
+  }
+
+  const results: SmartAmountSuggestion[] = [];
+  const seen = new Set<number>();
+
+  let multipliers: number[] = [];
+  if (val < 10) {
+    // 1 chữ số: 5 -> 5.000, 50.000, 500.000, 5.000.000, 50.000.000
+    multipliers = [1000, 10000, 100000, 1000000, 10000000];
+  } else if (val < 100) {
+    // 2 chữ số: 25 -> 25.000, 250.000, 2.500.000, 25.000.000
+    multipliers = [1000, 10000, 100000, 1000000];
+  } else if (val < 1000) {
+    // 3 chữ số: 150 -> 150.000, 1.500.000, 15.000.000
+    multipliers = [1000, 10000, 100000];
+  } else if (val < 10000) {
+    // 4 chữ số: 2500 -> 25.000, 250.000, 2.500.000
+    multipliers = [10, 100, 1000];
+  } else if (val < 100000) {
+    // 5 chữ số: 25000 -> 250.000, 2.500.000
+    multipliers = [10, 100];
+  } else if (val < 1000000) {
+    // 6 chữ số: 250000 -> 2.500.000
+    multipliers = [10];
+  }
+
+  for (const m of multipliers) {
+    const amt = val * m;
+    if (amt <= 2000000000 && !seen.has(amt) && amt !== val) {
+      seen.add(amt);
+      let shortLabel = `${amt.toLocaleString('vi-VN')} ₫`;
+      if (amt >= 1000000000) {
+        shortLabel = `${(amt / 1000000000).toLocaleString('vi-VN')} tỷ`;
+      } else if (amt >= 1000000) {
+        shortLabel = `${(amt / 1000000).toLocaleString('vi-VN')}tr`;
+      } else if (amt >= 1000) {
+        shortLabel = `${(amt / 1000).toLocaleString('vi-VN')}k`;
+      }
+
+      results.push({
+        label: `${amt.toLocaleString('vi-VN')} ₫`,
+        amount: amt,
+        shortLabel,
+      });
+    }
+  }
+
+  return results.slice(0, 4);
+}
+
+/**
+ * Phân tích cú pháp nhập tiền nhanh:
+ * Hỗ trợ gõ tắt 50k, 250k, 2tr, 1.5tr, 2m, v.v.
+ */
+export function parseQuickAmountInput(rawStr: string): number | null {
+  if (!rawStr) return null;
+  const clean = rawStr.trim().toLowerCase();
+
+  // 1. Dạng nghìn: 50k, 250 k
+  const kMatch = clean.match(/^([0-9]+(?:[\.,][0-9]+)?)\s*k$/);
+  if (kMatch) {
+    const n = parseFloat(kMatch[1].replace(',', '.'));
+    return isNaN(n) ? null : Math.round(n * 1000);
+  }
+
+  // 2. Dạng triệu: 2tr, 1.5tr, 2m, 2.5 m
+  const trMatch = clean.match(/^([0-9]+(?:[\.,][0-9]+)?)\s*(?:tr|trieu|triệu|m)$/);
+  if (trMatch) {
+    const n = parseFloat(trMatch[1].replace(',', '.'));
+    return isNaN(n) ? null : Math.round(n * 1000000);
+  }
+
+  // 3. Dạng tỷ: 1ty, 1.2 tỷ
+  const tyMatch = clean.match(/^([0-9]+(?:[\.,][0-9]+)?)\s*(?:ty|tỷ|b)$/);
+  if (tyMatch) {
+    const n = parseFloat(tyMatch[1].replace(',', '.'));
+    return isNaN(n) ? null : Math.round(n * 1000000000);
+  }
+
+  const digitsOnly = clean.replace(/[^0-9]/g, '');
+  if (!digitsOnly) return null;
+  const n = parseInt(digitsOnly, 10);
+  return isNaN(n) ? null : n;
+}
+
+
 

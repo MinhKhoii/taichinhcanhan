@@ -1,6 +1,6 @@
 import React from 'react';
-import { getReadableVNDWords } from '../../utils/formatters';
-import { Sparkles, RotateCcw } from 'lucide-react';
+import { getReadableVNDWords, getSmartAmountSuggestions, parseQuickAmountInput } from '../../utils/formatters';
+import { Sparkles, RotateCcw, Zap } from 'lucide-react';
 
 interface QuickAmountInputProps {
   value: string;
@@ -39,14 +39,28 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
 }) => {
   const numValue = parseInt(value.replace(/[^0-9]/g, '') || '0', 10);
   const readableWords = getReadableVNDWords(numValue);
+  const smartSuggestions = getSmartAmountSuggestions(numValue);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^0-9]/g, '');
+    const rawVal = e.target.value;
+    const quickParsed = parseQuickAmountInput(rawVal);
+    if (quickParsed !== null && (rawVal.toLowerCase().includes('k') || rawVal.toLowerCase().includes('tr') || rawVal.toLowerCase().includes('m'))) {
+      onChange(quickParsed.toString());
+      return;
+    }
+
+    const raw = rawVal.replace(/[^0-9]/g, '');
     onChange(raw);
   };
 
   const setPreset = (val: number) => {
     onChange(val.toString());
+  };
+
+  const multiplyAmount = (factor: number) => {
+    if (numValue > 0) {
+      onChange((numValue * factor).toString());
+    }
   };
 
   const addAmount = (val: number) => {
@@ -85,7 +99,7 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
           placeholder={placeholder}
           value={numValue > 0 ? numValue.toLocaleString('vi-VN') : (value === '0' ? '0' : '')}
           onChange={handleInputChange}
-          className="w-full px-3.5 py-2 text-base font-bold text-slate-900 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden tracking-tight"
+          className="w-full px-3.5 py-2.5 text-base sm:text-lg font-bold text-slate-900 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden tracking-tight"
         />
         <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none">
           ₫
@@ -100,59 +114,69 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
         </div>
       )}
 
-      {/* Quick Suggestion Chips (Compact & Clean) */}
-      {(presets.length > 0 || addChips.length > 0) && (
-        <div className="space-y-1.5 pt-1">
-          {/* Row 1: Common Presets */}
-          {presets.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium text-slate-500 shrink-0">
-                Mốc tiền:
-              </span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {presets.map((p) => {
-                  const isSelected = numValue === p.value;
-                  return (
-                    <button
-                      type="button"
-                      key={p.label}
-                      onClick={() => setPreset(p.value)}
-                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-bold'
-                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Row 2: Additive Increment Chips */}
-          {addChips.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-emerald-600 shrink-0">
-                + Cộng dồn:
-              </span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {addChips.map((c) => (
-                  <button
-                    type="button"
-                    key={c.label}
-                    onClick={() => addAmount(c.value)}
-                    className="px-2.5 py-0.5 text-xs font-semibold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all cursor-pointer active:scale-95"
-                  >
-                    {c.label.startsWith('+') ? c.label : `+${c.label}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* SMART BANKING SUGGESTIONS */}
+      <div className="space-y-1.5 pt-1">
+        {/* Smart dynamic suggestions based on typed number */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-3xs font-bold text-slate-500 flex items-center space-x-0.5">
+            <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+            <span>{numValue > 0 ? `Gợi ý theo "${numValue.toLocaleString('vi-VN')}":` : 'Mốc tiền:'}</span>
+          </span>
+          <div className="flex items-center gap-1 flex-wrap">
+            {smartSuggestions.map((item) => {
+              const isSelected = numValue === item.amount;
+              return (
+                <button
+                  type="button"
+                  key={item.amount}
+                  onClick={() => setPreset(item.amount)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                    isSelected
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-500'
+                      : 'bg-white hover:bg-blue-50 text-blue-700 border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
+
+        {/* Multipliers (+000, +000.000) & Additive Chips */}
+        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+          {numValue > 0 && numValue < 10000000 && (
+            <>
+              <button
+                type="button"
+                onClick={() => multiplyAmount(1000)}
+                className="px-2 py-0.5 text-2xs font-extrabold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition-all shadow-2xs active:scale-95 cursor-pointer"
+                title="Nhân 1.000 (Thêm 3 số 0)"
+              >
+                +000
+              </button>
+              <button
+                type="button"
+                onClick={() => multiplyAmount(1000000)}
+                className="px-2 py-0.5 text-2xs font-extrabold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg transition-all shadow-2xs active:scale-95 cursor-pointer"
+                title="Nhân 1.000.000 (Thêm 6 số 0)"
+              >
+                +000.000
+              </button>
+            </>
+          )}
+          {addChips.map((c) => (
+            <button
+              type="button"
+              key={c.label}
+              onClick={() => addAmount(c.value)}
+              className="px-2 py-0.5 text-2xs font-semibold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all cursor-pointer active:scale-95"
+            >
+              {c.label.startsWith('+') ? c.label : `+${c.label}`}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
