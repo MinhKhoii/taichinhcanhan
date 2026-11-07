@@ -21,6 +21,9 @@ import {
   PlusCircle,
   CheckCircle2,
   TrendingUp,
+  Mic,
+  MicOff,
+  Volume2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -69,6 +72,172 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [hasKey, setHasKey] = useState(aiService.hasApiKey());
+
+  // Voice Recognition & Speech Synthesis States
+  const [isListeningChat, setIsListeningChat] = useState(false);
+  const [isListeningQuickAdd, setIsListeningQuickAdd] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const activeRecognitionRef = useRef<any>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (activeRecognitionRef.current) {
+        try {
+          activeRecognitionRef.current.abort();
+        } catch {}
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const toggleVoiceChat = () => {
+    if (isListeningChat) {
+      if (activeRecognitionRef.current) {
+        try {
+          activeRecognitionRef.current.stop();
+        } catch {}
+      }
+      setIsListeningChat(false);
+      return;
+    }
+
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      showToast('Trình duyệt của bạn chưa hỗ trợ Web Speech API. Vui lòng mở bằng Chrome hoặc Edge nhé!', 'error');
+      return;
+    }
+
+    try {
+      const rec = new SpeechRec();
+      rec.lang = 'vi-VN';
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      rec.onstart = () => {
+        setIsListeningChat(true);
+      };
+
+      rec.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((res: any) => res[0].transcript)
+          .join('');
+        if (transcript) {
+          setInputMessage(transcript);
+        }
+      };
+
+      rec.onerror = (event: any) => {
+        console.warn('Voice error:', event.error);
+        if (event.error === 'not-allowed') {
+          showToast('Vui lòng cho phép quyền truy cập Micro trên trình duyệt để nói!', 'error');
+        }
+        setIsListeningChat(false);
+      };
+
+      rec.onend = () => {
+        setIsListeningChat(false);
+      };
+
+      activeRecognitionRef.current = rec;
+      rec.start();
+    } catch (err: any) {
+      showToast('Không thể kích hoạt micro: ' + (err?.message || 'Lỗi'), 'error');
+      setIsListeningChat(false);
+    }
+  };
+
+  const toggleVoiceQuickAdd = () => {
+    if (isListeningQuickAdd) {
+      if (activeRecognitionRef.current) {
+        try {
+          activeRecognitionRef.current.stop();
+        } catch {}
+      }
+      setIsListeningQuickAdd(false);
+      return;
+    }
+
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      showToast('Trình duyệt của bạn chưa hỗ trợ Web Speech API. Vui lòng mở bằng Chrome hoặc Edge nhé!', 'error');
+      return;
+    }
+
+    try {
+      const rec = new SpeechRec();
+      rec.lang = 'vi-VN';
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      rec.onstart = () => {
+        setIsListeningQuickAdd(true);
+      };
+
+      let finalSpokenText = '';
+
+      rec.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((res: any) => res[0].transcript)
+          .join('');
+        if (transcript) {
+          finalSpokenText = transcript;
+          setQuickAddText(transcript);
+        }
+      };
+
+      rec.onerror = (event: any) => {
+        console.warn('Voice error:', event.error);
+        if (event.error === 'not-allowed') {
+          showToast('Vui lòng cho phép quyền truy cập Micro trên trình duyệt để nói!', 'error');
+        }
+        setIsListeningQuickAdd(false);
+      };
+
+      rec.onend = () => {
+        setIsListeningQuickAdd(false);
+        if (finalSpokenText.trim()) {
+          aiService
+            .parseNaturalLanguageTransaction(finalSpokenText.trim(), categories, accounts)
+            .then(setParsedPreview);
+        }
+      };
+
+      activeRecognitionRef.current = rec;
+      rec.start();
+    } catch (err: any) {
+      showToast('Không thể kích hoạt micro: ' + (err?.message || 'Lỗi'), 'error');
+      setIsListeningQuickAdd(false);
+    }
+  };
+
+  const handleSpeakText = (text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      showToast('Trình duyệt không hỗ trợ đọc âm thanh', 'info');
+      return;
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const cleanText = text.replace(/[*_#`~\[\]()]/g, '').slice(0, 300);
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'vi-VN';
+    utterance.rate = 1.05;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -449,13 +618,27 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                         </div>
                       )}
 
-                      <span
-                        className={`block text-3xs mt-1.5 opacity-60 text-right ${
-                          m.role === 'user' ? 'text-white' : 'text-slate-400'
-                        }`}
-                      >
-                        {m.timestamp}
-                      </span>
+                      {/* Speaker button to listen to AI response */}
+                      {m.role === 'assistant' && (
+                        <div className="flex items-center justify-between mt-2.5 pt-1.5 border-t border-slate-100 dark:border-slate-700/60">
+                          <button
+                            type="button"
+                            onClick={() => handleSpeakText(m.content)}
+                            className="text-3xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-semibold"
+                            title="Nghe AI đọc câu trả lời này"
+                          >
+                            <Volume2 className="w-3 h-3" />
+                            <span>{isSpeaking ? 'Dừng đọc' : 'Nghe đọc'}</span>
+                          </button>
+                          <span className="text-3xs opacity-60 text-slate-400">{m.timestamp}</span>
+                        </div>
+                      )}
+
+                      {m.role === 'user' && (
+                        <span className="block text-3xs mt-1.5 opacity-60 text-right text-white">
+                          {m.timestamp}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -494,7 +677,23 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
               )}
 
               {/* Chat Input Bar */}
-              <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 shrink-0">
+              <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 shrink-0 space-y-2">
+                {isListeningChat && (
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-700 dark:text-rose-300 animate-pulse">
+                    <span className="flex items-center gap-2">
+                      <Mic className="w-3.5 h-3.5 text-rose-600 animate-ping" />
+                      <strong>Đang lắng nghe:</strong> Hãy nói câu hỏi hoặc khoản chi của bạn...
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleVoiceChat}
+                      className="text-3xs font-bold underline cursor-pointer hover:text-rose-900"
+                    >
+                      Dừng nói
+                    </button>
+                  </div>
+                )}
+
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -504,12 +703,28 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                 >
                   <input
                     type="text"
-                    placeholder="Hỏi AI bất kỳ điều gì hoặc gõ: 'ăn trưa 45k momo'..."
+                    placeholder="Hỏi AI bất kỳ điều gì hoặc bấm nút micro để nói..."
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     disabled={isThinking}
                     className="flex-1 px-4 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-200"
                   />
+
+                  {/* Voice Button */}
+                  <button
+                    type="button"
+                    onClick={toggleVoiceChat}
+                    className={`p-2.5 rounded-xl transition-all cursor-pointer shrink-0 ${
+                      isListeningChat
+                        ? 'bg-rose-600 text-white animate-pulse shadow-md shadow-rose-500/40 ring-2 ring-rose-400'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}
+                    title={isListeningChat ? 'Đang nghe... Bấm để dừng' : 'Bấm để nói bằng giọng nói (Tiếng Việt)'}
+                    aria-label="Nói bằng giọng nói"
+                  >
+                    {isListeningChat ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4" />}
+                  </button>
+
                   <button
                     type="submit"
                     disabled={!inputMessage.trim() || isThinking}
@@ -536,9 +751,40 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
 
               {/* Input Form */}
               <form onSubmit={handleQuickAddParse} className="space-y-3">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Nhập câu mô tả khoản chi/thu:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Nhập hoặc bấm Micro để nói:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={toggleVoiceQuickAdd}
+                    className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                      isListeningQuickAdd
+                        ? 'bg-rose-600 text-white animate-pulse shadow-md ring-2 ring-rose-400'
+                        : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 border border-indigo-200/80 dark:border-indigo-800'
+                    }`}
+                  >
+                    {isListeningQuickAdd ? <MicOff className="w-3.5 h-3.5 text-white" /> : <Mic className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />}
+                    <span>{isListeningQuickAdd ? 'Đang nghe... Bấm dừng' : '🎙️ Bấm vào đây để nói'}</span>
+                  </button>
+                </div>
+
+                {isListeningQuickAdd && (
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl flex items-center justify-between text-xs text-rose-700 dark:text-rose-300 animate-pulse">
+                    <span className="flex items-center gap-2">
+                      <Mic className="w-4 h-4 text-rose-600 animate-ping" />
+                      <strong>Đang nghe giọng nói:</strong> Hãy nói: <em>"ăn trưa 45 nghìn ví momo"</em>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleVoiceQuickAdd}
+                      className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-3xs font-bold cursor-pointer"
+                    >
+                      Dừng & Phân tích
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
@@ -548,6 +794,21 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                     onChange={(e) => setQuickAddText(e.target.value)}
                     className="flex-1 px-4 py-3 text-sm sm:text-base font-medium bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-2xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-slate-100 shadow-inner"
                   />
+
+                  {/* Mic Button in input */}
+                  <button
+                    type="button"
+                    onClick={toggleVoiceQuickAdd}
+                    className={`p-3 rounded-2xl transition-all cursor-pointer shrink-0 border ${
+                      isListeningQuickAdd
+                        ? 'bg-rose-600 text-white border-rose-600 animate-pulse shadow-md shadow-rose-500/30 ring-2 ring-rose-400'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                    }`}
+                    title={isListeningQuickAdd ? 'Đang nghe... Bấm để dừng' : 'Bấm để nói bằng giọng nói (Tiếng Việt)'}
+                  >
+                    <Mic className="w-5 h-5" />
+                  </button>
+
                   <button
                     type="submit"
                     disabled={!quickAddText.trim() || isParsingQuickAdd}
@@ -668,3 +929,4 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     document.body
   );
 };
+
