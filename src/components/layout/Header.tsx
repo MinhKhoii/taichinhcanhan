@@ -387,10 +387,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           )}
         </button>
 
-        {/* Quick Add Split Button (Desktop) & Compact Button (Mobile) */}
-        <div className="relative shrink-0" ref={quickAddRef}>
+        {/* Quick Add Split Button (Desktop only - Mobile uses Floating Action Button) */}
+        <div className="hidden sm:block relative shrink-0" ref={quickAddRef}>
           {/* Desktop Split Button */}
-          <div className="hidden sm:inline-flex rounded-xl shadow-xs overflow-hidden">
+          <div className="inline-flex rounded-xl shadow-xs overflow-hidden">
             <button
               onClick={() => openAddTxModal()}
               className="flex items-center space-x-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all cursor-pointer"
@@ -408,17 +408,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
           </div>
-
-          {/* Mobile Compact Add Button */}
-          <button
-            type="button"
-            onClick={() => setShowQuickAddMenu(!showQuickAddMenu)}
-            className="sm:hidden flex items-center justify-center w-8 h-8 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer shrink-0"
-            title="Thao tác tạo nhanh (+)"
-            aria-label="Thao tác tạo nhanh"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-          </button>
 
           {/* Quick Add Dropdown Menu */}
           {showQuickAddMenu && (
