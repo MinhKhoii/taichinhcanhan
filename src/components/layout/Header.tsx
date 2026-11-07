@@ -47,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     unreadNotificationCount,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    clearAllNotifications,
     openAddTxModal,
     user,
     setCurrentTab,
@@ -305,14 +306,24 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                     </span>
                   )}
                 </div>
-                {unreadNotificationCount > 0 && (
-                  <button
-                    onClick={markAllNotificationsAsRead}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Đọc tất cả
-                  </button>
-                )}
+                <div className="flex items-center space-x-2">
+                  {unreadNotificationCount > 0 && (
+                    <button
+                      onClick={markAllNotificationsAsRead}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
+                    >
+                      Đọc tất cả
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={clearAllNotifications}
+                      className="text-xs text-rose-500 hover:text-rose-700 font-medium cursor-pointer"
+                    >
+                      Xóa tất cả
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">

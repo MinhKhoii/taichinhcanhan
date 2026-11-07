@@ -266,12 +266,12 @@ export const JournalPage: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
-                                if (confirm(`Bạn có chắc muốn xóa giao dịch ${formatVND(t.amount)}?`)) {
-                                  deleteTransaction(t.id);
+                                if (confirm(`Bạn có chắc muốn xóa giao dịch "${t.note || 'Không có ghi chú'}" (${formatVND(t.amount)})?\n(Hệ thống sẽ xóa bản ghi và BẢO TOÀN NGUYÊN VẸN 100% số dư tài khoản, không trừ tiền của bạn)`)) {
+                                  deleteTransaction(t.id, { revertBalance: false });
                                 }
                               }}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded-md"
-                              title="Xóa"
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded-md cursor-pointer"
+                              title="Xóa giao dịch (Bảo toàn số dư ví)"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

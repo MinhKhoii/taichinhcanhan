@@ -235,6 +235,71 @@ export class DataService {
       }
     }
 
+    // 1.1 Tự động làm sạch các giao dịch trùng lặp / dư thừa (đổ xăng, Thay dầu xe máy, lương trùng lặp, thưởng trùng)
+    // TUYỆT ĐỐI BẢO TOÀN NGUYÊN VẸN 100% SỐ DƯ TÀI KHOẢN CỦA NGƯỜI DÙNG (KHÔNG TRỪ TIỀN)
+    if (db.transactions && db.transactions.length > 0) {
+      const originalTxCount = db.transactions.length;
+      const balanceSnapshots = new Map<string, number>();
+      for (const acc of db.accounts) {
+        balanceSnapshots.set(acc.id, acc.balance);
+      }
+
+      // Xóa giao dịch "đổ xăng" nếu đã có "Tiền xăng"
+      const hasTienXang = db.transactions.some(
+        (t) => t.note?.trim().toLowerCase() === 'tiền xăng' || t.note?.trim().toLowerCase() === 'xăng xe'
+      );
+      if (hasTienXang) {
+        db.transactions = db.transactions.filter((t) => t.note?.trim().toLowerCase() !== 'đổ xăng');
+      }
+
+      // Xóa giao dịch "Thay dầu xe máy" nếu đã có "Thay dầu xe"
+      const hasThayDauXe = db.transactions.some(
+        (t) => t.note?.trim().toLowerCase() === 'thay dầu xe'
+      );
+      if (hasThayDauXe) {
+        db.transactions = db.transactions.filter((t) => t.note?.trim().toLowerCase() !== 'thay dầu xe máy');
+      }
+
+      // Xóa bản ghi lương cứng trùng lặp (giữ lại 1 bản ghi duy nhất)
+      const salaryTxs = db.transactions.filter(
+        (t) => t.note?.includes('Lương cứng hàng tháng') || t.categoryId === 'cat_inc_salary'
+      );
+      if (salaryTxs.length > 1) {
+        const keepId = salaryTxs[salaryTxs.length - 1].id;
+        db.transactions = db.transactions.filter((t) => {
+          if (t.note?.includes('Lương cứng hàng tháng') || t.categoryId === 'cat_inc_salary') {
+            return t.id === keepId;
+          }
+          return true;
+        });
+      }
+
+      // Xóa bản ghi thưởng / thu nhập thêm tạm thời
+      db.transactions = db.transactions.filter(
+        (t) => !t.note?.includes('Thu nhập thêm / Thưởng tháng 11')
+      );
+
+      // Deduplicate identical transactions on same date, amount, note, type
+      const seen = new Set<string>();
+      db.transactions = db.transactions.filter((t) => {
+        const key = `${t.date}_${t.type}_${t.amount}_${t.note?.trim().toLowerCase()}_${t.accountId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      if (db.transactions.length !== originalTxCount) {
+        changed = true;
+      }
+
+      // BẢO TOÀN SỐ DƯ 100%: Khôi phục lại chính xác số dư từng tài khoản trước khi lọc
+      for (const acc of db.accounts) {
+        if (balanceSnapshots.has(acc.id)) {
+          acc.balance = balanceSnapshots.get(acc.id)!;
+        }
+      }
+    }
+
     // 2. Bảo toàn và chuẩn hóa số dư cho từng tài khoản, không trừ tiền, không can thiệp số dư hợp lệ
     for (const acc of db.accounts) {
       // Đảm bảo các ví sinh lời có ngày chốt để không tự cộng dồn trùng lặp trong ngày hôm nay
@@ -698,15 +763,38 @@ export class DataService {
     return updatedTx;
   }
 
-  public deleteTransaction(id: string): void {
+  public deleteTransaction(id: string, options?: { revertBalance?: boolean }): void {
     const index = this.db.transactions.findIndex((t) => t.id === id);
     if (index === -1) throw new Error('Transaction not found');
 
     const tx = this.db.transactions[index];
-    // Reverse balance
-    this.applyTransactionToAccounts(tx, true);
+    const revertBalance = options?.revertBalance !== undefined ? options.revertBalance : true;
+
+    // Reverse balance only if revertBalance is true
+    if (revertBalance) {
+      this.applyTransactionToAccounts(tx, true);
+    } else {
+      // Giữ nguyên số dư ví (không trừ hay cộng tiền), điều chỉnh initialBalance tương ứng
+      const acc = this.db.accounts.find((a) => a.id === tx.accountId);
+      if (acc) {
+        if (tx.type === 'income') acc.initialBalance += tx.amount;
+        else if (tx.type === 'expense') acc.initialBalance -= tx.amount;
+      }
+    }
 
     this.db.transactions.splice(index, 1);
+    this.saveState();
+  }
+
+  public cleanupDuplicateTransactions(): number {
+    const beforeCount = this.db.transactions?.length || 0;
+    this.healAccountsState(this.db);
+    this.saveState();
+    return beforeCount - (this.db.transactions?.length || 0);
+  }
+
+  public clearAllNotifications(): void {
+    this.db.notifications = [];
     this.saveState();
   }
 

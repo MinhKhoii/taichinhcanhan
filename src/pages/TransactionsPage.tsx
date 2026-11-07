@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   X,
   Coins,
+  Sparkles,
 } from 'lucide-react';
 import { formatVND, formatDateVN } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
@@ -32,6 +33,7 @@ export const TransactionsPage: React.FC = () => {
     accounts,
     openAddTxModal,
     deleteTransaction,
+    cleanupDuplicateTransactions,
   } = useFinancial();
 
   // Search & Filter state
@@ -45,6 +47,7 @@ export const TransactionsPage: React.FC = () => {
   const [endDate, setEndDate] = useState<string>('');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
+  const [txToDelete, setTxToDelete] = useState<any>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -306,21 +309,35 @@ export const TransactionsPage: React.FC = () => {
             ))}
           </div>
 
-          {/* Advanced Filter Toggle Button */}
-          <button
-            onClick={() => setShowFilterDrawer(!showFilterDrawer)}
-            className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors ${
-              hasActiveFilters
-                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            <span>Bộ lọc nâng cao</span>
-            {hasActiveFilters && (
-              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-            )}
-          </button>
+          {/* Action buttons */}
+          <div className="flex items-center space-x-2 shrink-0">
+            <button
+              type="button"
+              onClick={cleanupDuplicateTransactions}
+              className="flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 transition-all cursor-pointer shadow-2xs"
+              title="Dọn dẹp các giao dịch trùng lặp và bảo toàn 100% số dư tài khoản"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden md:inline">Dọn trùng lặp (Bảo toàn tiền)</span>
+              <span className="md:hidden">Dọn trùng</span>
+            </button>
+
+            {/* Advanced Filter Toggle Button */}
+            <button
+              onClick={() => setShowFilterDrawer(!showFilterDrawer)}
+              className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
+                hasActiveFilters
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>Bộ lọc</span>
+              {hasActiveFilters && (
+                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Expandable Advanced Filters Box */}
@@ -667,13 +684,9 @@ export const TransactionsPage: React.FC = () => {
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`Bạn có chắc muốn xóa giao dịch ${formatVND(t.amount)}? Số dư tài khoản sẽ tự động được hoàn nguyên.`)) {
-                                deleteTransaction(t.id);
-                              }
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Xóa giao dịch"
+                            onClick={() => setTxToDelete(t)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Xóa giao dịch (Có tùy chọn giữ nguyên số dư ví)"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -727,6 +740,84 @@ export const TransactionsPage: React.FC = () => {
         isOpen={isRecurringModalOpen}
         onClose={() => setIsRecurringModalOpen(false)}
       />
+
+      {/* MODAL XÁC NHẬN XÓA GIAO DỊCH VỚI TÙY CHỌN BẢO TOÀN SỐ DƯ TÀI KHOẢN */}
+      {txToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-rose-600">
+                <Trash2 className="w-5 h-5" />
+                <h3 className="text-base font-bold text-slate-900">Xác nhận xóa giao dịch</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTxToDelete(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2 text-xs text-slate-600">
+              <div className="flex justify-between items-center font-medium">
+                <span className="text-slate-400">Nội dung:</span>
+                <span className="font-bold text-slate-900 text-right">{txToDelete.note || 'Không có ghi chú'}</span>
+              </div>
+              <div className="flex justify-between items-center font-medium">
+                <span className="text-slate-400">Số tiền:</span>
+                <span className={`font-black text-sm ${txToDelete.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {txToDelete.type === 'income' ? '+' : '-'}{formatVND(txToDelete.amount)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-medium">
+                <span className="text-slate-400">Tài khoản ví:</span>
+                <span className="font-semibold text-slate-800">
+                  {accMap.get(txToDelete.accountId)?.name || 'Tài khoản'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-medium">
+                <span className="text-slate-400">Ngày ghi:</span>
+                <span>{formatDateVN(txToDelete.date)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {/* Nút 1: Bảo toàn số dư - Khuyên dùng và an toàn tuyệt đối */}
+              <button
+                type="button"
+                onClick={() => {
+                  deleteTransaction(txToDelete.id, { revertBalance: false });
+                  setTxToDelete(null);
+                }}
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+              >
+                <span>🛡️ Xóa & BẢO TOÀN SỐ DƯ (Không trừ/cộng tiền ví)</span>
+              </button>
+
+              {/* Nút 2: Hoàn nguyên số dư ví theo truyền thống */}
+              <button
+                type="button"
+                onClick={() => {
+                  deleteTransaction(txToDelete.id, { revertBalance: true });
+                  setTxToDelete(null);
+                }}
+                className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-2xs font-semibold transition-all cursor-pointer"
+              >
+                Xóa & Hoàn tác lại số dư ví ({txToDelete.type === 'income' ? 'Trừ bớt' : 'Cộng trả lại'} {formatVND(txToDelete.amount)})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTxToDelete(null)}
+                className="w-full py-1.5 text-xs text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

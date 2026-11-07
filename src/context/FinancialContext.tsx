@@ -78,7 +78,8 @@ interface FinancialContextType {
   // Actions
   createTransaction: (data: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => void;
   updateTransaction: (id: string, data: Partial<Transaction>) => void;
-  deleteTransaction: (id: string) => void;
+  deleteTransaction: (id: string, options?: { revertBalance?: boolean }) => void;
+  cleanupDuplicateTransactions: () => void;
 
   createAccount: (data: Omit<Account, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => void;
   updateAccount: (id: string, data: Partial<Account>) => void;
@@ -99,6 +100,7 @@ interface FinancialContextType {
 
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
+  clearAllNotifications: () => void;
 
   updateUser: (data: Partial<User>) => void;
   resetAllData: () => void;
@@ -382,12 +384,30 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const deleteTransaction = (id: string) => {
+  const deleteTransaction = (id: string, options?: { revertBalance?: boolean }) => {
     try {
-      dataService.deleteTransaction(id);
-      showToast('Đã xóa giao dịch và hoàn nguyên số dư tài khoản', 'info');
+      const revert = options?.revertBalance !== undefined ? options.revertBalance : true;
+      dataService.deleteTransaction(id, { revertBalance: revert });
+      if (revert) {
+        showToast('Đã xóa giao dịch và hoàn nguyên số dư tài khoản', 'info');
+      } else {
+        showToast('Đã xóa giao dịch thành công (Bảo toàn 100% số dư tài khoản)', 'success');
+      }
     } catch (e: any) {
       showToast(e.message || 'Lỗi khi xóa giao dịch', 'error');
+    }
+  };
+
+  const cleanupDuplicateTransactions = () => {
+    try {
+      const count = dataService.cleanupDuplicateTransactions();
+      if (count > 0) {
+        showToast(`Đã dọn dẹp ${count} bản ghi trùng lặp và bảo toàn 100% số dư ví!`, 'success');
+      } else {
+        showToast('Danh sách giao dịch đã sạch sẽ và không có trùng lặp.', 'info');
+      }
+    } catch (e: any) {
+      showToast(e.message || 'Lỗi khi dọn dẹp giao dịch', 'error');
     }
   };
 
@@ -536,6 +556,11 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const markAllNotificationsAsRead = () => {
     dataService.markAllNotificationsAsRead();
     showToast('Đã đánh dấu tất cả thông báo là đã đọc', 'info');
+  };
+
+  const clearAllNotifications = () => {
+    dataService.clearAllNotifications();
+    showToast('Đã xóa sạch tất cả thông báo', 'info');
   };
 
   // Profile & Reset
@@ -986,6 +1011,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         createTransaction,
         updateTransaction,
         deleteTransaction,
+        cleanupDuplicateTransactions,
         createAccount,
         updateAccount,
         deleteAccount,
@@ -1001,6 +1027,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         deleteSavingsGoal,
         markNotificationAsRead,
         markAllNotificationsAsRead,
+        clearAllNotifications,
         updateUser,
         resetAllData,
         clearAllData,
