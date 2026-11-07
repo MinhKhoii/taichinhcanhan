@@ -3,6 +3,49 @@ import { formatVND } from '../utils/formatters';
 
 const STORAGE_KEY = 'moneyflow_gemini_api_key';
 
+const CANDIDATE_MODELS = [
+  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-2.5-flash',
+  'gemini-1.5-flash',
+];
+
+async function callGeminiAPI(key: string, payload: any): Promise<any> {
+  let lastError: any = null;
+  for (const model of CANDIDATE_MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (res.ok) {
+        return await res.json();
+      }
+      const errData = await res.json().catch(() => ({}));
+      const msg = errData?.error?.message || `HTTP ${res.status}`;
+      lastError = new Error(msg);
+
+      // If model not found or deprecated, try next model in candidate list
+      if (res.status === 404 || msg.includes('no longer available') || msg.includes('not found')) {
+        continue;
+      }
+      throw lastError;
+    } catch (e: any) {
+      lastError = e;
+      if (e.message && (e.message.includes('no longer available') || e.message.includes('not found') || e.message.includes('404'))) {
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastError || new Error('Không thể kết nối đến máy chủ Google Gemini');
+}
+
 export interface ParsedTransactionAI {
   type: 'expense' | 'income' | 'transfer';
   amount: number;
@@ -64,30 +107,14 @@ class AIService {
     }
 
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Trả lời đúng 1 từ "OK" bằng tiếng Việt.' }] }],
-            generationConfig: { maxOutputTokens: 10, temperature: 0 },
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errMsg = errorData?.error?.message || response.statusText;
-        return {
-          success: false,
-          message: `Lỗi kết nối Gemini API (${response.status}): ${errMsg}`,
-        };
-      }
+      await callGeminiAPI(key, {
+        contents: [{ parts: [{ text: 'Trả lời đúng 1 từ "OK" bằng tiếng Việt.' }] }],
+        generationConfig: { maxOutputTokens: 15, temperature: 0 },
+      });
 
       return { success: true, message: 'Kết nối Google Gemini AI thành công rực rỡ! 🎉' };
     } catch (err: any) {
-      return { success: false, message: `Lỗi mạng hoặc kết nối: ${err?.message || 'Không rõ'}` };
+      return { success: false, message: `Lỗi kết nối Gemini: ${err?.message || 'Không rõ'}` };
     }
   }
 
@@ -281,33 +308,21 @@ CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TR�
   "explanation": string
 }`;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: systemPrompt },
-                  { text: `Hãy bóc tách câu giao dịch sau: "${text}"` },
-                ],
-              },
+      const resData = await callGeminiAPI(key, {
+        contents: [
+          {
+            parts: [
+              { text: systemPrompt },
+              { text: `Hãy bóc tách câu giao dịch sau: "${text}"` },
             ],
-            generationConfig: {
-              temperature: 0.1,
-              responseMimeType: 'application/json',
-            },
-          }),
-        }
-      );
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: 'application/json',
+        },
+      });
 
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
-
-      const resData = await response.json();
       const rawJson = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawJson) {
         throw new Error('Không nhận được phản hồi từ AI');
@@ -415,27 +430,14 @@ HƯỚNG DẪN TRẢ LỜI:
         { role: 'user', parts: [{ text: userQuestion }] },
       ];
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents,
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 1200,
-            },
-          }),
-        }
-      );
+      const resData = await callGeminiAPI(key, {
+        contents,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1200,
+        },
+      });
 
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson?.error?.message || `HTTP ${response.status}`);
-      }
-
-      const resData = await response.json();
       return (
         resData?.candidates?.[0]?.content?.parts?.[0]?.text ||
         'Xin lỗi, mình chưa thể xử lý câu trả lời lúc này. Bạn thử lại nhé!'
@@ -487,3 +489,4 @@ HƯỚNG DẪN TRẢ LỜI:
 }
 
 export const aiService = new AIService();
+
