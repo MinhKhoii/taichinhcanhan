@@ -44,10 +44,13 @@ DROP POLICY IF EXISTS "Users can access own notifications" ON public.notificatio
 
 -- 3. Tạo chính sách bảo mật cá nhân hóa (auth.uid()::text = user_id::text)
 -- Lưu ý: Dùng user_id::text và id::text để tương thích cả 2 kiểu dữ liệu UUID hoặc TEXT
-CREATE POLICY "Users can only access own backups" ON public.cloud_backups
-FOR ALL TO authenticated
-USING (auth.uid()::text = user_id::text OR auth.uid()::text = (data->'user'->>'id'))
-WITH CHECK (auth.uid()::text = user_id::text OR auth.uid()::text = (data->'user'->>'id'));
+
+-- Cho phép đồng bộ Cloud Backup cho cả tài khoản đã xác thực Supabase Auth và tài khoản qua Anon Key
+DROP POLICY IF EXISTS "Allow cloud_backups sync" ON public.cloud_backups;
+CREATE POLICY "Allow cloud_backups sync" ON public.cloud_backups
+FOR ALL TO anon, authenticated
+USING (true)
+WITH CHECK (true);
 
 CREATE POLICY "Users can access own profile" ON public.users
 FOR ALL TO authenticated

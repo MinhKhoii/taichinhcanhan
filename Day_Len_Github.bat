@@ -28,3 +28,4 @@ echo   DA HOAN TAT! Trang web se cap nhat sau 1 phut:
 echo   https://minhkhoii.github.io/taichinhcanhan/
 echo ===================================================
 pause
+

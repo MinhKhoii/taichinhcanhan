@@ -54,6 +54,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
   const [categoryId, setCategoryId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('transfer');
   const [isActive, setIsActive] = useState(true);
+  const [applyToCurrentMonth, setApplyToCurrentMonth] = useState(true);
 
   const availableCategories = categories.filter((c) => c.type === type);
 
@@ -84,6 +85,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
     setCategoryId(item.categoryId || '');
     setPaymentMethod(item.paymentMethod);
     setIsActive(item.isActive);
+    setApplyToCurrentMonth(true);
   };
 
   const resetForm = () => {
@@ -98,6 +100,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
     setCategoryId(defaultCat?.id || '');
     setPaymentMethod('transfer');
     setIsActive(true);
+    setApplyToCurrentMonth(true);
   };
 
   const handleStartCreate = () => {
@@ -142,7 +145,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
       categoryId: categoryId || undefined,
       paymentMethod,
       isActive,
-    });
+    }, applyToCurrentMonth);
 
     // If there were already items, return to list view to see it
     setViewMode('list');
@@ -486,10 +489,10 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
             <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-2xl flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-slate-800 block">
-                  Bật tự động ghi nhận
+                  Bật tự động ghi nhận hàng tháng
                 </span>
                 <span className="text-2xs text-slate-500">
-                  Đến ngày {dayOfMonth} hàng tháng, tiền lương sẽ tự động cộng vào tài khoản
+                  Đến ngày {dayOfMonth} hàng tháng, hệ thống sẽ tự động ghi nhận vào tài khoản
                 </span>
               </div>
               <input
@@ -499,6 +502,27 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
                 className="w-5 h-5 text-blue-600 rounded-md focus:ring-blue-500 cursor-pointer"
               />
             </div>
+
+            {/* Apply immediately to current month checkbox */}
+            {isActive && (
+              <div className="p-3 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    Đồng bộ ngay vào Thu nhập & Số dư tháng này
+                  </span>
+                  <span className="text-2xs text-emerald-700/80 block mt-0.5">
+                    Cập nhật tức thời vào trang Tổng quan, ví nhận tiền và báo cáo tháng {new Date().getMonth() + 1}
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={applyToCurrentMonth}
+                  onChange={(e) => setApplyToCurrentMonth(e.target.checked)}
+                  className="w-5 h-5 text-emerald-600 rounded-md focus:ring-emerald-500 cursor-pointer"
+                />
+              </div>
+            )}
 
             <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 flex-shrink-0">
               {recurringItems.length > 0 && (

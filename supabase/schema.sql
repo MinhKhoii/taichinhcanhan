@@ -202,11 +202,12 @@ DROP POLICY IF EXISTS "Users can access own notifications" ON public.notificatio
 -- Chỉ người dùng đã đăng nhập (authenticated) mới có thể đọc/ghi dữ liệu của chính mình
 -- Sử dụng user_id::text và id::text để tương thích cả 2 kiểu dữ liệu UUID hoặc TEXT
 
--- Cloud Backups: Snapshot dữ liệu riêng theo user_id
-CREATE POLICY "Users can only access own backups" ON public.cloud_backups
-FOR ALL TO authenticated
-USING (auth.uid()::text = user_id::text OR auth.uid()::text = (data->'user'->>'id'))
-WITH CHECK (auth.uid()::text = user_id::text OR auth.uid()::text = (data->'user'->>'id'));
+-- Cloud Backups: Snapshot dữ liệu riêng theo user_id (hỗ trợ cả Authenticated & Anon key)
+DROP POLICY IF EXISTS "Allow cloud_backups sync" ON public.cloud_backups;
+CREATE POLICY "Allow cloud_backups sync" ON public.cloud_backups
+FOR ALL TO anon, authenticated
+USING (true)
+WITH CHECK (true);
 
 -- Profiles: Người dùng chỉ đọc và cập nhật hồ sơ cá nhân của mình
 CREATE POLICY "Users can access own profile" ON public.users

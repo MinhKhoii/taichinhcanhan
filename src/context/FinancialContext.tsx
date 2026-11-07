@@ -98,7 +98,10 @@ interface FinancialContextType {
   resetAllData: () => void;
   clearAllData: () => void;
 
-  saveRecurringItem: (item: Omit<RecurringItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'> & { id?: string }) => void;
+  saveRecurringItem: (
+    item: Omit<RecurringItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'> & { id?: string },
+    applyToCurrentMonth?: boolean
+  ) => void;
   deleteRecurringItem: (id: string) => void;
   toggleRecurringItem: (id: string) => void;
   checkAndProcessRecurring: () => void;
@@ -534,11 +537,12 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Recurring Items
   const saveRecurringItem = (
-    itemData: Omit<RecurringItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'> & { id?: string }
+    itemData: Omit<RecurringItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'> & { id?: string },
+    applyToCurrentMonth = true
   ) => {
     try {
-      dataService.saveRecurringItem(itemData);
-      showToast('Lưu thông tin lương / thu chi định kỳ thành công!', 'success');
+      dataService.saveRecurringItem(itemData, applyToCurrentMonth);
+      showToast('Đã lưu lương định kỳ và cập nhật ngay vào số dư & thu nhập tháng này!', 'success');
     } catch (e: any) {
       showToast(e.message || 'Lỗi lưu thông tin định kỳ', 'error');
     }
@@ -546,8 +550,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteRecurringItem = (id: string) => {
     try {
-      dataService.deleteRecurringItem(id);
-      showToast('Đã xóa mục định kỳ', 'info');
+      dataService.deleteRecurringItem(id, true);
+      showToast('Đã xóa mục định kỳ và điều chỉnh lại số dư tháng này', 'info');
     } catch (e: any) {
       showToast(e.message || 'Lỗi khi xóa', 'error');
     }
@@ -563,9 +567,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const checkAndProcessRecurring = () => {
-    const count = dataService.processRecurringTransactions();
+    const count = dataService.processRecurringTransactions(true);
     if (count > 0) {
-      showToast(`Đã tự động ghi nhận ${count} khoản lương / thu chi định kỳ!`, 'success');
+      showToast(`Đã đồng bộ ${count} khoản lương / thu chi định kỳ vào Thu nhập & Số dư ví tháng này!`, 'success');
     } else {
       showToast('Tất cả các khoản lương và thu chi định kỳ của tháng này đã được cập nhật đủ.', 'info');
     }

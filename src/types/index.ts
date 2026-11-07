@@ -70,6 +70,7 @@ export interface Transaction {
   transferFee?: number;
   note?: string;
   paymentMethod: PaymentMethod;
+  recurringItemId?: string; // ID của mục lương / thu chi định kỳ liên kết
   createdAt: string;
   updatedAt: string;
 }
