@@ -150,20 +150,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             );
           })}
 
-          {/* AI Gemini Assistant Nav Item */}
+          {/* Smart Assistant Nav Item */}
           <button
             type="button"
             onClick={() => {
               openAIModal();
               onCloseMobile();
             }}
-            className="flex items-center w-full px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 text-indigo-300 hover:text-white bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-800/60 group shadow-2xs mt-3 cursor-pointer"
+            className="flex items-center w-full px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 text-slate-300 hover:text-white hover:bg-slate-800/80 group shadow-2xs mt-2 cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 mr-3 text-amber-400 group-hover:scale-110 transition-transform" />
-            <span className="truncate">Trợ lý AI Gemini</span>
-            <span className="ml-auto px-1.5 py-0.5 text-3xs font-black uppercase tracking-wider bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-md shadow-2xs">
-              AI
-            </span>
+            <Sparkles className="w-4 h-4 mr-3 text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span className="truncate">Trợ lý giọng nói</span>
           </button>
         </nav>
 

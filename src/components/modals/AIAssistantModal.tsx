@@ -50,7 +50,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     {
       id: 'welcome',
       role: 'assistant',
-      content: `Xin chào **${user.fullName || 'bạn'}**! 👋 Tôi là **Trợ lý AI Gemini** của MoneyFlow. Bạn có thể hỏi tôi về chi tiêu, ngân sách, hoặc bấm micro để nói.`,
+      content: `Xin chào **${user.fullName || 'bạn'}**! 👋 Tôi là **Trợ lý tài chính** của MoneyFlow. Bạn có thể hỏi tôi về tình hình thu chi, ngân sách, hoặc chạm micro để nói.`,
       timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -464,14 +464,14 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         <div className="px-4 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
-              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+              <Sparkles className="w-4 h-4 text-amber-300" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-sm sm:text-base font-bold tracking-tight">Trợ lý AI Gemini</h3>
+                <h3 className="text-sm sm:text-base font-bold tracking-tight">Trợ lý tài chính</h3>
                 <span className="inline-flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-300/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Gemini 3.5 Flash
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Sẵn sàng
                 </span>
               </div>
             </div>
@@ -596,7 +596,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                   </h4>
                   <p className="text-2xs text-slate-400 mt-0.5">
                     {isListeningQuickAdd
-                      ? 'Nói xong ngừng 1 giây để AI tự động lưu'
+                      ? 'Nói xong ngừng 1 giây để tự động lưu'
                       : 'Ví dụ: "Ăn bún bò 45k momo" hoặc "Đổ xăng 70k"'}
                   </p>
                 </div>
@@ -790,7 +790,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                     </div>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl rounded-tl-none p-3 border border-slate-200/80 dark:border-slate-800 text-xs text-slate-500 flex items-center space-x-2 shadow-xs">
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
-                      <span>AI đang suy nghĩ...</span>
+                      <span>Đang suy nghĩ...</span>
                     </div>
                   </div>
                 )}
@@ -822,7 +822,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                   <div className="flex items-center justify-between px-3 py-1 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-700 dark:text-rose-300 animate-pulse">
                     <span className="flex items-center gap-1.5">
                       <Mic className="w-3 h-3 text-rose-600 animate-ping" />
-                      <strong>Đang nghe...</strong> Nói xong AI sẽ tự động gửi câu hỏi
+                      <strong>Đang nghe...</strong> Nói xong hệ thống sẽ tự động gửi
                     </span>
                     <button
                       type="button"
@@ -843,7 +843,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                 >
                   <input
                     type="text"
-                    placeholder="Hỏi AI bất kỳ điều gì..."
+                    placeholder="Hỏi về thu chi, ngân sách, số dư..."
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     disabled={isThinking}
