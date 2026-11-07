@@ -63,14 +63,15 @@ export const initialAccounts: Account[] = [
     userId: 'usr_default',
     name: 'Ví MoMo',
     type: 'ewallet',
-    balance: 16869023,
+    balance: 16870872,
     initialBalance: 16869023,
     color: '#D946EF',
     icon: 'Smartphone',
     isYieldEnabled: true,
     yieldRate: 4.0,
+    lastYieldDate: '2026-11-08',
     createdAt: '2026-09-01',
-    updatedAt: '2026-11-07',
+    updatedAt: '2026-11-08',
   },
 ];
 
