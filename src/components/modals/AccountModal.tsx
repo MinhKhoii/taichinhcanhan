@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useFinancial } from '../../context/FinancialContext';
 import { Account, AccountType } from '../../types';
-import { X, Check, Building2, Wallet, Smartphone, PiggyBank, Landmark, CircleDot } from 'lucide-react';
+import { X, Check, Building2, Wallet, Smartphone, PiggyBank, Landmark, CircleDot, TrendingUp, Sparkles, Percent } from 'lucide-react';
 import { QuickAmountInput } from '../common/QuickAmountInput';
 import { useModalEscape } from '../../hooks/useModalEscape';
+import { formatVND } from '../../utils/formatters';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   const [accountNumber, setAccountNumber] = useState('');
   const [color, setColor] = useState('#0284C7');
   const [icon, setIcon] = useState('Building2');
+  const [isYieldEnabled, setIsYieldEnabled] = useState(false);
+  const [yieldRate, setYieldRate] = useState<number>(4.0);
 
   useEffect(() => {
     if (editingAccount) {
@@ -36,6 +39,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       setAccountNumber(editingAccount.accountNumber || '');
       setColor(editingAccount.color || '#0284C7');
       setIcon(editingAccount.icon || 'Building2');
+      setIsYieldEnabled(editingAccount.isYieldEnabled || false);
+      setYieldRate(editingAccount.yieldRate ?? 4.0);
     } else {
       setName('');
       setType('bank');
@@ -44,8 +49,21 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       setAccountNumber('');
       setColor('#0284C7');
       setIcon('Building2');
+      setIsYieldEnabled(false);
+      setYieldRate(4.0);
     }
   }, [editingAccount, isOpen]);
+
+  // Tự động bật gợi ý MoMo Túi Thần Tài khi người dùng chọn ví điện tử hoặc gõ MoMo
+  const handleTypeSelect = (selectedType: AccountType, defaultIcon: string) => {
+    setType(selectedType);
+    setIcon(defaultIcon);
+    if (selectedType === 'ewallet' && !editingAccount) {
+      setIsYieldEnabled(true);
+      if (!name) setName('Ví MoMo');
+      setColor('#D946EF');
+    }
+  };
 
   useModalEscape(onClose, isOpen);
 
@@ -58,6 +76,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       return;
     }
     const balance = parseInt(balanceStr || '0', 10);
+    const parsedYieldRate = isYieldEnabled ? Math.max(0.1, Number(yieldRate) || 4.0) : undefined;
 
     if (editingAccount) {
       updateAccount(editingAccount.id, {
@@ -68,6 +87,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         accountNumber: accountNumber || undefined,
         color,
         icon,
+        isYieldEnabled,
+        yieldRate: parsedYieldRate,
       });
     } else {
       createAccount({
@@ -79,6 +100,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         accountNumber: accountNumber || undefined,
         color,
         icon,
+        isYieldEnabled,
+        yieldRate: parsedYieldRate,
       });
     }
     onClose();
@@ -125,10 +148,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 <button
                   type="button"
                   key={item.id}
-                  onClick={() => {
-                    setType(item.id);
-                    setIcon(item.icon);
-                  }}
+                  onClick={() => handleTypeSelect(item.id, item.icon)}
                   className={`p-2.5 text-left rounded-xl border text-xs font-medium transition-all ${
                     type === item.id
                       ? 'border-blue-600 bg-blue-50 text-blue-700 font-semibold ring-1 ring-blue-600'
@@ -204,6 +224,123 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* TÍCH LŨY SINH LỜI HÀNG NGÀY (VÍ MOMO TÚI THẦN TÀI / TÀI KHOẢN TÍCH LŨY) */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-50/60 via-purple-50/40 to-blue-50/60 border border-pink-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-xl bg-pink-500 text-white shadow-xs">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <span>Tích lũy sinh lời hàng ngày</span>
+                    <span className="px-1.5 py-0.5 rounded-full text-3xs font-extrabold bg-pink-100 text-pink-700 border border-pink-300">
+                      MoMo / Túi Thần Tài
+                    </span>
+                  </h4>
+                  <p className="text-3xs text-slate-500 mt-0.5">
+                    Tự động tính lãi theo số dư thực tế và cộng tiền lời vào ví mỗi ngày
+                  </p>
+                </div>
+              </div>
+
+              {/* Toggle switch */}
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={isYieldEnabled}
+                  onChange={(e) => setIsYieldEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+              </label>
+            </div>
+
+            {isYieldEnabled && (
+              <div className="pt-3 border-t border-pink-100/80 space-y-3 animate-in fade-in duration-200">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Lãi suất sinh lời (% / năm)
+                    </label>
+                    <span className="text-3xs text-pink-600 font-bold">
+                      {yieldRate}%/năm (~{(yieldRate / 365).toFixed(4)}%/ngày)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        max="100"
+                        value={yieldRate}
+                        onChange={(e) => setYieldRate(parseFloat(e.target.value) || 0)}
+                        placeholder="4.0"
+                        className="w-full px-3 py-1.5 text-xs font-bold text-slate-800 border border-pink-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:outline-hidden bg-white"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                        %/năm
+                      </span>
+                    </div>
+
+                    {/* Quick rate presets */}
+                    {[
+                      { label: '3.5%', rate: 3.5 },
+                      { label: '4.0% MoMo', rate: 4.0 },
+                      { label: '5.0%', rate: 5.0 },
+                      { label: '6.0%', rate: 6.0 },
+                    ].map((p) => (
+                      <button
+                        type="button"
+                        key={p.rate}
+                        onClick={() => setYieldRate(p.rate)}
+                        className={`px-2.5 py-1.5 rounded-xl text-2xs font-bold transition-all cursor-pointer ${
+                          yieldRate === p.rate
+                            ? 'bg-pink-600 text-white shadow-2xs'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-pink-50'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Yield Estimation Card */}
+                {parseInt(balanceStr || '0', 10) > 0 && (
+                  <div className="p-3 rounded-xl bg-white/95 border border-pink-200/80 text-slate-700 space-y-1.5 text-2xs shadow-2xs">
+                    <div className="flex justify-between items-center text-slate-500">
+                      <span>Số dư tính lãi:</span>
+                      <span className="font-bold text-slate-800">
+                        {formatVND(parseInt(balanceStr || '0', 10))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-pink-700 font-bold pt-1 border-t border-dashed border-pink-100">
+                      <span>Tiền lời cộng mỗi ngày:</span>
+                      <span className="text-xs">
+                        ~+{formatVND(Math.round((parseInt(balanceStr || '0', 10) * (yieldRate / 100)) / 365))}/ngày
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-500">
+                      <span>Ước tính 30 ngày:</span>
+                      <span className="font-semibold text-slate-700">
+                        ~+{formatVND(Math.round(((parseInt(balanceStr || '0', 10) * (yieldRate / 100)) / 365) * 30))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-500">
+                      <span>Ước tính 1 năm (365 ngày):</span>
+                      <span className="font-semibold text-emerald-600">
+                        ~+{formatVND(Math.round(parseInt(balanceStr || '0', 10) * (yieldRate / 100)))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">

@@ -21,6 +21,7 @@ import {
   Zap,
   RotateCw,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { formatVND, formatDateVN } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
@@ -34,10 +35,12 @@ export const AccountsPage: React.FC = () => {
     transactions,
     categories,
     deleteAccount,
+    updateAccount,
     updateUser,
     autoOffsetNegativeAccount,
     autoOffsetAllNegativeAccounts,
     recalculateAccountBalances,
+    forceCalculateYield,
   } = useFinancial();
 
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -363,13 +366,22 @@ export const AccountsPage: React.FC = () => {
                         <DynamicIcon name={acc.icon || 'Wallet'} className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="flex items-center space-x-1.5">
+                        <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                           <h3 className="text-sm font-bold text-slate-800 leading-tight">
                             {acc.name}
                           </h3>
                           {acc.balance < 0 && (
                             <span className="px-1.5 py-0.5 rounded-md text-3xs font-extrabold bg-rose-100 text-rose-700 border border-rose-200">
                               Âm ví
+                            </span>
+                          )}
+                          {acc.isYieldEnabled && (
+                            <span
+                              className="px-2 py-0.5 rounded-full text-3xs font-extrabold bg-pink-50 text-pink-700 border border-pink-200 flex items-center space-x-0.5"
+                              title={`Tài khoản tích lũy sinh lời ${acc.yieldRate || 4.0}%/năm`}
+                            >
+                              <TrendingUp className="w-2.5 h-2.5 text-pink-600" />
+                              <span>+{acc.yieldRate || 4.0}%/năm</span>
                             </span>
                           )}
                         </div>
@@ -385,7 +397,7 @@ export const AccountsPage: React.FC = () => {
                           e.stopPropagation();
                           handleOpenEdit(acc);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
                         title="Chỉnh sửa tài khoản"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -397,7 +409,7 @@ export const AccountsPage: React.FC = () => {
                             deleteAccount(acc.id);
                           }
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                         title="Xóa tài khoản"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -423,6 +435,58 @@ export const AccountsPage: React.FC = () => {
                       {formatVND(acc.balance)}
                     </div>
                   </div>
+
+                  {/* Thanh tích lũy sinh lời hàng ngày nếu được bật (Ví dụ Ví MoMo Túi Thần Tài) */}
+                  {acc.isYieldEnabled && (
+                    <div className="mt-3.5 p-2.5 rounded-2xl bg-gradient-to-r from-pink-50/90 via-purple-50/60 to-pink-50/90 border border-pink-200/80 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-3xs text-pink-900 font-medium flex items-center space-x-1">
+                          <TrendingUp className="w-3 h-3 text-pink-600 shrink-0" />
+                          <span className="font-bold">Lãi:</span>
+                          <span className="font-extrabold text-pink-700">
+                            ~+{formatVND(Math.round((Math.max(0, acc.balance) * ((acc.yieldRate || 4.0) / 100)) / 365))}/ngày
+                          </span>
+                        </div>
+                        <span className="text-3xs text-slate-500 block truncate">
+                          Mức {acc.yieldRate || 4.0}%/năm • Tự động cộng
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const currentRate = acc.yieldRate || 4.0;
+                            const input = prompt(`Nhập lãi suất %/năm mới cho ví "${acc.name}":`, currentRate.toString());
+                            if (input !== null) {
+                              const parsed = parseFloat(input);
+                              if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
+                                updateAccount(acc.id, { yieldRate: parsed });
+                              } else {
+                                alert('Vui lòng nhập số % hợp lệ từ 0.1 đến 100');
+                              }
+                            }
+                          }}
+                          className="px-2 py-1 text-3xs font-bold text-slate-700 bg-white hover:bg-pink-100 hover:text-pink-700 rounded-lg border border-pink-200 transition-colors cursor-pointer"
+                          title="Chỉnh sửa tỷ lệ % lãi suất"
+                        >
+                          Đổi %
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            forceCalculateYield(acc.id);
+                          }}
+                          className="px-2 py-1 text-3xs font-bold text-white bg-pink-600 hover:bg-pink-700 active:scale-95 rounded-lg transition-all cursor-pointer shadow-2xs flex items-center space-x-1"
+                          title="Bấm để tính và cộng tiền lời ngay lập tức vào ví hôm nay"
+                        >
+                          <Sparkles className="w-2.5 h-2.5" />
+                          <span>Sinh lời ngay</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Nút cấn trừ nhanh ngay trên thẻ nếu bị âm */}
                   {acc.balance < 0 && richestAccount && richestAccount.id !== acc.id && (

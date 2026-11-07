@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
         {/* Mobile Brand Title on left */}
         <div className="sm:hidden flex items-center space-x-1.5">
-          <span className="text-sm font-bold tracking-tight text-slate-800">MoneyFlow</span>
+          <span className="text-sm font-bold tracking-tight text-slate-800 hidden min-[370px]:inline">MoneyFlow</span>
         </div>
       </div>
 
@@ -250,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           </button>
 
           {showNotifDropdown && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl py-3 z-40 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute -right-14 sm:right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl py-3 z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between px-4 pb-2 border-b border-slate-100">
                 <div className="flex items-center space-x-2">
                   <h3 className="text-sm font-semibold text-slate-800">Thông báo</h3>

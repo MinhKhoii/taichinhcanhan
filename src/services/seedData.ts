@@ -82,6 +82,8 @@ export const initialAccounts: Account[] = [
     initialBalance: 1000000,
     color: '#D946EF',
     icon: 'Smartphone',
+    isYieldEnabled: true,
+    yieldRate: 4.0,
     createdAt: '2026-09-01',
     updatedAt: '2026-11-04',
   },

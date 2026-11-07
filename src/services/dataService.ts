@@ -45,6 +45,7 @@ export class DataService {
   private constructor() {
     this.db = this.loadState();
     this.processRecurringTransactions();
+    this.processDailyYield();
   }
 
   public static getInstance(): DataService {
@@ -1232,6 +1233,132 @@ export class DataService {
       this.saveState();
     }
     return processedCount;
+  }
+
+  // ===================== DAILY YIELD (TÍCH LŨY SINH LỜI HÀNG NGÀY - VÍ MOMO) =====================
+  /**
+   * Tự động sinh lời hàng ngày cho các ví / tài khoản tích lũy (Ví dụ: Ví MoMo Túi Thần Tài 4%/năm)
+   * Công thức: Lãi ngày = Math.round(Số dư * (Lãi suất % / 100) / 365)
+   * Mỗi ngày chỉ cộng 1 lần duy nhất, tạo giao dịch Thu nhập "Tiền lời tích lũy" và cộng thẳng vào số dư ví.
+   */
+  public processDailyYield(): number {
+    if (!this.db.accounts || this.db.accounts.length === 0) return 0;
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    let processedCount = 0;
+
+    // Tìm danh mục Đầu tư & Lãi tiết kiệm
+    let investCategory = this.db.categories.find(
+      (c) => c.id === 'cat_inc_invest' || c.name.toLowerCase().includes('lãi') || c.name.toLowerCase().includes('tiết kiệm')
+    );
+    if (!investCategory) {
+      investCategory = this.db.categories.find((c) => c.type === 'income') || this.db.categories[0];
+    }
+
+    this.db.accounts.forEach((acc) => {
+      // Chỉ tính cho tài khoản bật sinh lời, có % lãi suất > 0, số dư > 0 và chưa lưu trữ
+      if (!acc.isYieldEnabled || !acc.yieldRate || acc.yieldRate <= 0 || acc.balance <= 0 || acc.isArchived) {
+        return;
+      }
+
+      // Kiểm tra nếu hôm nay đã tính lãi rồi thì bỏ qua
+      if (acc.lastYieldDate === todayStr) {
+        return;
+      }
+
+      // Tính lãi ngày: Lãi suất năm chia cho 365 ngày
+      // Ví dụ: 10.000.000đ x 4% / 365 = 1.096đ
+      const dailyYield = Math.round((acc.balance * (acc.yieldRate / 100)) / 365);
+      if (dailyYield < 1) {
+        acc.lastYieldDate = todayStr;
+        return;
+      }
+
+      // Kiểm tra trong danh sách giao dịch xem đã có giao dịch sinh lời của ví này ngày hôm nay chưa (phòng tránh trùng lặp)
+      const existingYieldTx = this.db.transactions.find((t) => {
+        const isToday = t.date === todayStr;
+        const isSameAcc = t.accountId === acc.id;
+        const isYield = t.note?.includes('[Tự động sinh lời]') || t.note?.includes('Túi Thần Tài') || t.note?.includes('Sinh lời');
+        return isToday && isSameAcc && isYield;
+      });
+
+      if (!existingYieldTx) {
+        this.createTransaction({
+          type: 'income',
+          amount: dailyYield,
+          date: todayStr,
+          accountId: acc.id,
+          categoryId: investCategory?.id || 'cat_inc_invest',
+          paymentMethod: 'ewallet',
+          note: `[Tự động sinh lời] ${acc.name} (${acc.yieldRate}%/năm)`,
+        });
+
+        // Thêm thông báo
+        this.addNotification(
+          'Ví MoMo sinh lời tự động! 💰',
+          `Ví ${acc.name} vừa tự động sinh lời +${dailyYield.toLocaleString('vi-VN')} ₫ hôm nay theo mức lãi ${acc.yieldRate}%/năm.`,
+          'goal_milestone',
+          'accounts'
+        );
+
+        processedCount++;
+      }
+
+      // Cập nhật ngày sinh lời gần nhất
+      acc.lastYieldDate = todayStr;
+    });
+
+    if (processedCount > 0) {
+      this.recalculateAccountBalances();
+      this.saveState();
+    }
+
+    return processedCount;
+  }
+
+  /**
+   * Kích hoạt tính tiền lời ngay cho một ví tích lũy (dành cho người dùng muốn thử nghiệm hoặc kiểm tra ngay)
+   */
+  public forceCalculateYield(accountId: string): { success: boolean; amount: number; message: string } {
+    const acc = this.db.accounts.find((a) => a.id === accountId);
+    if (!acc) return { success: false, amount: 0, message: 'Không tìm thấy tài khoản/ví này' };
+    if (!acc.isYieldEnabled) return { success: false, amount: 0, message: 'Tài khoản chưa bật tính năng tích lũy sinh lời hàng ngày' };
+    if (acc.balance <= 0) return { success: false, amount: 0, message: 'Số dư hiện tại phải lớn hơn 0 để tính lãi' };
+
+    const rate = acc.yieldRate || 4.0;
+    const dailyYield = Math.round((acc.balance * (rate / 100)) / 365);
+    if (dailyYield < 1) return { success: false, amount: 0, message: 'Số dư quá nhỏ để sinh lời tối thiểu 1 ₫/ngày' };
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    let investCategory = this.db.categories.find(
+      (c) => c.id === 'cat_inc_invest' || c.name.toLowerCase().includes('lãi') || c.name.toLowerCase().includes('tiết kiệm')
+    );
+    if (!investCategory) {
+      investCategory = this.db.categories.find((c) => c.type === 'income') || this.db.categories[0];
+    }
+
+    this.createTransaction({
+      type: 'income',
+      amount: dailyYield,
+      date: todayStr,
+      accountId: acc.id,
+      categoryId: investCategory?.id || 'cat_inc_invest',
+      paymentMethod: 'ewallet',
+      note: `[Tự động sinh lời] ${acc.name} (${rate}%/năm)`,
+    });
+
+    acc.lastYieldDate = todayStr;
+    this.recalculateAccountBalances();
+    this.saveState();
+
+    return {
+      success: true,
+      amount: dailyYield,
+      message: `Đã cộng +${dailyYield.toLocaleString('vi-VN')} ₫ tiền lời vào ${acc.name} (${rate}%/năm)!`,
+    };
   }
 
   // ===================== DEBTS (SỔ NỢ / CHO VAY & ĐI VAY) =====================

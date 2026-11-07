@@ -43,6 +43,9 @@ export interface Account {
   color?: string;
   icon?: string;
   isArchived?: boolean;
+  isYieldEnabled?: boolean; // Tự động sinh lời hàng ngày (Ví MoMo Túi Thần Tài / Tích lũy)
+  yieldRate?: number; // Lãi suất %/năm (mặc định 4.0)
+  lastYieldDate?: string; // Ngày gần nhất đã cộng tiền lời (YYYY-MM-DD)
   createdAt: string;
   updatedAt: string;
 }
