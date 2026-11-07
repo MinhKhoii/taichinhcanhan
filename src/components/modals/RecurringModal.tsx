@@ -54,7 +54,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
   const [categoryId, setCategoryId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('transfer');
   const [isActive, setIsActive] = useState(true);
-  const [applyToCurrentMonth, setApplyToCurrentMonth] = useState(true);
+  const [applyToCurrentMonth, setApplyToCurrentMonth] = useState(false);
 
   const availableCategories = categories.filter((c) => c.type === type);
 
@@ -85,7 +85,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
     setCategoryId(item.categoryId || '');
     setPaymentMethod(item.paymentMethod);
     setIsActive(item.isActive);
-    setApplyToCurrentMonth(true);
+    setApplyToCurrentMonth(false);
   };
 
   const resetForm = () => {
@@ -100,7 +100,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
     setCategoryId(defaultCat?.id || '');
     setPaymentMethod('transfer');
     setIsActive(true);
-    setApplyToCurrentMonth(true);
+    setApplyToCurrentMonth(false);
   };
 
   const handleStartCreate = () => {
@@ -510,22 +510,43 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
 
             {/* Apply immediately to current month checkbox */}
             {isActive && (
-              <div className="p-3 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                    Đồng bộ ngay vào Thu nhập & Số dư tháng này
-                  </span>
-                  <span className="text-2xs text-emerald-700/80 block mt-0.5">
-                    Cập nhật tức thời vào trang Tổng quan, ví nhận tiền và báo cáo tháng {new Date().getMonth() + 1}
-                  </span>
+              <div
+                className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  applyToCurrentMonth
+                    ? 'bg-amber-50/90 border-amber-300 dark:bg-amber-950/20 dark:border-amber-700/50'
+                    : 'bg-slate-50 border-slate-200/90 dark:bg-slate-800/40 dark:border-slate-700/50'
+                }`}
+                onClick={() => setApplyToCurrentMonth(!applyToCurrentMonth)}
+              >
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={applyToCurrentMonth}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setApplyToCurrentMonth(e.target.checked);
+                    }}
+                    className="w-4 h-4 mt-0.5 text-blue-600 rounded-md focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                  />
+                  <div>
+                    <span
+                      className={`text-xs font-bold block ${
+                        applyToCurrentMonth
+                          ? 'text-amber-900 dark:text-amber-200'
+                          : 'text-slate-800 dark:text-slate-200'
+                      }`}
+                    >
+                      {curItem
+                        ? 'Đồng thời cập nhật/cộng vào số dư tháng này'
+                        : `Ghi nhận ngay vào số dư tháng ${new Date().getMonth() + 1}`}
+                    </span>
+                    <span className="text-2xs text-slate-500 dark:text-slate-400 block mt-1 leading-relaxed">
+                      {applyToCurrentMonth
+                        ? '⚠️ Khoản tiền này sẽ được cộng hoặc điều chỉnh ngay vào số dư ví của bạn trong tháng hiện tại.'
+                        : '✅ Đang tắt: Chỉ lưu cấu hình cho các tháng tiếp theo, số dư và giao dịch tháng này giữ nguyên không đổi.'}
+                    </span>
+                  </div>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={applyToCurrentMonth}
-                  onChange={(e) => setApplyToCurrentMonth(e.target.checked)}
-                  className="w-5 h-5 text-emerald-600 rounded-md focus:ring-emerald-500 cursor-pointer"
-                />
               </div>
             )}
 

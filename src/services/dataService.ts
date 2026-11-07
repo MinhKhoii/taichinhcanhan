@@ -1384,13 +1384,12 @@ export class DataService {
 
   public saveRecurringItem(
     itemData: Omit<RecurringItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'> & { id?: string },
-    applyToCurrentMonth = true
+    applyToCurrentMonth = false
   ): RecurringItem {
     if (!this.db.recurringItems) this.db.recurringItems = [];
 
     const today = new Date();
     const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const currentDay = today.getDate();
 
     let targetItem: RecurringItem;
 
@@ -1405,7 +1404,7 @@ export class DataService {
         };
         targetItem = this.db.recurringItems[idx];
 
-        // Tìm giao dịch đã phát sinh trong tháng này ứng với mục định kỳ
+        // Tìm giao dịch đã phát sinh trong tháng này ứng với mục định kỳ (nếu có)
         const existingTx = this.db.transactions.find((t) => {
           const matchMonth = t.date.startsWith(currentYearMonth);
           const matchId = t.recurringItemId === targetItem.id;
@@ -1413,40 +1412,46 @@ export class DataService {
           return matchMonth && (matchId || matchOldNote);
         });
 
-        if (existingTx) {
-          if (targetItem.isActive) {
-            // Cập nhật giao dịch đã có cho khớp với số tiền, ví nhận và danh mục mới
-            this.updateTransaction(existingTx.id, {
+        // CHỈ đồng bộ vào giao dịch & số dư tháng này khi người dùng chủ động tích chọn applyToCurrentMonth
+        if (applyToCurrentMonth) {
+          if (existingTx) {
+            if (targetItem.isActive) {
+              this.updateTransaction(existingTx.id, {
+                type: targetItem.type,
+                amount: targetItem.amount,
+                accountId: targetItem.accountId,
+                categoryId: targetItem.categoryId,
+                paymentMethod: targetItem.paymentMethod,
+                note: `[Tự động] ${targetItem.name}`,
+                recurringItemId: targetItem.id,
+              });
+            } else {
+              this.deleteTransaction(existingTx.id);
+            }
+          } else if (targetItem.isActive) {
+            const txDay = Math.min(targetItem.dayOfMonth, 28);
+            const txDate = `${currentYearMonth}-${String(txDay).padStart(2, '0')}`;
+            this.createTransaction({
               type: targetItem.type,
               amount: targetItem.amount,
               accountId: targetItem.accountId,
               categoryId: targetItem.categoryId,
+              date: txDate,
               paymentMethod: targetItem.paymentMethod,
               note: `[Tự động] ${targetItem.name}`,
               recurringItemId: targetItem.id,
             });
-          } else {
-            // Nếu tạm tắt mục này, hoàn lại giao dịch tự động của tháng này
-            this.deleteTransaction(existingTx.id);
+            targetItem.lastProcessedMonth = currentYearMonth;
           }
-        } else if (targetItem.isActive && (applyToCurrentMonth || currentDay >= targetItem.dayOfMonth)) {
-          // Chưa có giao dịch tháng này -> Tự động tạo mới ngay
-          const txDay = Math.min(targetItem.dayOfMonth, 28);
-          const txDate = `${currentYearMonth}-${String(txDay).padStart(2, '0')}`;
-          this.createTransaction({
-            type: targetItem.type,
-            amount: targetItem.amount,
-            accountId: targetItem.accountId,
-            categoryId: targetItem.categoryId,
-            date: txDate,
-            paymentMethod: targetItem.paymentMethod,
-            note: `[Tự động] ${targetItem.name}`,
-            recurringItemId: targetItem.id,
-          });
-          targetItem.lastProcessedMonth = currentYearMonth;
+          this.recalculateAccountBalances();
+        } else {
+          // Người dùng chỉ đổi cấu hình lương cho các tháng sau:
+          // Không thay đổi số dư hiện tại và không ghi đè giao dịch tháng này!
+          if (!targetItem.lastProcessedMonth) {
+            targetItem.lastProcessedMonth = currentYearMonth;
+          }
         }
 
-        this.recalculateAccountBalances();
         this.saveState();
         return targetItem;
       }
@@ -1463,8 +1468,8 @@ export class DataService {
 
     this.db.recurringItems.push(newItem);
 
-    // Tự động ghi nhận cho tháng này nếu được kích hoạt
-    if (newItem.isActive && (applyToCurrentMonth || currentDay >= newItem.dayOfMonth)) {
+    // Chỉ ghi nhận ngay vào tháng này nếu người dùng chọn applyToCurrentMonth
+    if (applyToCurrentMonth && newItem.isActive) {
       const txDay = Math.min(newItem.dayOfMonth, 28);
       const txDate = `${currentYearMonth}-${String(txDay).padStart(2, '0')}`;
       this.createTransaction({
@@ -1478,14 +1483,17 @@ export class DataService {
         recurringItemId: newItem.id,
       });
       newItem.lastProcessedMonth = currentYearMonth;
+      this.recalculateAccountBalances();
+    } else {
+      // Đánh dấu để không bị tự kích hoạt trong tháng này, bắt đầu có hiệu lực từ tháng sau
+      newItem.lastProcessedMonth = currentYearMonth;
     }
 
-    this.recalculateAccountBalances();
     this.saveState();
     return newItem;
   }
 
-  public deleteRecurringItem(id: string, removeCurrentMonthTx = true): void {
+  public deleteRecurringItem(id: string, removeCurrentMonthTx = false): void {
     if (!this.db.recurringItems) return;
     const item = this.db.recurringItems.find((r) => r.id === id);
     if (!item) return;
@@ -1569,26 +1577,12 @@ export class DataService {
         return matchMonth && (matchId || matchNote);
       });
 
+      // Nếu đã có giao dịch được ghi nhận trong tháng này -> Giữ nguyên lịch sử & số dư, không tự ý ghi đè
       if (existingTx) {
-        // Nếu số tiền hoặc tài khoản ví bị lệch với cấu hình lương hiện tại -> Tự động đồng bộ
-        if (
-          existingTx.amount !== item.amount ||
-          existingTx.accountId !== item.accountId ||
-          existingTx.categoryId !== item.categoryId ||
-          existingTx.type !== item.type
-        ) {
-          this.updateTransaction(existingTx.id, {
-            type: item.type,
-            amount: item.amount,
-            accountId: item.accountId,
-            categoryId: item.categoryId,
-            paymentMethod: item.paymentMethod,
-            note: `[Tự động] ${item.name}`,
-            recurringItemId: item.id,
-          });
-          processedCount++;
-        }
-      } else if (forceCurrentMonth || (item.lastProcessedMonth !== currentYearMonth && currentDay >= item.dayOfMonth)) {
+        return;
+      }
+
+      if (forceCurrentMonth || (item.lastProcessedMonth !== currentYearMonth && currentDay >= item.dayOfMonth)) {
         const txDay = Math.min(item.dayOfMonth, 28);
         const txDate = `${currentYearMonth}-${String(txDay).padStart(2, '0')}`;
 

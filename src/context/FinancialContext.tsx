@@ -684,20 +684,24 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Recurring Items
   const saveRecurringItem = (
     itemData: Omit<RecurringItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'> & { id?: string },
-    applyToCurrentMonth = true
+    applyToCurrentMonth = false
   ) => {
     try {
       dataService.saveRecurringItem(itemData, applyToCurrentMonth);
-      showToast('Đã lưu lương định kỳ và cập nhật ngay vào số dư & thu nhập tháng này!', 'success');
+      if (applyToCurrentMonth) {
+        showToast('Đã lưu cấu hình và đồng bộ ngay vào số dư & thu nhập tháng này!', 'success');
+      } else {
+        showToast('Đã lưu cấu hình lương thành công! Số dư tháng này được giữ nguyên.', 'success');
+      }
     } catch (e: any) {
       showToast(e.message || 'Lỗi lưu thông tin định kỳ', 'error');
     }
   };
 
-  const deleteRecurringItem = (id: string) => {
+  const deleteRecurringItem = (id: string, removeCurrentMonthTx = false) => {
     try {
-      dataService.deleteRecurringItem(id, true);
-      showToast('Đã xóa mục định kỳ và điều chỉnh lại số dư tháng này', 'info');
+      dataService.deleteRecurringItem(id, removeCurrentMonthTx);
+      showToast('Đã xóa cấu hình định kỳ thành công', 'info');
     } catch (e: any) {
       showToast(e.message || 'Lỗi khi xóa', 'error');
     }
