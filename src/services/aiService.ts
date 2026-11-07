@@ -1,5 +1,6 @@
 import { Account, Category, Transaction, Budget, SavingsGoal, DebtItem, PaymentMethod } from '../types';
 import { formatVND } from '../utils/formatters';
+import { dataService } from './dataService';
 
 const STORAGE_KEY = 'moneyflow_gemini_api_key';
 
@@ -76,22 +77,36 @@ class AIService {
   // 1. API Key Helpers
   getApiKey(): string {
     try {
-      return localStorage.getItem(STORAGE_KEY)?.trim() || '';
+      const local = localStorage.getItem(STORAGE_KEY)?.trim();
+      if (local) return local;
+      const userKey = dataService.getUser()?.geminiApiKey?.trim();
+      if (userKey) {
+        localStorage.setItem(STORAGE_KEY, userKey);
+        return userKey;
+      }
+      return '';
     } catch {
       return '';
     }
   }
 
   setApiKey(key: string): void {
+    const trimmed = (key || '').trim();
     try {
-      if (key && key.trim()) {
-        localStorage.setItem(STORAGE_KEY, key.trim());
+      if (trimmed) {
+        localStorage.setItem(STORAGE_KEY, trimmed);
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
     } catch (e) {
       console.error('Failed to save Gemini API key:', e);
     }
+
+    try {
+      dataService.updateUser({ geminiApiKey: trimmed });
+      // Tự động đẩy lên Cloud Supabase để các thiết bị khác (điện thoại, máy tính) đồng bộ luôn!
+      dataService.syncToSupabase().catch(() => {});
+    } catch {}
   }
 
   hasApiKey(): boolean {

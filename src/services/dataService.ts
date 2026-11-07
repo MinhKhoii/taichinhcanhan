@@ -303,6 +303,13 @@ export class DataService {
             if (!parsed.user.fontSize) {
               parsed.user.fontSize = 'medium';
             }
+            // Tự động đồng bộ API Key Gemini giữa LocalStorage và Tài khoản User
+            const localApiKey = localStorage.getItem('moneyflow_gemini_api_key')?.trim();
+            if (localApiKey && !parsed.user.geminiApiKey) {
+              parsed.user.geminiApiKey = localApiKey;
+            } else if (parsed.user.geminiApiKey && !localApiKey) {
+              localStorage.setItem('moneyflow_gemini_api_key', parsed.user.geminiApiKey);
+            }
           }
           if (this.healAccountsState(parsed)) {
             localStorage.setItem(key, JSON.stringify(parsed));
@@ -395,11 +402,22 @@ export class DataService {
 
   // ===================== USER =====================
   public getUser(): User {
+    const localApiKey = localStorage.getItem('moneyflow_gemini_api_key')?.trim();
+    if (localApiKey && !this.db.user.geminiApiKey) {
+      this.db.user.geminiApiKey = localApiKey;
+    }
     return { ...this.db.user };
   }
 
   public updateUser(userUpdate: Partial<User>): User {
     this.db.user = { ...this.db.user, ...userUpdate };
+    if (userUpdate.geminiApiKey !== undefined) {
+      if (userUpdate.geminiApiKey) {
+        localStorage.setItem('moneyflow_gemini_api_key', userUpdate.geminiApiKey.trim());
+      } else {
+        localStorage.removeItem('moneyflow_gemini_api_key');
+      }
+    }
     this.saveState();
     return this.getUser();
   }
@@ -907,6 +925,12 @@ export class DataService {
       const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
       const nowIso = new Date().toISOString();
 
+      // Đảm bảo API Key của người dùng được sao lưu lên Cloud
+      const localApiKey = localStorage.getItem('moneyflow_gemini_api_key')?.trim();
+      if (localApiKey && !this.db.user.geminiApiKey) {
+        this.db.user.geminiApiKey = localApiKey;
+      }
+
       const { error } = await supabase
         .from('cloud_backups')
         .upsert({
@@ -1015,6 +1039,12 @@ export class DataService {
         this.healAccountsState(this.db);
         const key = this.getStorageKey();
         localStorage.setItem(key, JSON.stringify(this.db));
+
+        // Tự động đồng bộ API Key Gemini về máy mới/điện thoại
+        if (this.db.user?.geminiApiKey) {
+          localStorage.setItem('moneyflow_gemini_api_key', this.db.user.geminiApiKey);
+        }
+
         const syncTime = data.updated_at || new Date().toISOString();
         localStorage.setItem('moneyflow_last_local_updated_at', syncTime);
         localStorage.setItem('moneyflow_last_cloud_sync_at', syncTime);

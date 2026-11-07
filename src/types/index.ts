@@ -20,6 +20,7 @@ export interface User {
   theme?: ThemePreference; // Chế độ giao diện: sáng / tối
   pinCode?: string; // Mã PIN bảo vệ ứng dụng (6 số)
   isPinEnabled?: boolean;
+  geminiApiKey?: string; // Khóa Google Gemini API Key đồng bộ đa thiết bị theo tài khoản
   role?: 'admin' | 'user'; // Quyền hạn: admin (chủ hệ thống) hoặc user (người dùng)
   createdAt: string;
 }
