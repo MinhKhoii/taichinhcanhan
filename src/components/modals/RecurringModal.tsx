@@ -153,12 +153,12 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-200 modal-backdrop-lock"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
+      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col modal-content-scroll">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <div className="flex items-center space-x-2.5">
@@ -192,7 +192,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
 
         {/* VIEW 1: LIST OF RECURRING ITEMS */}
         {viewMode === 'list' && (
-          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 modal-content-scroll">
             {/* Top Toolbar in List view */}
             <div className="flex items-center justify-between gap-2 pb-2">
               <button
@@ -347,7 +347,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
 
         {/* VIEW 2: FORM CREATE / EDIT */}
         {viewMode === 'form' && (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 modal-content-scroll">
             {recurringItems.length > 0 && (
               <button
                 type="button"

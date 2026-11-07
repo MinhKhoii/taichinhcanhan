@@ -88,7 +88,7 @@ export class DataService {
                   parsed.recurringItems = parsedLegacy.recurringItems || [];
                   parsed.budgets = parsedLegacy.budgets || [];
                 }
-              } catch {}
+              } catch { }
             }
           }
 
@@ -286,7 +286,7 @@ export class DataService {
         const sess = JSON.parse(sessStr);
         if (sess?.user?.email) activeEmail = sess.user.email;
       }
-    } catch {}
+    } catch { }
 
     const key = this.getStorageKey(activeEmail);
     try {
@@ -901,7 +901,7 @@ export class DataService {
         if (data && data.user) {
           supaUserId = data.user.id;
         }
-      } catch {}
+      } catch { }
 
       const effectiveUserId = supaUserId || this.db.user.id || 'usr_default';
       const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
@@ -934,7 +934,7 @@ export class DataService {
               data: this.db,
               updated_at: nowIso,
             });
-        } catch {}
+        } catch { }
       }
 
       if (error) {
@@ -974,7 +974,7 @@ export class DataService {
         if (data && data.user) {
           supaUserId = data.user.id;
         }
-      } catch {}
+      } catch { }
 
       const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
 
@@ -1044,7 +1044,7 @@ export class DataService {
         if (data && data.user) {
           supaUserId = data.user.id;
         }
-      } catch {}
+      } catch { }
 
       const backupId = supaUserId ? `backup_${supaUserId}` : `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
 
