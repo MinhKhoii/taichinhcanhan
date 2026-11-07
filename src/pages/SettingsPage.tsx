@@ -363,212 +363,189 @@ export const SettingsPage: React.FC = () => {
       {/* ==================== TAB 1: TÀI KHOẢN & GIAO DIỆN ==================== */}
       {activeTab === 'account' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start animate-in fade-in duration-200">
-          {/* Column 1: Unified Profile & 6-digit PIN Security */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
-            {/* Header with User Badge */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center space-x-2.5">
-                <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                  Hồ sơ tài khoản & Bảo mật
-                </h3>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {isAdmin ? (
-                  <span className="text-3xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
-                    👑 Quản trị viên
-                  </span>
-                ) : (
-                  <span className="text-3xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                    Thành viên
-                  </span>
-                )}
-                <span className="text-3xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                  {session.loginMethod === 'supabase' ? 'Supabase Cloud' : 'Tài khoản nội bộ'}
-                </span>
-              </div>
-            </div>
-
-            {/* User Info Bar */}
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex items-center justify-between gap-3">
-              <div className="flex items-center space-x-3 truncate">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
-                  {user.fullName?.slice(0, 2).toUpperCase() || 'MF'}
+          {/* CỘT 1: HỒ SƠ & BẢO MẬT TÀI KHOẢN */}
+          <div className="space-y-6">
+            {/* Thẻ 1: Thông tin tài khoản */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center space-x-2.5">
+                  <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                    Hồ sơ tài khoản
+                  </h3>
                 </div>
-                <div className="truncate">
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
-                    {user.fullName}
-                  </h4>
-                  <p className="text-2xs text-slate-500 dark:text-slate-400 truncate">
-                    {user.email || 'Chưa liên kết email'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => openAuthModal('login')}
-                  className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
-                >
-                  Đổi tài khoản
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (confirm('Bạn có chắc muốn đăng xuất khỏi tài khoản này?')) {
-                      await logout();
-                    }
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
-                  title="Đăng xuất"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Account Details & Secure Protected View */}
-            <div className="space-y-3">
-              {/* Họ và tên với nút Sửa tên */}
-              <div className="p-3.5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex items-center justify-between gap-3">
-                <div className="space-y-0.5 flex-1 min-w-0">
-                  <span className="text-3xs font-semibold text-slate-400 uppercase tracking-wider block">
-                    Tên hiển thị hồ sơ:
-                  </span>
-                  {isEditingName ? (
-                    <input
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-blue-500 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-hidden ring-2 ring-blue-500/20"
-                      autoFocus
-                    />
+                <div className="flex items-center gap-1.5">
+                  {isAdmin ? (
+                    <span className="text-3xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                      👑 Quản trị viên
+                    </span>
                   ) : (
-                    <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 block truncate">
-                      {user.fullName || 'Khôi'}
+                    <span className="text-3xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      Thành viên
                     </span>
                   )}
+                  <span className="text-3xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    {session.loginMethod === 'supabase' ? 'Cloud Synced' : 'Nội bộ'}
+                  </span>
+                </div>
+              </div>
+
+              {/* User Avatar & Info */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex items-center justify-between gap-3">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
+                    {user.fullName?.slice(0, 2).toUpperCase() || 'MF'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {isEditingName ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 border border-blue-500 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-hidden ring-2 ring-blue-500/20 max-w-[130px]"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!fullName.trim()) return;
+                            updateUser({ fullName: fullName.trim() });
+                            setIsEditingName(false);
+                            showToast('Đã lưu tên hiển thị mới!', 'success');
+                          }}
+                          className="px-2.5 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors cursor-pointer"
+                        >
+                          Lưu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFullName(user.fullName || 'Khôi');
+                            setIsEditingName(false);
+                          }}
+                          className="px-2 py-1 text-xs text-slate-500 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
+                          {user.fullName || 'Khôi'}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingName(true)}
+                          className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                          title="Sửa tên hiển thị"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-2xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      {user.email || 'Chưa liên kết email'}
+                    </p>
+                  </div>
                 </div>
 
-                {isEditingName ? (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!fullName.trim()) return;
-                        updateUser({ fullName: fullName.trim() });
-                        setIsEditingName(false);
-                        showToast('Đã lưu tên hiển thị mới!', 'success');
-                      }}
-                      className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors cursor-pointer"
-                    >
-                      Lưu
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFullName(user.fullName || 'Khôi');
-                        setIsEditingName(false);
-                      }}
-                      className="px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
-                    >
-                      Hủy
-                    </button>
-                  </div>
-                ) : (
+                <div className="flex items-center space-x-1.5 shrink-0">
                   <button
                     type="button"
-                    onClick={() => setIsEditingName(true)}
-                    className="px-3 py-1.5 text-2xs font-semibold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+                    onClick={() => openAuthModal('login')}
+                    className="px-2.5 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer shadow-2xs"
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
-                    <span>Sửa tên</span>
+                    Đổi nick
                   </button>
-                )}
-              </div>
-
-              {/* Địa chỉ Email - Khóa cố định bảo mật */}
-              <div className="p-3.5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex items-center justify-between gap-3">
-                <div className="space-y-0.5 min-w-0 truncate">
-                  <span className="text-3xs font-semibold text-slate-400 uppercase tracking-wider block">
-                    Email tài khoản (Khóa bảo vệ):
-                  </span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 font-mono block truncate">
-                    {user.email || 'email@example.com'}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-semibold text-2xs bg-emerald-100/80 dark:bg-emerald-950/50 px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Định danh cố định</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (confirm('Bạn có chắc muốn đăng xuất khỏi tài khoản này?')) {
+                        await logout();
+                      }
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
+                    title="Đăng xuất"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
-              {/* Thông tin Tiền tệ & Ngày */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-50/50 dark:bg-slate-800/30 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl">
-                  <span className="text-3xs font-semibold text-slate-400 uppercase tracking-wider block">
-                    Đơn vị tiền tệ
-                  </span>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5 block">
-                    VNĐ (Việt Nam Đồng)
-                  </span>
+              {/* Password & System Format */}
+              <div className="space-y-2.5 pt-1">
+                {/* Đổi mật khẩu */}
+                <div className="p-3 bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
+                        Mật khẩu tài khoản
+                      </span>
+                      <span className="text-3xs text-slate-400 block truncate">
+                        Dùng khi đăng nhập máy khác
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsChangePasswordOpen(true)}
+                    className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 border border-blue-200 dark:border-blue-800 rounded-xl transition-colors cursor-pointer shrink-0 shadow-2xs"
+                  >
+                    Đổi mật khẩu
+                  </button>
                 </div>
-                <div className="p-3 bg-slate-50/50 dark:bg-slate-800/30 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl">
-                  <span className="text-3xs font-semibold text-slate-400 uppercase tracking-wider block">
-                    Định dạng ngày
-                  </span>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5 block">
-                    DD/MM/YYYY
-                  </span>
+
+                {/* Tiền tệ & Định dạng ngày */}
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl">
+                    <span className="text-3xs font-semibold text-slate-400 uppercase tracking-wider block">
+                      Đơn vị tiền tệ
+                    </span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 mt-0.5 block">
+                      VNĐ (₫)
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl">
+                    <span className="text-3xs font-semibold text-slate-400 uppercase tracking-wider block">
+                      Định dạng ngày
+                    </span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 mt-0.5 block">
+                      DD/MM/YYYY
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Mật khẩu đăng nhập tài khoản */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <label className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                  <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span>Mật khẩu tài khoản đăng nhập</span>
-                </label>
-                <p className="text-2xs text-slate-400 mt-0.5">
-                  Dùng khi đăng nhập trên các máy khác hoặc đổi thiết bị
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsChangePasswordOpen(true)}
-                className="px-3.5 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-xl transition-colors cursor-pointer shrink-0"
-              >
-                Đổi mật khẩu
-              </button>
-            </div>
-
-            {/* Mã PIN 6 số Bảo mật */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                    <KeyRound className="w-4 h-4 text-amber-500" />
-                    <span>Khóa mã PIN 6 số bảo vệ</span>
-                  </label>
-                  <p className="text-2xs text-slate-400 mt-0.5">
-                    Khóa số dư & sổ nợ an toàn khi cho người khác mượn máy
-                  </p>
+            {/* Thẻ 2: Khóa bảo mật PIN 6 số */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center space-x-2.5">
+                  <KeyRound className="w-5 h-5 text-amber-500" />
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                      Khóa mã PIN 6 số bảo vệ
+                    </h3>
+                    <p className="text-2xs text-slate-400">
+                      Bảo vệ số dư & sổ nợ khi cho người khác mượn máy
+                    </p>
+                  </div>
                 </div>
                 <span
-                  className={`text-3xs font-bold px-2 py-0.5 rounded-full ${
+                  className={`text-3xs font-bold px-2.5 py-0.5 rounded-full ${
                     user.isPinEnabled
                       ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  {user.isPinEnabled ? 'Đang bật (6 số)' : 'Chưa cài đặt'}
+                  {user.isPinEnabled ? 'Đang bật' : 'Chưa cài'}
                 </span>
               </div>
 
+              {/* PIN body */}
               {user.isPinEnabled && !isChangingPin ? (
                 <div className="space-y-3">
                   <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl flex items-center justify-between">
@@ -578,14 +555,13 @@ export const SettingsPage: React.FC = () => {
                         <span className="text-2xs text-amber-800 dark:text-amber-300 block font-semibold">
                           Mã PIN đang bảo vệ:
                         </span>
-                        {/* Display PIN masked as •••••• */}
                         <span className="font-mono text-base font-black tracking-widest text-slate-800 dark:text-slate-100">
                           ••••••
                         </span>
                       </div>
                     </div>
                     <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Đã mã hóa SHA-256
+                      <CheckCircle2 className="w-3 h-3" /> Đã mã hóa
                     </span>
                   </div>
 
@@ -596,7 +572,7 @@ export const SettingsPage: React.FC = () => {
                       className="flex-1 py-2 text-xs font-semibold text-amber-800 dark:text-amber-200 bg-amber-100/80 dark:bg-amber-950/50 hover:bg-amber-200/80 border border-amber-200 dark:border-amber-800 rounded-xl transition-colors flex items-center justify-center space-x-1.5 cursor-pointer"
                     >
                       <Lock className="w-3.5 h-3.5" />
-                      <span>Khóa ngay màn hình</span>
+                      <span>Khóa ngay</span>
                     </button>
                     <button
                       type="button"
@@ -626,7 +602,7 @@ export const SettingsPage: React.FC = () => {
                       maxLength={6}
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      placeholder="Nhập 6 số PIN mới (VD: 123456)"
+                      placeholder="Nhập 6 số PIN (VD: 123456)"
                       value={pinInput}
                       onChange={(e) => setPinInput(e.target.value.replace(/[^0-9]/g, ''))}
                       className="flex-1 px-3.5 py-2 text-xs sm:text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-amber-500 font-mono tracking-wider"
@@ -635,7 +611,7 @@ export const SettingsPage: React.FC = () => {
                       type="submit"
                       className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs transition-colors cursor-pointer whitespace-nowrap"
                     >
-                      {isChangingPin ? 'Lưu PIN mới' : 'Đặt PIN 6 số'}
+                      {isChangingPin ? 'Lưu PIN' : 'Đặt PIN'}
                     </button>
                     {isChangingPin && (
                       <button
@@ -651,266 +627,261 @@ export const SettingsPage: React.FC = () => {
                     )}
                   </div>
                   <p className="text-3xs text-slate-400">
-                    💡 Hãy nhập đúng 6 chữ số. Sau khi lưu, mã PIN sẽ tự động mã hóa bí mật thành •••••• để bảo vệ tuyệt đối.
+                    💡 Nhập đúng 6 chữ số. Mã PIN giúp khóa nhanh màn hình khi cho người khác mượn điện thoại.
                   </p>
                 </form>
               )}
             </div>
           </div>
 
-          {/* Column 2: Theme & Font Size Preference */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center space-x-2.5">
-                <Type className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <div>
-                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                    Giao diện & Cỡ chữ hiển thị
-                  </h3>
-                  <p className="text-2xs text-slate-500 dark:text-slate-400">
-                    Tùy chọn chế độ sáng / tối và kích thước chữ to nhỏ vừa mắt bạn
-                  </p>
+          {/* CỘT 2: GIAO DIỆN & THIẾT LẬP ỨNG DỤNG */}
+          <div className="space-y-6">
+            {/* Thẻ 3: Giao diện & Cỡ chữ */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center space-x-2.5">
+                  <Type className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                      Giao diện & Cỡ chữ hiển thị
+                    </h3>
+                    <p className="text-2xs text-slate-400">
+                      Tùy chọn chế độ sáng / tối và kích thước chữ vừa mắt
+                    </p>
+                  </div>
+                </div>
+                {user.fontSize && user.fontSize !== 'medium' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateUser({ fontSize: 'medium' });
+                      showToast('Đã khôi phục cỡ chữ mặc định (Vừa vặn - 100%)', 'info');
+                    }}
+                    className="flex items-center gap-1 text-2xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                    title="Khôi phục cỡ chữ mặc định"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Mặc định</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Theme Mode: Light / Dark */}
+              <div>
+                <label className="block text-2xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  Chế độ màu nền:
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTheme('light');
+                      showToast('Đã kích hoạt Chế độ Sáng (Ban ngày)!', 'info');
+                    }}
+                    className={`p-3 rounded-2xl border flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                      theme === 'light'
+                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 font-bold ring-2 ring-blue-500/20 shadow-xs'
+                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-semibold">Chế độ Sáng</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTheme('dark');
+                      showToast('Đã kích hoạt Chế độ Tối (Dark Mode)!', 'info');
+                    }}
+                    className={`p-3 rounded-2xl border flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                      theme === 'dark'
+                        ? 'border-blue-600 bg-blue-950/50 text-blue-200 font-bold ring-2 ring-blue-500/20 shadow-xs'
+                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                    <span className="text-xs font-semibold">Chế độ Tối</span>
+                  </button>
                 </div>
               </div>
-              {user.fontSize && user.fontSize !== 'medium' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateUser({ fontSize: 'medium' });
-                    showToast('Đã khôi phục cỡ chữ mặc định (Vừa vặn - 100%)', 'info');
-                  }}
-                  className="flex items-center gap-1 text-2xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-                  title="Khôi phục cỡ chữ mặc định"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Cỡ mặc định</span>
-                </button>
-              )}
-            </div>
 
-            {/* Theme Mode: Light / Dark */}
-            <div>
-              <label className="block text-2xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                Chế độ màu nền (Sáng / Tối):
-              </label>
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTheme('light');
-                    showToast('Đã kích hoạt Chế độ Sáng (Ban ngày)!', 'info');
-                  }}
-                  className={`p-3 rounded-2xl border flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    theme === 'light'
-                      ? 'border-blue-600 bg-blue-50/80 text-blue-900 font-bold ring-2 ring-blue-500/20 shadow-xs'
-                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Sun className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs">☀️ Chế độ Sáng</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTheme('dark');
-                    showToast('Đã kích hoạt Chế độ Tối (Dark Mode)!', 'info');
-                  }}
-                  className={`p-3 rounded-2xl border flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    theme === 'dark'
-                      ? 'border-blue-600 bg-blue-950/50 text-blue-200 font-bold ring-2 ring-blue-500/20 shadow-xs'
-                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Moon className="w-4 h-4 text-indigo-400" />
-                  <span className="text-xs">🌙 Chế độ Tối</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Font Size Selector */}
-            <div>
-              <label className="block text-2xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                Kích thước chữ hệ thống:
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {[
-                  {
-                    id: 'small',
-                    name: 'Nhỏ gọn',
-                    scale: '90%',
-                    desc: 'Chứa nhiều nội dung',
-                    sample: 'Aa',
-                    sampleClass: 'text-xs',
-                  },
-                  {
-                    id: 'medium',
-                    name: 'Vừa vặn',
-                    scale: '100% (Chuẩn)',
-                    desc: 'Chuẩn tối ưu nhất',
-                    sample: 'Aa',
-                    sampleClass: 'text-sm font-semibold',
-                    isDefault: true,
-                  },
-                  {
-                    id: 'large',
-                    name: 'Lớn',
-                    scale: '110%',
-                    desc: 'Dễ đọc, thoáng mắt',
-                    sample: 'Aa',
-                    sampleClass: 'text-base font-bold',
-                  },
-                  {
-                    id: 'xlarge',
-                    name: 'Rất lớn',
-                    scale: '120%',
-                    desc: 'To rõ ràng',
-                    sample: 'Aa',
-                    sampleClass: 'text-lg font-black',
-                  },
-                ].map((item) => {
-                  const isSelected = (user.fontSize || 'medium') === item.id;
-                  return (
-                    <button
-                      type="button"
-                      key={item.id}
-                      onClick={() => {
-                        updateUser({ fontSize: item.id as any });
-                        showToast(`Đã chuyển cỡ chữ sang "${item.name}"!`, 'success');
-                      }}
-                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer relative flex flex-col items-center justify-between ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 shadow-xs ring-2 ring-blue-500/20 font-bold'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {isSelected && (
-                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
-                      )}
-                      <span className={`${item.sampleClass} text-slate-800 dark:text-slate-100 my-0.5`}>
-                        {item.sample}
-                      </span>
-                      <span className="text-xs font-bold block">{item.name}</span>
-                      <span
-                        className={`text-3xs block mt-0.5 ${
-                          item.isDefault ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-slate-400'
+              {/* Font Size Selector */}
+              <div>
+                <label className="block text-2xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  Kích thước chữ hệ thống:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    {
+                      id: 'small',
+                      name: 'Nhỏ gọn',
+                      scale: '90%',
+                      sample: 'Aa',
+                      sampleClass: 'text-xs',
+                    },
+                    {
+                      id: 'medium',
+                      name: 'Vừa vặn',
+                      scale: '100%',
+                      sample: 'Aa',
+                      sampleClass: 'text-sm font-semibold',
+                      isDefault: true,
+                    },
+                    {
+                      id: 'large',
+                      name: 'Lớn',
+                      scale: '110%',
+                      sample: 'Aa',
+                      sampleClass: 'text-base font-bold',
+                    },
+                    {
+                      id: 'xlarge',
+                      name: 'Rất lớn',
+                      scale: '120%',
+                      sample: 'Aa',
+                      sampleClass: 'text-lg font-black',
+                    },
+                  ].map((item) => {
+                    const isSelected = (user.fontSize || 'medium') === item.id;
+                    return (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => {
+                          updateUser({ fontSize: item.id as any });
+                          showToast(`Đã chuyển cỡ chữ sang "${item.name}"!`, 'success');
+                        }}
+                        className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer relative flex flex-col items-center justify-between ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 shadow-xs ring-2 ring-blue-500/20 font-bold'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {item.scale}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Live Preview Box */}
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex items-center justify-between gap-3">
-              <div className="space-y-0.5 truncate">
-                <span className="text-3xs font-semibold text-slate-400 uppercase tracking-wider block">
-                  Xem trước trực quan:
-                </span>
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-                  Số dư ví: 10.305.000 ₫ • Chi tiêu: 3.500.000 ₫
-                </p>
-              </div>
-              <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 whitespace-nowrap shrink-0">
-                Tự động lưu
-              </span>
-            </div>
-          </div>
-
-          {/* Default Account Preference (Tài khoản thanh toán mặc định) */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <div className="flex items-center space-x-2.5">
-              <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <div>
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                  Tài khoản thanh toán mặc định
-                </h3>
-                <p className="text-2xs text-slate-500 dark:text-slate-400">
-                  Chọn tài khoản ưu tiên tự động điền trước khi bạn mở bảng "Thêm giao dịch mới"
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <select
-                value={user.defaultAccountId || 'auto'}
-                onChange={(e) => {
-                  const val = e.target.value === 'auto' ? undefined : e.target.value;
-                  updateUser({ defaultAccountId: val });
-                  const chosenAcc = accounts.find((a) => a.id === val);
-                  showToast(
-                    chosenAcc
-                      ? `Đã đặt "${chosenAcc.name}" làm tài khoản mặc định khi thêm giao dịch!`
-                      : 'Đã đặt: Tự động ưu tiên Ngân hàng / Ví MoMo & nhớ tài khoản dùng gần nhất',
-                    'success'
-                  );
-                }}
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="auto">
-                  🔄 Tự động: Ưu tiên Ngân hàng / Ví MoMo & nhớ lần dùng gần nhất (Khuyên dùng)
-                </option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') ? '🏦' : a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo') ? '👛' : '💵'} {a.name} ({formatVND(a.balance)})
-                  </option>
-                ))}
-              </select>
-              <p className="text-3xs text-slate-400 mt-2 leading-relaxed">
-                💡 Bạn có thể chọn cố định là <strong>Ngân hàng</strong> hoặc <strong>Ví MoMo</strong>, hoặc chọn <strong>Tự động</strong> để hệ thống tự ưu tiên Ngân hàng / MoMo và nhớ tài khoản bạn dùng gần nhất.
-              </p>
-            </div>
-          </div>
-
-          {/* PWA App Installation Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2.5">
-                <Smartphone className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <div>
-                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                    Cài ứng dụng ra màn hình chính (PWA)
-                  </h3>
-                  <p className="text-2xs text-slate-500 dark:text-slate-400">
-                    Đưa MoneyFlow ra màn hình điện thoại / máy tính như app tải từ CH Play / App Store
-                  </p>
+                        {isSelected && (
+                          <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-blue-600" />
+                        )}
+                        <span className={`${item.sampleClass} text-slate-800 dark:text-slate-100 my-0.5`}>
+                          {item.sample}
+                        </span>
+                        <span className="text-xs font-bold block">{item.name}</span>
+                        <span
+                          className={`text-3xs block mt-0.5 ${
+                            item.isDefault ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-slate-400'
+                          }`}
+                        >
+                          {item.scale}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <span
-                className={`text-3xs font-bold px-2 py-0.5 rounded-full ${
-                  isInstalled
-                    ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                    : 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                }`}
-              >
-                {isInstalled ? '✅ Đã cài đặt' : '💡 Có thể cài ngay'}
-              </span>
+
+              {/* Live Preview Box */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex items-center justify-between gap-3">
+                <div className="space-y-0.5 truncate">
+                  <span className="text-3xs font-semibold text-slate-400 uppercase tracking-wider block">
+                    Xem trước trực quan:
+                  </span>
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                    Số dư ví: 10.305.000 ₫ • Chi tiêu: 3.500.000 ₫
+                  </p>
+                </div>
+                <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 whitespace-nowrap shrink-0">
+                  Tự động lưu
+                </span>
+              </div>
             </div>
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  {isInstalled
-                    ? 'MoneyFlow đang chạy dưới dạng App độc lập trên thiết bị của bạn'
-                    : 'Cài đặt để mở 1 chạm từ màn hình chính, toàn màn hình và mượt mà hơn'}
-                </p>
-                <p className="text-2xs text-slate-400 mt-0.5">
-                  Không tốn dung lượng máy • Không dính thanh địa chỉ URL • Tự động cập nhật
+            {/* Thẻ 4: Tiện ích & Cài đặt App ra màn hình chính */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+              {/* Header Card 4 */}
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center space-x-2.5">
+                  <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                      Tiện ích & Thiết lập nhanh
+                    </h3>
+                    <p className="text-2xs text-slate-400">
+                      Tùy chọn tài khoản thanh toán và cài app ra màn hình
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mục 1: Tài khoản mặc định khi tạo giao dịch */}
+              <div className="space-y-2">
+                <label className="block text-2xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Tài khoản thanh toán ưu tiên:
+                </label>
+                <select
+                  value={user.defaultAccountId || 'auto'}
+                  onChange={(e) => {
+                    const val = e.target.value === 'auto' ? undefined : e.target.value;
+                    updateUser({ defaultAccountId: val });
+                    const chosenAcc = accounts.find((a) => a.id === val);
+                    showToast(
+                      chosenAcc
+                        ? `Đã đặt "${chosenAcc.name}" làm tài khoản mặc định!`
+                        : 'Đã đặt: Tự động ưu tiên Ngân hàng / Ví MoMo',
+                      'success'
+                    );
+                  }}
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="auto">
+                    🔄 Tự động: Ưu tiên Ngân hàng / Ví MoMo & nhớ lần dùng gần nhất
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') ? '🏦' : a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo') ? '👛' : '💵'} {a.name} ({formatVND(a.balance)})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-3xs text-slate-400">
+                  Tự động điền tài khoản này trước khi bạn bấm "+ Thêm chi tiêu".
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={promptInstall}
-                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{isInstalled ? 'Xem lại hướng dẫn' : 'Cài đặt ra màn hình'}</span>
-                </button>
+              {/* Mục 2: Cài App PWA ra màn hình chính */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="p-3.5 bg-gradient-to-br from-indigo-50/60 to-blue-50/50 dark:from-indigo-950/20 dark:to-blue-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Smartphone className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100">
+                          Cài App ra màn hình chính
+                        </h4>
+                        <span
+                          className={`text-3xs font-semibold px-2 py-0.5 rounded-full ${
+                            isInstalled
+                              ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                              : 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                          }`}
+                        >
+                          {isInstalled ? '✅ Đã cài' : 'Khuyên dùng'}
+                        </span>
+                      </div>
+                      <p className="text-2xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        Mở 1 chạm toàn màn hình, mượt mà và không dính thanh duyệt web
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={promptInstall}
+                    className="px-3.5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{isInstalled ? 'Hướng dẫn' : 'Cài đặt ngay'}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1281,14 +1252,16 @@ export const SettingsPage: React.FC = () => {
       {/* ==================== TAB 4: SAO LƯU & ĐÁM MÂY ==================== */}
       {activeTab === 'cloud' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start animate-in fade-in duration-200">
-          {/* Card 1: Local Data Management */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <Database className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                Quản lý & Sao lưu dữ liệu
-              </h3>
-            </div>
+          {/* CỘT 1: QUẢN LÝ DỮ LIỆU & SAO LƯU */}
+          <div className="space-y-6">
+            {/* Card 1: Local Data Management */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+              <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <Database className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                  Quản lý & Sao lưu dữ liệu
+                </h3>
+              </div>
 
             <div className="space-y-3">
               {/* Xuất Excel */}
@@ -1424,7 +1397,10 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
 
+        {/* CỘT 2: TRỢ LÝ AI & KẾT NỐI CLOUD */}
+        <div className="space-y-6">
           {/* Card: Trợ lý AI Gemini (Google AI Studio) */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -1712,6 +1688,7 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
           )}
+          </div>
         </div>
       )}
 
