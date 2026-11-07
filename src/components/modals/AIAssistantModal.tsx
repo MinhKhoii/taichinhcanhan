@@ -120,8 +120,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     }
   }, [messages, isThinking, activeTab]);
 
-  if (!isOpen) return null;
-
   // Send Chat Message
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || inputMessage).trim();
@@ -455,6 +453,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     'Mua áo 200k tiền mặt',
     'Nhận lương 15tr',
   ];
+
+  if (!isOpen) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
