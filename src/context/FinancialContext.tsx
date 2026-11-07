@@ -140,6 +140,8 @@ interface FinancialContextType {
   lastCloudSyncTime: string;
   syncToCloud: () => Promise<{ success: boolean; message: string }>;
   pullFromCloud: () => Promise<{ success: boolean; message: string }>;
+  hasSafetyBackup: boolean;
+  rollbackSafetyBackup: () => void;
 
   // Theme Preference (Sáng / Tối)
   theme: 'light' | 'dark';
@@ -594,6 +596,19 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const [hasSafetyBackup, setHasSafetyBackup] = useState(() => dataService.hasSafetyBackup());
+
+  const rollbackSafetyBackup = () => {
+    const result = dataService.rollbackFromSafetyBackup();
+    if (result.success) {
+      syncState();
+      setHasSafetyBackup(dataService.hasSafetyBackup());
+      showToast(result.message, 'success');
+    } else {
+      showToast(result.message, 'error');
+    }
+  };
+
   // TỰ ĐỘNG ĐỒNG BỘ 2 CHIỀU VỚI CLOUD SUPABASE (ĐIỆN THOẠI & MÁY TÍNH TỰ CẬP NHẬT TỨC THÌ)
   useEffect(() => {
     if (!isCloudConfigured) return;
@@ -976,6 +991,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         lastCloudSyncTime,
         syncToCloud,
         pullFromCloud,
+        hasSafetyBackup,
+        rollbackSafetyBackup,
         theme,
         toggleTheme,
         setTheme,

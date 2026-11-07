@@ -931,6 +931,19 @@ export class DataService {
         this.db.user.geminiApiKey = localApiKey;
       }
 
+      // Phòng ngừa phiên làm việc rỗng ghi đè mất dữ liệu trên Cloud
+      if (this.db.transactions.length === 0 && this.db.accounts.every((a) => a.balance === 0)) {
+        const checkCloud = await supabase
+          .from('cloud_backups')
+          .select('data')
+          .eq('id', backupId)
+          .single();
+        if (checkCloud.data?.data?.transactions?.length > 0) {
+          console.warn('Skipping sync: Local is empty but Cloud has rich data. Pulling from Cloud instead!');
+          return await this.pullFromSupabase();
+        }
+      }
+
       const { error } = await supabase
         .from('cloud_backups')
         .upsert({
@@ -1035,8 +1048,83 @@ export class DataService {
       }
 
       if (data && data.data) {
-        this.db = data.data;
+        const cloudDb = data.data as AppDatabase;
+
+        // 1. Tự động lưu bản sao lưu an toàn của Local trước khi hợp nhất
+        try {
+          localStorage.setItem('moneyflow_backup_before_pull', JSON.stringify(this.db));
+          localStorage.setItem('moneyflow_last_recovery_snapshot', JSON.stringify(this.db));
+        } catch {}
+
+        // 2. HỢP NHẤT THÔNG MINH 2 CHIỀU (BIDIRECTIONAL MERGE):
+        // Tuyệt đối KHÔNG xóa các giao dịch, tài khoản mới tạo trên máy này chưa kịp đồng bộ!
+        
+        // Hợp nhất Tài khoản:
+        const mergedAccounts = [...(cloudDb.accounts || [])];
+        for (const localAcc of (this.db.accounts || [])) {
+          const exists = mergedAccounts.some((a) => a.id === localAcc.id || a.name.trim().toLowerCase() === localAcc.name.trim().toLowerCase());
+          if (!exists) {
+            mergedAccounts.push(localAcc);
+          }
+        }
+
+        // Hợp nhất Giao dịch theo ID:
+        const cloudTxMap = new Map((cloudDb.transactions || []).map((t) => [t.id, t]));
+        const mergedTransactions = [...(cloudDb.transactions || [])];
+        for (const localTx of (this.db.transactions || [])) {
+          if (!cloudTxMap.has(localTx.id)) {
+            mergedTransactions.push(localTx);
+          }
+        }
+
+        // Sắp xếp giao dịch mới nhất lên đầu
+        mergedTransactions.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+        // Hợp nhất Sổ nợ theo ID:
+        const cloudDebtMap = new Map((cloudDb.debts || []).map((d) => [d.id, d]));
+        const mergedDebts = [...(cloudDb.debts || [])];
+        for (const localDebt of (this.db.debts || [])) {
+          if (!cloudDebtMap.has(localDebt.id)) {
+            mergedDebts.push(localDebt);
+          }
+        }
+
+        // Hợp nhất Lương & Thu chi định kỳ theo ID:
+        const cloudRecurMap = new Map((cloudDb.recurringItems || []).map((r) => [r.id, r]));
+        const mergedRecurring = [...(cloudDb.recurringItems || [])];
+        for (const localRecur of (this.db.recurringItems || [])) {
+          if (!cloudRecurMap.has(localRecur.id)) {
+            mergedRecurring.push(localRecur);
+          }
+        }
+
+        // Hợp nhất Mục tiêu tiết kiệm theo ID:
+        const cloudGoalMap = new Map((cloudDb.savingsGoals || []).map((g) => [g.id, g]));
+        const mergedGoals = [...(cloudDb.savingsGoals || [])];
+        for (const localGoal of (this.db.savingsGoals || [])) {
+          if (!cloudGoalMap.has(localGoal.id)) {
+            mergedGoals.push(localGoal);
+          }
+        }
+
+        // Cập nhật state nội bộ
+        this.db = {
+          ...cloudDb,
+          user: {
+            ...cloudDb.user,
+            geminiApiKey: this.db.user?.geminiApiKey || cloudDb.user?.geminiApiKey,
+          },
+          accounts: mergedAccounts,
+          transactions: mergedTransactions,
+          debts: mergedDebts,
+          recurringItems: mergedRecurring,
+          savingsGoals: mergedGoals,
+          budgets: cloudDb.budgets && cloudDb.budgets.length > 0 ? cloudDb.budgets : this.db.budgets,
+        };
+
         this.healAccountsState(this.db);
+        this.recalculateAccountBalances();
+
         const key = this.getStorageKey();
         localStorage.setItem(key, JSON.stringify(this.db));
 
@@ -1048,8 +1136,14 @@ export class DataService {
         const syncTime = data.updated_at || new Date().toISOString();
         localStorage.setItem('moneyflow_last_local_updated_at', syncTime);
         localStorage.setItem('moneyflow_last_cloud_sync_at', syncTime);
+
+        // Nếu máy này có nhiều giao dịch hơn Cloud sau khi hợp nhất, đẩy ngược bản mới nhất lên Cloud
+        if (mergedTransactions.length > (cloudDb.transactions?.length || 0)) {
+          this.triggerAutoCloudSync();
+        }
+
         this.notifyListeners();
-        return { success: true, message: 'Đồng bộ dữ liệu từ Supabase Cloud thành công!' };
+        return { success: true, message: 'Đồng bộ & Hợp nhất dữ liệu Supabase Cloud an toàn thành công!' };
       }
       return { success: false, message: 'Dữ liệu trên Cloud rỗng!' };
     } catch (e: any) {
@@ -1113,6 +1207,36 @@ export class DataService {
     } catch (e) {
       console.warn('Auto cloud pull notice:', e);
       return { updated: false };
+    }
+  }
+
+  public hasSafetyBackup(): boolean {
+    return Boolean(
+      localStorage.getItem('moneyflow_backup_before_pull') ||
+      localStorage.getItem('moneyflow_last_recovery_snapshot')
+    );
+  }
+
+  public rollbackFromSafetyBackup(): { success: boolean; message: string } {
+    try {
+      const saved =
+        localStorage.getItem('moneyflow_backup_before_pull') ||
+        localStorage.getItem('moneyflow_last_recovery_snapshot');
+      if (!saved) {
+        return { success: false, message: 'Không tìm thấy bản sao lưu dự phòng trước khi đồng bộ!' };
+      }
+      const parsed = JSON.parse(saved);
+      if (parsed.transactions && parsed.accounts) {
+        this.db = parsed;
+        this.healAccountsState(this.db);
+        this.recalculateAccountBalances();
+        this.saveState();
+        this.notifyListeners();
+        return { success: true, message: 'Đã hoàn tác và phục hồi dữ liệu trước khi đồng bộ thành công!' };
+      }
+      return { success: false, message: 'Bản sao lưu không hợp lệ.' };
+    } catch (e: any) {
+      return { success: false, message: `Lỗi phục hồi: ${e.message || e}` };
     }
   }
 
