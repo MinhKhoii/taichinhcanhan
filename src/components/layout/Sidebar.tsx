@@ -76,7 +76,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       >
         {/* Brand Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-slate-800">
-          <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={() => {
+              setCurrentTab('dashboard');
+              onCloseMobile();
+            }}
+            className="flex items-center space-x-3 text-left hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+            title="Về trang Tổng quan"
+          >
             <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/30">
               <TrendingUp className="w-5 h-5 stroke-[2.5]" />
             </div>
@@ -87,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               </span>
               <p className="text-2xs text-slate-400 font-medium">Smart Wealth Engine</p>
             </div>
-          </div>
+          </button>
           <button
             onClick={onCloseMobile}
             className="p-1 text-slate-400 rounded-lg lg:hidden hover:text-white hover:bg-slate-800"

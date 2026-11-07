@@ -168,7 +168,14 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
         {/* Mobile Brand Title & Auto-Cloud status */}
         <div className="sm:hidden flex items-center space-x-1.5">
-          <span className="text-sm font-bold tracking-tight text-slate-800 dark:text-slate-100">MoneyFlow</span>
+          <button
+            type="button"
+            onClick={() => setCurrentTab('dashboard')}
+            className="text-sm font-bold tracking-tight text-slate-800 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 active:scale-95 transition-all cursor-pointer flex items-center gap-1"
+            title="Bấm để về trang Tổng quan"
+          >
+            <span>MoneyFlow</span>
+          </button>
           {isCloudConfigured && (
             <button
               type="button"
