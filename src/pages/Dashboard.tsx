@@ -48,6 +48,7 @@ export const Dashboard: React.FC = () => {
     debts,
     insights,
     openAddTxModal,
+    openAIModal,
     setCurrentTab,
   } = useFinancial();
 
@@ -341,6 +342,17 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
 
+              {/* Chat with AI Button */}
+              <button
+                type="button"
+                onClick={() => openAIModal()}
+                className="flex items-center space-x-1.5 px-3 py-2 text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 rounded-xl transition-all shadow-md flex-shrink-0 cursor-pointer active:scale-95"
+                title="Mở Trợ lý AI Gemini"
+              >
+                <Sparkles className="w-3.5 h-3.5 fill-current" />
+                <span className="hidden sm:inline">Hỏi AI</span>
+              </button>
+
               {insights[activeInsightIndex % insights.length]?.actionText && (
                 <button
                   type="button"
@@ -360,22 +372,32 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Minimal toggle pill when Assistant Banner is dismissed */}
-      {insights.length > 0 && isBannerDismissed && (
-        <div className="flex justify-end -mt-2 -mb-2">
+      {isBannerDismissed && (
+        <div className="flex items-center justify-end gap-2 -mt-2 -mb-2">
           <button
             type="button"
-            onClick={() => {
-              setIsBannerDismissed(false);
-              try {
-                localStorage.removeItem('moneyflow_dismiss_assistant_banner');
-              } catch {}
-            }}
-            className="inline-flex items-center space-x-1.5 text-2xs font-semibold text-slate-500 hover:text-blue-600 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200/80 px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-2xs"
-            title="Bấm để mở lại bảng gợi ý trợ lý tài chính"
+            onClick={() => openAIModal()}
+            className="inline-flex items-center space-x-1.5 text-2xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 border border-indigo-200/80 dark:border-indigo-800 px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-2xs"
+            title="Mở Trợ lý AI Gemini"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Mở trợ lý tài chính ({insights.length})</span>
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+            <span>Trợ lý AI Gemini</span>
           </button>
+          {insights.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsBannerDismissed(false);
+                try {
+                  localStorage.removeItem('moneyflow_dismiss_assistant_banner');
+                } catch {}
+              }}
+              className="inline-flex items-center space-x-1.5 text-2xs font-semibold text-slate-500 hover:text-blue-600 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200/80 px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-2xs"
+              title="Bấm để mở lại bảng gợi ý"
+            >
+              <span>Xem gợi ý ({insights.length})</span>
+            </button>
+          )}
         </div>
       )}
 

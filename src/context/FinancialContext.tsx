@@ -64,6 +64,11 @@ interface FinancialContextType {
   closeAddTxModal: () => void;
   editingTransaction: Transaction | null;
 
+  // AI Assistant Modal
+  isAIModalOpen: boolean;
+  openAIModal: () => void;
+  closeAIModal: () => void;
+
   // Toast
   toasts: ToastMessage[];
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -321,6 +326,11 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsAddTxOpen(false);
     setEditingTransaction(null);
   };
+
+  // AI Modal
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const openAIModal = () => setIsAIModalOpen(true);
+  const closeAIModal = () => setIsAIModalOpen(false);
 
   // Transaction CRUD
   const createTransaction = (data: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => {
@@ -894,6 +904,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         openAddTxModal,
         closeAddTxModal,
         editingTransaction,
+        isAIModalOpen,
+        openAIModal,
+        closeAIModal,
         toasts,
         showToast,
         removeToast,

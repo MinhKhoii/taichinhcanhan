@@ -24,6 +24,7 @@ import {
   Lock,
   KeyRound,
   Settings as SettingsIcon,
+  Sparkles,
 } from 'lucide-react';
 import { formatDateVN, getNameInitials } from '../../utils/formatters';
 import { useModalEscape } from '../../hooks/useModalEscape';
@@ -45,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     markNotificationAsRead,
     markAllNotificationsAsRead,
     openAddTxModal,
+    openAIModal,
     user,
     setCurrentTab,
     theme,
@@ -200,6 +202,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
       {/* Right Controls */}
       <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
+        {/* Gemini AI Assistant Button */}
+        <button
+          type="button"
+          onClick={() => openAIModal()}
+          className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+          title="Trợ lý AI Gemini: Chat & Nhập giao dịch bằng câu nói"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+          <span className="hidden sm:inline">Trợ lý AI</span>
+          <span className="sm:hidden font-extrabold text-3xs">AI</span>
+        </button>
+
         {/* Quick Search Button (Desktop: Ctrl+K) */}
         <button
           type="button"

@@ -32,7 +32,10 @@ import {
   ChevronDown,
   FileSpreadsheet,
   Sparkles,
+  Bot,
+  ExternalLink,
 } from 'lucide-react';
+import { aiService } from '../services/aiService';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { dataService } from '../services/dataService';
 import { RecurringModal } from '../components/modals/RecurringModal';
@@ -118,6 +121,36 @@ export const SettingsPage: React.FC = () => {
   // Supabase Copy SQL & Guide Toggle
   const [copiedSql, setCopiedSql] = useState(false);
   const [showSqlGuide, setShowSqlGuide] = useState(false);
+
+  // Gemini AI Key states
+  const [geminiKeyInput, setGeminiKeyInput] = useState(aiService.getApiKey());
+  const [hasGeminiKey, setHasGeminiKey] = useState(aiService.hasApiKey());
+  const [isTestingGemini, setIsTestingGemini] = useState(false);
+
+  const handleSaveGeminiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!geminiKeyInput.trim()) {
+      showToast('Vui lòng nhập API Key Google Gemini!', 'error');
+      return;
+    }
+    setIsTestingGemini(true);
+    const res = await aiService.testConnection(geminiKeyInput.trim());
+    setIsTestingGemini(false);
+    if (res.success) {
+      aiService.setApiKey(geminiKeyInput.trim());
+      setHasGeminiKey(true);
+      showToast('Kích hoạt Google Gemini AI thành công! 🎉', 'success');
+    } else {
+      showToast(res.message, 'error');
+    }
+  };
+
+  const handleClearGeminiKey = () => {
+    aiService.setApiKey('');
+    setGeminiKeyInput('');
+    setHasGeminiKey(false);
+    showToast('Đã xóa API Key. Trợ lý chuyển sang phân tích nội bộ!', 'info');
+  };
 
   const handleSavePin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1289,6 +1322,92 @@ export const SettingsPage: React.FC = () => {
                 <strong className="text-slate-800 dark:text-slate-100 font-semibold">Lưu trữ cục bộ an toàn:</strong> Dữ liệu tài chính được lưu trữ trực tiếp trên trình duyệt của máy bạn (LocalStorage), phân tách độc lập theo từng tài khoản. Khuyến nghị bấm <strong>Tải file</strong> định kỳ để sao lưu dữ liệu.
               </div>
             </div>
+          </div>
+
+          {/* Card: Trợ lý AI Gemini (Google AI Studio) */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-2xs">
+                  <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                    Trợ lý AI Gemini (Google AI)
+                  </h3>
+                  <p className="text-2xs text-slate-400">
+                    Tích hợp trí tuệ nhân tạo đàm thoại & bóc tách giao dịch tiếng Việt
+                  </p>
+                </div>
+              </div>
+              <span
+                className={`text-3xs font-extrabold uppercase px-2.5 py-1 rounded-full ${
+                  hasGeminiKey
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                }`}
+              >
+                {hasGeminiKey ? 'Gemini 1.5 Flash (Sẵn sàng)' : 'Phân tích Nội bộ'}
+              </span>
+            </div>
+
+            <div className="p-4 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                  <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  Google Gemini API Key
+                </span>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-3xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 underline"
+                >
+                  <span>Lấy key miễn phí (Google AI Studio)</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <p className="text-2xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Google cung cấp miễn phí API Key Gemini với hạn mức thoải mái cho người dùng cá nhân. Nhập key tại đây để mở khóa chức năng đàm thoại tự do và phân tích chuyên sâu.
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveGeminiKey} className="space-y-3">
+              <div>
+                <input
+                  type="password"
+                  placeholder="Dán API Key Google Gemini (bắt đầu bằng AIzaSy...)"
+                  value={geminiKeyInput}
+                  onChange={(e) => setGeminiKeyInput(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-mono text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={isTestingGemini}
+                  className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer flex items-center justify-center space-x-1.5"
+                >
+                  {isTestingGemini ? (
+                    <RotateCcw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>{isTestingGemini ? 'Đang kiểm tra kết nối...' : 'Lưu & Kiểm tra kết nối AI'}</span>
+                </button>
+
+                {hasGeminiKey && (
+                  <button
+                    type="button"
+                    onClick={handleClearGeminiKey}
+                    className="px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Xóa Key
+                  </button>
+                )}
+              </div>
+            </form>
           </div>
 
           {/* Card 2: Supabase Cloud Integration (Admin Only) or Privacy Card (Regular Users) */}

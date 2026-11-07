@@ -5,6 +5,7 @@ import { Header } from './components/layout/Header';
 import { ToastContainer } from './components/layout/ToastContainer';
 import { FloatingActionButtons } from './components/layout/FloatingActionButtons';
 import { TransactionModal } from './components/modals/TransactionModal';
+import { AIAssistantModal } from './components/modals/AIAssistantModal';
 import { AuthModal } from './components/modals/AuthModal';
 import { PinLockScreen } from './components/modals/PinLockScreen';
 import { WelcomeScreen } from './components/layout/WelcomeScreen';
@@ -27,6 +28,8 @@ const AppContent: React.FC = () => {
     authModalDefaultTab,
     closeAuthModal,
     isAuthenticated,
+    isAIModalOpen,
+    closeAIModal,
   } = useFinancial();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -98,6 +101,9 @@ const AppContent: React.FC = () => {
 
       {/* Global Quick Add / Edit Transaction Modal */}
       <TransactionModal />
+
+      {/* Global AI Gemini Assistant Modal */}
+      <AIAssistantModal isOpen={isAIModalOpen} onClose={closeAIModal} />
 
       {/* Global Auth (Login / Register) Modal */}
       <AuthModal

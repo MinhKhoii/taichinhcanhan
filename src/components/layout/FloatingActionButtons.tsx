@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useFinancial } from '../../context/FinancialContext';
-import { Plus, ChevronUp, ArrowDownRight, ArrowUpRight, ArrowLeftRight } from 'lucide-react';
+import { Plus, ChevronUp, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Sparkles } from 'lucide-react';
 
 export const FloatingActionButtons: React.FC = () => {
-  const { openAddTxModal } = useFinancial();
+  const { openAddTxModal, openAIModal } = useFinancial();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
 
@@ -70,6 +70,17 @@ export const FloatingActionButtons: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Floating AI Assistant Button */}
+      <button
+        type="button"
+        onClick={() => openAIModal()}
+        className="pointer-events-auto flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer group"
+        title="Trợ lý AI Gemini: Chat & Nhập giao dịch bằng câu nói"
+        aria-label="Trợ lý AI Gemini"
+      >
+        <Sparkles className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform animate-pulse" />
+      </button>
 
       {/* Primary Floating Action Button (FAB) */}
       <div className="pointer-events-auto relative">
