@@ -16,8 +16,6 @@ import {
   AlertCircle,
   Sun,
   Moon,
-  Cloud,
-  RefreshCw,
 } from 'lucide-react';
 import { formatVND } from '../../utils/formatters';
 
@@ -34,9 +32,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     debts,
     theme,
     toggleTheme,
-    isCloudConfigured,
-    isCloudSyncing,
-    syncToCloud,
   } = useFinancial();
 
   const totalNetWorth = accounts.reduce((sum, a) => sum + a.balance, 0);
@@ -155,9 +150,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           })}
         </nav>
 
-        {/* Quick Theme & Cloud Controls for Mobile/Drawer */}
-        <div className="px-3 pb-2 space-y-1.5">
-          {/* Theme Toggle */}
+        {/* Quick Theme Toggle for Mobile Drawer */}
+        <div className="px-3 pb-2 lg:hidden">
           <button
             type="button"
             onClick={toggleTheme}
@@ -175,29 +169,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               Đổi
             </span>
           </button>
-
-          {/* Cloud Sync Status */}
-          {isCloudConfigured && (
-            <button
-              type="button"
-              onClick={() => syncToCloud()}
-              disabled={isCloudSyncing}
-              className="w-full px-3 py-2 text-xs font-medium rounded-xl bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-300 transition-all flex items-center justify-between border border-emerald-800/50 cursor-pointer"
-              title="Bấm để đồng bộ dữ liệu tức thì lên Cloud"
-            >
-              <div className="flex items-center space-x-2">
-                {isCloudSyncing ? (
-                  <RefreshCw className="w-3.5 h-3.5 text-blue-400 animate-spin" />
-                ) : (
-                  <Cloud className="w-3.5 h-3.5 text-emerald-400" />
-                )}
-                <span>{isCloudSyncing ? 'Đang đồng bộ Cloud...' : 'Supabase Cloud'}</span>
-              </div>
-              <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-200 border border-emerald-700/50">
-                {isCloudSyncing ? 'Đang đồng bộ...' : 'Đã kết nối'}
-              </span>
-            </button>
-          )}
         </div>
 
         {/* Bottom Quick Net Worth Card */}
