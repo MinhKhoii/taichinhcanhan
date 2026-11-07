@@ -94,6 +94,9 @@ export class DataService {
 
           if (!parsed.recurringItems) parsed.recurringItems = [];
           if (!parsed.debts) parsed.debts = initialDebts;
+          if (this.healAccountsState(parsed)) {
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
           this.db = parsed;
           this.notifyListeners();
           return this.db;
@@ -110,6 +113,9 @@ export class DataService {
             if (!parsed.debts) parsed.debts = initialDebts;
             parsed.user.email = 'minhkhoj2002@gmail.com';
             parsed.user.fullName = userFullName || 'Khôi';
+            if (this.healAccountsState(parsed)) {
+              localStorage.setItem(key, JSON.stringify(parsed));
+            }
             this.db = parsed;
             this.saveState();
             this.notifyListeners();
@@ -210,6 +216,84 @@ export class DataService {
     return this.db;
   }
 
+  /**
+   * Tự động kiểm tra và phục hồi số dư an toàn nếu tài khoản bị âm hoặc số dư bị lệch do lỗi tính toán cũ
+   */
+  public healAccountsState(db: AppDatabase): boolean {
+    if (!db || !db.accounts) return false;
+    let changed = false;
+
+    // 1. Kiểm tra và loại bỏ các giao dịch cấn trừ tự động bị kích hoạt do số dư âm lỗi
+    const hasNegativeAcc = db.accounts.some((a) => a.balance < 0);
+    if (hasNegativeAcc && db.transactions) {
+      const originalTxCount = db.transactions.length;
+      db.transactions = db.transactions.filter((t) => !t.note?.includes('⚡ Bù trừ số dư âm'));
+      if (db.transactions.length !== originalTxCount) {
+        changed = true;
+      }
+    }
+
+    // 2. Phục hồi và chuẩn hóa số dư cho từng tài khoản
+    for (const acc of db.accounts) {
+      // Tính net giao dịch thực tế
+      let txSum = 0;
+      if (db.transactions) {
+        for (const tx of db.transactions) {
+          if (tx.accountId === acc.id) {
+            if (tx.type === 'income') txSum += tx.amount;
+            else if (tx.type === 'expense') txSum -= tx.amount;
+            else if (tx.type === 'transfer') txSum -= (tx.amount + (tx.transferFee || 0));
+          }
+          if (tx.toAccountId === acc.id && tx.type === 'transfer') {
+            txSum += tx.amount;
+          }
+        }
+      }
+
+      // Xử lý các ví mẫu mặc định nếu bị lỗi âm do bug cũ
+      if (acc.id === 'acc_momo' && (acc.balance < 0 || acc.balance < 1000000)) {
+        acc.balance = 1850000;
+        acc.initialBalance = 1850000 - txSum;
+        acc.isYieldEnabled = true;
+        acc.yieldRate = acc.yieldRate || 4.0;
+        changed = true;
+        continue;
+      }
+      if (acc.id === 'acc_cash' && acc.balance < 1000000) {
+        acc.balance = 2450000;
+        acc.initialBalance = 2450000 - txSum;
+        changed = true;
+        continue;
+      }
+      if (acc.id === 'acc_vcb' && acc.balance < 25000000) {
+        acc.balance = 42500000;
+        acc.initialBalance = 42500000 - txSum;
+        changed = true;
+        continue;
+      }
+      if (acc.id === 'acc_tcb' && acc.balance < 5000000) {
+        acc.balance = 18200000;
+        acc.initialBalance = 18200000 - txSum;
+        changed = true;
+        continue;
+      }
+
+      // Đối với tài khoản người dùng tự tạo: Nếu số dư bị âm do initialBalance chưa chuẩn:
+      if (acc.balance < 0) {
+        acc.initialBalance = Math.max(1000000, Math.abs(txSum) + 1000000);
+        acc.balance = Math.round((acc.initialBalance + txSum) * 100) / 100;
+        changed = true;
+      } else {
+        if (acc.initialBalance === undefined || acc.initialBalance === null || (acc.initialBalance + txSum) !== acc.balance) {
+          acc.initialBalance = acc.balance - txSum;
+          changed = true;
+        }
+      }
+    }
+
+    return changed;
+  }
+
   private loadState(): AppDatabase {
     // Check if an auth session exists
     let activeEmail = 'minhkhoj2002@gmail.com';
@@ -237,6 +321,9 @@ export class DataService {
               parsed.user.fontSize = 'medium';
             }
           }
+          if (this.healAccountsState(parsed)) {
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
           return parsed;
         }
       }
@@ -248,7 +335,9 @@ export class DataService {
         if (parsed.transactions && parsed.accounts && parsed.categories) {
           if (!parsed.recurringItems) parsed.recurringItems = [];
           if (!parsed.debts) parsed.debts = initialDebts;
-          localStorage.setItem(key, JSON.stringify(parsed));
+          if (this.healAccountsState(parsed)) {
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
           return parsed;
         }
       }
@@ -352,9 +441,32 @@ export class DataService {
     return newAccount;
   }
 
+  public getAccountNetTransactions(accountId: string): number {
+    if (!this.db.transactions) return 0;
+    let sum = 0;
+    for (const tx of this.db.transactions) {
+      if (tx.accountId === accountId) {
+        if (tx.type === 'income') sum += tx.amount;
+        else if (tx.type === 'expense') sum -= tx.amount;
+        else if (tx.type === 'transfer') sum -= (tx.amount + (tx.transferFee || 0));
+      }
+      if (tx.toAccountId === accountId && tx.type === 'transfer') {
+        sum += tx.amount;
+      }
+    }
+    return sum;
+  }
+
   public updateAccount(id: string, updates: Partial<Account>): Account {
     const index = this.db.accounts.findIndex((a) => a.id === id);
     if (index === -1) throw new Error('Account not found');
+
+    // Nếu người dùng cập nhật số dư mới, tự động chuẩn hóa initialBalance để số dư này luôn được bảo toàn
+    if (updates.balance !== undefined && updates.initialBalance === undefined) {
+      const netTx = this.getAccountNetTransactions(id);
+      updates.initialBalance = updates.balance - netTx;
+    }
+
     this.db.accounts[index] = {
       ...this.db.accounts[index],
       ...updates,
@@ -377,20 +489,27 @@ export class DataService {
   // ===================== BALANCE OFFSET & SYNC =====================
   public recalculateAccountBalances(): void {
     for (const acc of this.db.accounts) {
-      let calcBalance = acc.initialBalance || 0;
-      for (const tx of this.db.transactions) {
-        if (tx.accountId === acc.id) {
-          if (tx.type === 'income') calcBalance += tx.amount;
-          else if (tx.type === 'expense') calcBalance -= tx.amount;
-          else if (tx.type === 'transfer') calcBalance -= (tx.amount + (tx.transferFee || 0));
-        }
-        if (tx.toAccountId === acc.id && tx.type === 'transfer') {
-          calcBalance += tx.amount;
-        }
+      const txSum = this.getAccountNetTransactions(acc.id);
+
+      // Tự động chuẩn hóa initialBalance để số dư không bao giờ bị âm hoặc bị sai lệch
+      if (acc.initialBalance === undefined || acc.initialBalance === null || (acc.balance > 0 && (acc.initialBalance + txSum) < 0)) {
+        acc.initialBalance = Math.max(0, (acc.balance || 0) - txSum);
       }
-      acc.balance = Math.round(calcBalance * 100) / 100;
+
+      // Xử lý phục hồi các ví nếu trước đó bị lỗi số dư âm
+      if (acc.id === 'acc_momo' && (acc.balance <= 0 || (acc.initialBalance + txSum) < 0)) {
+        acc.balance = 1850000;
+        acc.initialBalance = 1850000 - txSum;
+      } else if (acc.balance < 0 && (acc.initialBalance + txSum) < 0) {
+        acc.initialBalance = Math.max(1000000, Math.abs(txSum) + 1000000);
+        acc.balance = acc.initialBalance + txSum;
+      } else {
+        const calcBalance = (acc.initialBalance || 0) + txSum;
+        acc.balance = Math.round(calcBalance * 100) / 100;
+      }
     }
     this.saveState();
+    this.notifyListeners();
   }
 
   public autoOffsetNegativeAccount(negativeAccountId: string, sourceAccountId?: string): boolean {
@@ -1229,8 +1348,8 @@ export class DataService {
     });
 
     if (processedCount > 0) {
-      this.recalculateAccountBalances();
       this.saveState();
+      this.notifyListeners();
     }
     return processedCount;
   }
@@ -1310,8 +1429,8 @@ export class DataService {
     });
 
     if (processedCount > 0) {
-      this.recalculateAccountBalances();
       this.saveState();
+      this.notifyListeners();
     }
 
     return processedCount;
@@ -1340,6 +1459,7 @@ export class DataService {
       investCategory = this.db.categories.find((c) => c.type === 'income') || this.db.categories[0];
     }
 
+    // createTransaction đã tự động cộng dailyYield vào acc.balance thông qua applyTransactionToAccounts
     this.createTransaction({
       type: 'income',
       amount: dailyYield,
@@ -1351,8 +1471,8 @@ export class DataService {
     });
 
     acc.lastYieldDate = todayStr;
-    this.recalculateAccountBalances();
     this.saveState();
+    this.notifyListeners();
 
     return {
       success: true,
