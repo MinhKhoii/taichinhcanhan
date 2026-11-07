@@ -262,7 +262,10 @@ export function getSmartAmountSuggestions(val: number): SmartAmountSuggestion[] 
     // 5 chữ số: 25000 -> 250.000, 2.500.000
     multipliers = [10, 100];
   } else if (val < 1000000) {
-    // 6 chữ số: 250000 -> 2.500.000
+    // 6 chữ số: 300000 -> 3.000.000, 30.000.000
+    multipliers = [10, 100];
+  } else if (val < 10000000) {
+    // 7 chữ số: 1000000 -> 10.000.000
     multipliers = [10];
   }
 

@@ -503,46 +503,6 @@ export const TransactionModal: React.FC = () => {
                     </option>
                   ))}
                 </select>
-
-                {/* Quick Switch Pills for Accounts */}
-                {accounts.length > 1 && (
-                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                    {accounts.map((a) => {
-                      const isSelected = a.id === accountId;
-                      const isBank = a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') || (a.name || '').toLowerCase().includes('vietin');
-                      const isEwallet = a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo');
-                      return (
-                        <button
-                          key={a.id}
-                          type="button"
-                          onClick={() => {
-                            setAccountId(a.id);
-                            setPaymentMethod(getDefaultPaymentMethodForAccount(a));
-                          }}
-                          className={`px-2.5 py-1 rounded-xl text-2xs font-semibold transition-all flex items-center gap-1 cursor-pointer select-none ${
-                            isSelected
-                              ? 'bg-blue-600 text-white shadow-xs'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                          }`}
-                        >
-                          <span>{isBank ? '🏦' : isEwallet ? '👛' : '💵'}</span>
-                          <span className="truncate max-w-[110px]">{a.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {(() => {
-                  const currentAcc = accounts.find((a) => a.id === accountId);
-                  if (currentAcc && type === 'expense' && parsedAmount > currentAcc.balance) {
-                    return (
-                      <p className="text-3xs text-amber-600 mt-1 font-medium leading-tight">
-                        ⚠️ Số dư ví hiện có {formatVND(currentAcc.balance)}. Khoản thiếu sẽ tự động cấn trừ từ tài khoản có tiền.
-                      </p>
-                    );
-                  }
-                  return null;
-                })()}
               </div>
 
               {type === 'transfer' ? (
@@ -585,6 +545,50 @@ export const TransactionModal: React.FC = () => {
                   </select>
                 </div>
               )}
+
+              {/* Quick Switch Pills for Accounts - LUÔN TRÊN 1 HÀNG DUY NHẤT */}
+              {accounts.length > 1 && (
+                <div className="col-span-1 sm:col-span-2 -mt-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap py-0.5">
+                  <span className="text-3xs text-slate-400 font-semibold shrink-0">Chọn nhanh:</span>
+                  {accounts.map((a) => {
+                    const isSelected = a.id === accountId;
+                    const isBank = a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') || (a.name || '').toLowerCase().includes('vietin');
+                    const isEwallet = a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo');
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => {
+                          setAccountId(a.id);
+                          setPaymentMethod(getDefaultPaymentMethodForAccount(a));
+                        }}
+                        className={`px-2.5 py-1 rounded-xl text-2xs font-semibold whitespace-nowrap shrink-0 transition-all flex items-center gap-1 cursor-pointer select-none ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span>{isBank ? '🏦' : isEwallet ? '👛' : '💵'}</span>
+                        <span>{a.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {(() => {
+                const currentAcc = accounts.find((a) => a.id === accountId);
+                if (currentAcc && type === 'expense' && parsedAmount > currentAcc.balance) {
+                  return (
+                    <div className="col-span-1 sm:col-span-2 -mt-1">
+                      <p className="text-3xs text-amber-600 font-medium leading-tight">
+                        ⚠️ Số dư ví hiện có {formatVND(currentAcc.balance)}. Khoản thiếu sẽ tự động cấn trừ từ tài khoản có tiền.
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             {/* Date & Note */}

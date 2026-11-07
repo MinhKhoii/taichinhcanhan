@@ -108,60 +108,83 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
 
       {/* Readable Vietnamese words badge */}
       {readableWords && (
-        <div className="flex items-center space-x-1.5 px-2.5 py-1 bg-blue-50/70 border border-blue-100 rounded-lg text-xs font-semibold text-blue-700 animate-in fade-in duration-150">
-          <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+        <div className="flex items-center justify-center space-x-1.5 py-1.5 px-3 bg-blue-50/80 border border-blue-100 rounded-xl text-xs font-bold text-blue-700 animate-in fade-in duration-150">
+          <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />
           <span className="break-words leading-tight">{readableWords}</span>
         </div>
       )}
 
-      {/* SMART BANKING SUGGESTIONS - CHỈ HIỆN KHI ĐÃ GÕ SỐ */}
+      {/* SMART BANKING SUGGESTIONS - CHỈ HIỆN KHI ĐÃ GÕ SỐ (ĐỒNG BỘ 100% GIAO DIỆN VỚI TRANSACTION MODAL) */}
       {numValue > 0 && (
-        <div className="space-y-1.5 pt-1 animate-in fade-in duration-150">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-3xs font-bold text-slate-500 flex items-center space-x-0.5">
+        <div className="pt-2.5 mt-1 border-t border-slate-200/70 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          {/* Header row with Reset */}
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-3xs font-bold text-slate-500 flex items-center space-x-1">
               <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-              <span>Gợi ý theo "{numValue.toLocaleString('vi-VN')}":</span>
+              <span>Gợi ý theo số "{numValue.toLocaleString('vi-VN')}":</span>
             </span>
-            <div className="flex items-center gap-1 flex-wrap">
-              {smartSuggestions.map((item) => {
-                const isSelected = numValue === item.amount;
-                return (
-                  <button
-                    type="button"
-                    key={item.amount}
-                    onClick={() => setPreset(item.amount)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                      isSelected
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-1 ring-blue-500'
-                        : 'bg-white hover:bg-blue-50 text-blue-700 border-slate-200 hover:border-blue-300'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
+            <button
+              type="button"
+              onClick={resetAmount}
+              className="text-3xs font-semibold text-rose-500 hover:text-rose-700 flex items-center space-x-1 cursor-pointer transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Xóa số</span>
+            </button>
+          </div>
 
-              {numValue < 10000000 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => multiplyAmount(1000)}
-                    className="px-2 py-1 text-xs font-extrabold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition-all shadow-2xs active:scale-95 cursor-pointer"
-                    title="Nhân 1.000 (Thêm 3 số 0)"
-                  >
-                    +000
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => multiplyAmount(1000000)}
-                    className="px-2 py-1 text-xs font-extrabold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg transition-all shadow-2xs active:scale-95 cursor-pointer"
-                    title="Nhân 1.000.000 (Thêm 6 số 0)"
-                  >
-                    +000.000
-                  </button>
-                </>
-              )}
-            </div>
+          {/* Suggestion Chips */}
+          <div className="flex items-center flex-wrap gap-1.5">
+            {smartSuggestions.map((item) => {
+              const isSelected = numValue === item.amount;
+              return (
+                <button
+                  type="button"
+                  key={item.amount}
+                  onClick={() => setPreset(item.amount)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center space-x-1.5 ${
+                    isSelected
+                      ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-500/20'
+                      : 'bg-white hover:bg-blue-50 hover:border-blue-300 text-blue-700 border-slate-200'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  {item.shortLabel && item.shortLabel !== item.label && (
+                    <span
+                      className={`text-3xs px-1.5 py-0.5 rounded-md font-semibold ${
+                        isSelected
+                          ? 'bg-white/20 text-white'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {item.shortLabel}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Quick Multipliers */}
+            {numValue < 10000000 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => multiplyAmount(1000)}
+                  className="px-2.5 py-1.5 text-xs font-extrabold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+                  title="Thêm 3 số 0 (Nhân 1.000đ)"
+                >
+                  +000
+                </button>
+                <button
+                  type="button"
+                  onClick={() => multiplyAmount(1000000)}
+                  className="px-2.5 py-1.5 text-xs font-extrabold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+                  title="Thêm 6 số 0 (Nhân 1.000.000đ)"
+                >
+                  +000.000
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
