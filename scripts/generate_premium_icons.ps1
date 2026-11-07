@@ -126,3 +126,4 @@ Generate-ModernMoneyFlowIcon 192 "public\icon-192.png"
 Generate-ModernMoneyFlowIcon 512 "public\icon-512.png"
 Generate-ModernMoneyFlowIcon 192 "public\icon-192-maskable.png"
 Generate-ModernMoneyFlowIcon 512 "public\icon-512-maskable.png"
+

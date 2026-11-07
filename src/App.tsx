@@ -9,7 +9,6 @@ import { AIAssistantModal } from './components/modals/AIAssistantModal';
 import { AuthModal } from './components/modals/AuthModal';
 import { PinLockScreen } from './components/modals/PinLockScreen';
 import { WelcomeScreen } from './components/layout/WelcomeScreen';
-import { PWAInstallBanner } from './components/common/PWAInstallBanner';
 import { PWAInstallGuideModal } from './components/modals/PWAInstallGuideModal';
 
 import { Dashboard } from './pages/Dashboard';
@@ -120,9 +119,6 @@ const AppContent: React.FC = () => {
 
       {/* Global Toast Alert Notifications */}
       <ToastContainer />
-
-      {/* Floating PWA Install Banner */}
-      <PWAInstallBanner />
 
       {/* Global PWA Install Guide Modal */}
       <PWAInstallGuideModal

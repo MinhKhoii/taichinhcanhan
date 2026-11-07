@@ -410,16 +410,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           )}
         </button>
 
-        {/* PWA Install Button */}
+        {/* PWA Install Button (Chỉ hiển thị trên thiết bị di động / Tablet, ẩn trên Desktop PC để thanh Header luôn gọn gàng) */}
         {!isInstalled && (
           <button
             type="button"
             onClick={promptInstall}
-            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
+            className="flex lg:hidden items-center space-x-1 px-2 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
             title="Cài đặt MoneyFlow ra màn hình chính để dùng như App"
           >
             <Smartphone className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-            <span className="text-2xs sm:text-xs">Cài App</span>
+            <span className="text-2xs">Cài App</span>
           </button>
         )}
 
