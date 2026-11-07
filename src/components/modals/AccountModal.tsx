@@ -239,7 +239,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
                     <span>Tích lũy sinh lời hàng ngày</span>
                     <span className="px-1.5 py-0.5 rounded-full text-3xs font-extrabold bg-pink-100 text-pink-700 border border-pink-300">
-                      MoMo / Túi Thần Tài
+                      Tích lũy tự động
                     </span>
                   </h4>
                   <p className="text-3xs text-slate-500 mt-0.5">
@@ -263,7 +263,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             {isYieldEnabled && (
               <div className="pt-3 border-t border-pink-100/80 space-y-3 animate-in fade-in duration-200">
                 <div className="p-2.5 rounded-xl bg-pink-100/70 border border-pink-200/80 text-3xs text-pink-900 leading-relaxed">
-                  📅 <strong>Quy tắc MoMo:</strong> Tiền gửi hoặc số dư nạp hôm nay sẽ được chốt sổ. Hệ thống sẽ <strong>tự động sinh lời và cộng dồn vào ví từ ngày mai</strong> (tránh tự cộng trùng ngay trong ngày nạp).
+                  📅 <strong>Quy tắc tính lãi:</strong> Tiền gửi hoặc số dư nạp hôm nay sẽ được chốt sổ. Hệ thống sẽ <strong>tự động sinh lời và cộng dồn vào ví từ ngày mai</strong> (tránh tự cộng trùng ngay trong ngày nạp).
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -295,7 +295,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     {/* Quick rate presets */}
                     {[
                       { label: '3.5%', rate: 3.5 },
-                      { label: '4.0% MoMo', rate: 4.0 },
+                      { label: '4.0%', rate: 4.0 },
                       { label: '5.0%', rate: 5.0 },
                       { label: '6.0%', rate: 6.0 },
                     ].map((p) => (
