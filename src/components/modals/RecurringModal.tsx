@@ -36,6 +36,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
     accounts,
     categories,
     recurringItems,
+    transactions,
     saveRecurringItem,
     deleteRecurringItem,
     toggleRecurringItem,
@@ -508,47 +509,84 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
               />
             </div>
 
-            {/* Apply immediately to current month checkbox */}
-            {isActive && (
-              <div
-                className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                  applyToCurrentMonth
-                    ? 'bg-amber-50/90 border-amber-300 dark:bg-amber-950/20 dark:border-amber-700/50'
-                    : 'bg-slate-50 border-slate-200/90 dark:bg-slate-800/40 dark:border-slate-700/50'
-                }`}
-                onClick={() => setApplyToCurrentMonth(!applyToCurrentMonth)}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={applyToCurrentMonth}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      setApplyToCurrentMonth(e.target.checked);
-                    }}
-                    className="w-4 h-4 mt-0.5 text-blue-600 rounded-md focus:ring-blue-500 cursor-pointer flex-shrink-0"
-                  />
-                  <div>
-                    <span
-                      className={`text-xs font-bold block ${
-                        applyToCurrentMonth
-                          ? 'text-amber-900 dark:text-amber-200'
-                          : 'text-slate-800 dark:text-slate-200'
-                      }`}
-                    >
-                      {curItem
-                        ? 'Đồng thời cập nhật/cộng vào số dư tháng này'
-                        : `Ghi nhận ngay vào số dư tháng ${new Date().getMonth() + 1}`}
-                    </span>
-                    <span className="text-2xs text-slate-500 dark:text-slate-400 block mt-1 leading-relaxed">
+            {/* Dynamic Smart Guidance & Overrides based on salary date */}
+            {isActive && (() => {
+              const today = new Date();
+              const todayDay = today.getDate();
+              const currentMonth = today.getMonth() + 1;
+              const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+              const selectedDay = Number(dayOfMonth) || 1;
+              const currentYearMonth = `${today.getFullYear()}-${String(currentMonth).padStart(2, '0')}`;
+
+              const hasExistingTxThisMonth = Boolean(
+                curItem &&
+                transactions.some(
+                  (t) =>
+                    t.date.startsWith(currentYearMonth) &&
+                    (t.recurringItemId === curItem.id || t.note === `[Tự động] ${curItem.name}`)
+                )
+              );
+
+              const isAfterPayday = todayDay > selectedDay;
+              const isPaydayToday = todayDay === selectedDay;
+              const isBeforePayday = todayDay < selectedDay;
+
+              return (
+                <div className="p-3.5 rounded-2xl border bg-slate-50 border-slate-200/90 dark:bg-slate-800/40 dark:border-slate-700/50 space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 shrink-0 text-base">
                       {applyToCurrentMonth
-                        ? '⚠️ Khoản tiền này sẽ được cộng hoặc điều chỉnh ngay vào số dư ví của bạn trong tháng hiện tại.'
-                        : '✅ Đang tắt: Chỉ lưu cấu hình cho các tháng tiếp theo, số dư và giao dịch tháng này giữ nguyên không đổi.'}
-                    </span>
+                        ? '⚡'
+                        : hasExistingTxThisMonth
+                        ? '🛡️'
+                        : isPaydayToday
+                        ? '🎉'
+                        : isBeforePayday
+                        ? '⏰'
+                        : '📅'}
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block">
+                        {applyToCurrentMonth
+                          ? 'Ghi nhận ngay vào số dư hôm nay'
+                          : hasExistingTxThisMonth
+                          ? 'Tháng này đã nhận lương: Mức mới áp dụng từ tháng sau'
+                          : isPaydayToday
+                          ? `Hôm nay chính là ngày nhận lương (${todayDay}/${currentMonth})`
+                          : isBeforePayday
+                          ? `2. Trước ngày nhận lương — Tự động cộng vào ngày ${selectedDay}/${currentMonth}`
+                          : `1. Sang tháng sau mới cộng — Bắt đầu từ ngày ${selectedDay}/${nextMonth}`}
+                      </span>
+                      <p className="text-2xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                        {applyToCurrentMonth
+                          ? `Khoản tiền này sẽ được ghi nhận hoặc cập nhật ngay vào số dư ví của bạn trong ngày hôm nay (${todayDay}/${currentMonth}).`
+                          : hasExistingTxThisMonth
+                          ? `Tháng ${currentMonth} này đã có giao dịch nhận lương được ghi nhận. Cấu hình mới sẽ tự động áp dụng từ ngày ${selectedDay}/${nextMonth} (tháng sau) để tránh làm lệch số dư hiện tại.`
+                          : isPaydayToday
+                          ? `Hôm nay đúng ngày ${selectedDay}/${currentMonth}, hệ thống sẽ tự động ghi nhận giao dịch và cộng tiền vào tài khoản ngay khi bạn lưu.`
+                          : isBeforePayday
+                          ? `Hôm nay (ngày ${todayDay}) đang trước ngày nhận lương (ngày ${selectedDay}). Hệ thống giữ nguyên số dư hiện tại và sẽ TỰ ĐỘNG CỘNG TIỀN khi đến ngày ${selectedDay}/${currentMonth}.`
+                          : `Ngày nhận lương (ngày ${selectedDay}) của tháng này đã qua (hôm nay ngày ${todayDay}). Hệ thống sẽ KHÔNG cộng vào tháng này. Mức lương mới sẽ bắt đầu tự động cộng từ ngày ${selectedDay}/${nextMonth} (tháng sau).`}
+                      </p>
+                    </div>
                   </div>
+
+                  {!isPaydayToday && (
+                    <label className="flex items-center gap-2 pt-2 border-t border-slate-200/70 dark:border-slate-700/60 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={applyToCurrentMonth}
+                        onChange={(e) => setApplyToCurrentMonth(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded-md focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-2xs font-medium text-slate-600 dark:text-slate-300">
+                        Vẫn muốn ghi nhận và cộng vào số dư ngay hôm nay (bỏ qua quy tắc)
+                      </span>
+                    </label>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 flex-shrink-0">
               {recurringItems.length > 0 && (

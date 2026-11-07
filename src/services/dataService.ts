@@ -1445,10 +1445,35 @@ export class DataService {
           }
           this.recalculateAccountBalances();
         } else {
-          // Người dùng chỉ đổi cấu hình lương cho các tháng sau:
-          // Không thay đổi số dư hiện tại và không ghi đè giao dịch tháng này!
-          if (!targetItem.lastProcessedMonth) {
+          // Quy tắc người dùng: "1 là sang tháng sau, 2 là nếu mà trước ngày nhận lương thì cộng vào là được"
+          const currentDay = today.getDate();
+          if (existingTx) {
+            // Đã có giao dịch tháng này -> Giữ nguyên lịch sử & số dư, sang tháng sau mới bắt đầu áp dụng cấu hình mới
             targetItem.lastProcessedMonth = currentYearMonth;
+          } else if (currentDay > targetItem.dayOfMonth) {
+            // 1. Đã qua ngày nhận lương tháng này -> Sang tháng sau mới cộng, tháng này không cộng
+            targetItem.lastProcessedMonth = currentYearMonth;
+          } else if (currentDay === targetItem.dayOfMonth) {
+            // Hôm nay đúng ngày nhận lương -> Tự động ghi nhận ngay
+            if (targetItem.isActive) {
+              const txDate = `${currentYearMonth}-${String(currentDay).padStart(2, '0')}`;
+              this.createTransaction({
+                type: targetItem.type,
+                amount: targetItem.amount,
+                accountId: targetItem.accountId,
+                categoryId: targetItem.categoryId,
+                date: txDate,
+                paymentMethod: targetItem.paymentMethod,
+                note: `[Tự động] ${targetItem.name}`,
+                recurringItemId: targetItem.id,
+              });
+              targetItem.lastProcessedMonth = currentYearMonth;
+              this.recalculateAccountBalances();
+            }
+          } else {
+            // 2. Hôm nay TRƯỚC ngày nhận lương (currentDay < targetItem.dayOfMonth)
+            // -> Chưa cộng ngay hôm nay, khi đến ngày nhận lương trong tháng này hệ thống sẽ tự động cộng!
+            targetItem.lastProcessedMonth = undefined;
           }
         }
 
@@ -1485,8 +1510,33 @@ export class DataService {
       newItem.lastProcessedMonth = currentYearMonth;
       this.recalculateAccountBalances();
     } else {
-      // Đánh dấu để không bị tự kích hoạt trong tháng này, bắt đầu có hiệu lực từ tháng sau
-      newItem.lastProcessedMonth = currentYearMonth;
+      // Quy tắc người dùng: "1 là sang tháng sau, 2 là nếu mà trước ngày nhận lương thì cộng vào là được"
+      const currentDay = today.getDate();
+      if (currentDay > newItem.dayOfMonth) {
+        // 1. Đã qua ngày nhận lương tháng này -> Sang tháng sau mới cộng, tháng này không cộng
+        newItem.lastProcessedMonth = currentYearMonth;
+      } else if (currentDay === newItem.dayOfMonth) {
+        // Hôm nay đúng ngày nhận lương -> Tự động ghi nhận ngay
+        if (newItem.isActive) {
+          const txDate = `${currentYearMonth}-${String(currentDay).padStart(2, '0')}`;
+          this.createTransaction({
+            type: newItem.type,
+            amount: newItem.amount,
+            accountId: newItem.accountId,
+            categoryId: newItem.categoryId,
+            date: txDate,
+            paymentMethod: newItem.paymentMethod,
+            note: `[Tự động] ${newItem.name}`,
+            recurringItemId: newItem.id,
+          });
+          newItem.lastProcessedMonth = currentYearMonth;
+          this.recalculateAccountBalances();
+        }
+      } else {
+        // 2. Hôm nay TRƯỚC ngày nhận lương (currentDay < newItem.dayOfMonth)
+        // -> Khi đến ngày nhận lương trong tháng này hệ thống sẽ tự động cộng vào!
+        newItem.lastProcessedMonth = undefined;
+      }
     }
 
     this.saveState();

@@ -687,11 +687,19 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     applyToCurrentMonth = false
   ) => {
     try {
+      const today = new Date();
+      const currentDay = today.getDate();
+      const currentMonth = today.getMonth() + 1;
+      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+
       dataService.saveRecurringItem(itemData, applyToCurrentMonth);
-      if (applyToCurrentMonth) {
-        showToast('Đã lưu cấu hình và đồng bộ ngay vào số dư & thu nhập tháng này!', 'success');
+
+      if (applyToCurrentMonth || currentDay === itemData.dayOfMonth) {
+        showToast('Đã lưu cấu hình và ghi nhận vào số dư ví tháng này!', 'success');
+      } else if (currentDay < itemData.dayOfMonth) {
+        showToast(`Đã lưu cấu hình lương! Sẽ tự động cộng vào ví khi đến ngày ${itemData.dayOfMonth}/${currentMonth}.`, 'success');
       } else {
-        showToast('Đã lưu cấu hình lương thành công! Số dư tháng này được giữ nguyên.', 'success');
+        showToast(`Đã lưu cấu hình! Sẽ bắt đầu tự động cộng từ ngày ${itemData.dayOfMonth}/${nextMonth} (tháng sau).`, 'success');
       }
     } catch (e: any) {
       showToast(e.message || 'Lỗi lưu thông tin định kỳ', 'error');
