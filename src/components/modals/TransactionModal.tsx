@@ -33,7 +33,6 @@ import {
   evaluateMathExpression,
   detectCategoryFromNote,
   getQuickNoteTagsForCategory,
-  POPULAR_AMOUNT_PRESETS,
 } from '../../utils/transactionHelpers';
 import { useModalEscape } from '../../hooks/useModalEscape';
 import { aiService } from '../../services/aiService';
@@ -476,30 +475,6 @@ export const TransactionModal: React.FC = () => {
                 <div className="flex items-center justify-center space-x-1.5 py-1 px-3 mt-2 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-700 max-w-sm mx-auto animate-in fade-in">
                   <Calculator className="w-3.5 h-3.5 text-indigo-500" />
                   <span>Kết quả phép tính: = {formatVND(mathCalculated)}</span>
-                </div>
-              )}
-
-              {/* PRESETS KHI CHƯA GÕ SỐ (1 chạm điền nhanh các mốc phổ biến 20k, 50k, 100k...) */}
-              {parsedAmount === 0 && !isMathExpression && (
-                <div className="pt-2.5 mt-2 border-t border-slate-200/70 space-y-1.5 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-3xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-                      <span>Mốc tiền nhanh (1 chạm):</span>
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-center flex-wrap gap-1.5">
-                    {POPULAR_AMOUNT_PRESETS.map((p) => (
-                      <button
-                        key={p.value}
-                        type="button"
-                        onClick={() => setAmountDirectly(p.value)}
-                        className="px-3 py-1.5 text-xs font-bold bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border border-slate-200 hover:border-blue-300 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               )}
 

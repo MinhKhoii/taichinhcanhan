@@ -135,30 +135,6 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
         </div>
       )}
 
-      {/* Mốc tiền nhanh (1 chạm) khi chưa gõ số */}
-      {numValue === 0 && presets.length > 0 && (
-        <div className="pt-2 mt-1 border-t border-slate-200/70 space-y-1.5 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between px-0.5">
-            <span className="text-3xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-              <span>Mốc tiền nhanh (1 chạm):</span>
-            </span>
-          </div>
-          <div className="flex items-center flex-wrap gap-1.5">
-            {presets.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => setPreset(p.value)}
-                className="px-3 py-1.5 text-xs font-bold bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border border-slate-200 hover:border-blue-300 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* SMART BANKING SUGGESTIONS - CHỈ HIỆN KHI NGƯỜI DÙNG CHỦ ĐỘNG GÕ SỐ (ĐỒNG BỘ 100% VỚI TRANSACTION MODAL) */}
       {!hideSuggestions && hasUserTyped && numValue > 0 && (filteredSuggestions.length > 0 || (maxSuggestion ? numValue * 1000 <= maxSuggestion : numValue < 10000000)) && (
         <div className="pt-2.5 mt-1 border-t border-slate-200/70 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">

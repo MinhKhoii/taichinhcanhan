@@ -272,3 +272,4 @@ export const POPULAR_AMOUNT_PRESETS = [
   { label: '500k', value: 500000 },
   { label: '1 Tr', value: 1000000 },
 ];
+
