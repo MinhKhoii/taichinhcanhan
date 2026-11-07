@@ -3,6 +3,7 @@ import { FinancialProvider, useFinancial } from './context/FinancialContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { ToastContainer } from './components/layout/ToastContainer';
+import { FloatingActionButtons } from './components/layout/FloatingActionButtons';
 import { TransactionModal } from './components/modals/TransactionModal';
 import { AuthModal } from './components/modals/AuthModal';
 import { PinLockScreen } from './components/modals/PinLockScreen';
@@ -71,7 +72,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex max-w-full overflow-x-clip">
       {/* PIN Lock Screen if locked */}
       {isAppLocked && <PinLockScreen />}
 
@@ -82,15 +83,18 @@ const AppContent: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden lg:pl-64">
+      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-clip lg:pl-64">
         {/* Sticky Header */}
         <Header onToggleMobileMenu={() => setIsMobileMenuOpen(true)} />
 
         {/* Page Content View */}
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-x-hidden">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-x-clip">
           {renderActiveTab()}
         </main>
       </div>
+
+      {/* Floating Action Button (FAB) & Scroll To Top for Quick Adding Anywhere */}
+      <FloatingActionButtons />
 
       {/* Global Quick Add / Edit Transaction Modal */}
       <TransactionModal />
