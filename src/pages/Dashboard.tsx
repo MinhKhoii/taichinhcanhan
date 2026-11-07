@@ -20,6 +20,8 @@ import {
   X,
   Eye,
   EyeOff,
+  Smartphone,
+  Download,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -56,6 +58,8 @@ export const Dashboard: React.FC = () => {
     formatMoney,
     isPrivacyMode,
     togglePrivacyMode,
+    isInstalled,
+    promptInstall,
   } = useFinancial();
 
   const [isWrappedOpen, setIsWrappedOpen] = useState(false);
@@ -394,6 +398,44 @@ export const Dashboard: React.FC = () => {
           >
             <span>Xem gợi ý ({insights.length})</span>
           </button>
+        </div>
+      )}
+
+      {/* PWA Install Notification Card (Chỉ hiện khi chưa cài ra màn hình) */}
+      {!isInstalled && (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="flex items-center space-x-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 text-white shadow-inner">
+              <Smartphone className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-2xs font-bold uppercase tracking-wider text-blue-200">
+                  Trải nghiệm App mượt mà
+                </span>
+                <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-emerald-400 text-slate-900 font-bold">
+                  Khuyên dùng
+                </span>
+              </div>
+              <h4 className="text-sm sm:text-base font-bold text-white mt-0.5">
+                Cài đặt MoneyFlow ra ngoài màn hình chính
+              </h4>
+              <p className="text-xs text-blue-100 mt-0.5 leading-relaxed">
+                Mở nhanh 1 chạm, toàn màn hình, không vướng thanh địa chỉ duyệt web.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <button
+              type="button"
+              onClick={promptInstall}
+              className="flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-blue-700 bg-white hover:bg-blue-50 active:scale-95 rounded-xl transition-all shadow-md cursor-pointer shrink-0"
+            >
+              <Download className="w-4 h-4 text-blue-600" />
+              <span>Cài đặt ngay</span>
+            </button>
+          </div>
         </div>
       )}
 

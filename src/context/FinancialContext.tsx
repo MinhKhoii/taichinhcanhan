@@ -175,6 +175,14 @@ interface FinancialContextType {
   unlockWithPin: (pin: string) => boolean;
   unlockWithPassword: (password: string) => Promise<{ success: boolean; message: string }>;
   lockApp: () => void;
+
+  // PWA & Installation
+  isInstallable: boolean;
+  isInstalled: boolean;
+  promptInstall: () => Promise<void>;
+  isInstallGuideOpen: boolean;
+  openInstallGuide: () => void;
+  closeInstallGuide: () => void;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -307,6 +315,60 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  // PWA Installation & Standalone Detection
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true
+    );
+  });
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      showToast('MoneyFlow đã được cài đặt thành công ra màn hình chính!', 'success');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, [showToast]);
+
+  const promptInstall = useCallback(async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          setIsInstalled(true);
+          setDeferredPrompt(null);
+          showToast('Đang cài đặt ứng dụng MoneyFlow ra màn hình chính...', 'success');
+          return;
+        }
+      } catch (err) {
+        console.warn('PWA install prompt error:', err);
+      }
+    }
+    // If deferredPrompt is not available (e.g. iOS Safari or Chrome before prompt event), open visual guide
+    setIsInstallGuideOpen(true);
+  }, [deferredPrompt, showToast]);
+
+  const openInstallGuide = useCallback(() => setIsInstallGuideOpen(true), []);
+  const closeInstallGuide = useCallback(() => setIsInstallGuideOpen(false), []);
 
   // Filtered transactions based on global time filter
   const filteredTransactions = useMemo(() => {
@@ -1076,6 +1138,12 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         unlockWithPin,
         unlockWithPassword,
         lockApp,
+        isInstallable: !!deferredPrompt,
+        isInstalled,
+        promptInstall,
+        isInstallGuideOpen,
+        openInstallGuide,
+        closeInstallGuide,
       }}
     >
       {children}

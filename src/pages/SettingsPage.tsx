@@ -35,6 +35,7 @@ import {
   Bot,
   ExternalLink,
   Wallet,
+  Smartphone,
 } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { DynamicIcon } from '../components/common/DynamicIcon';
@@ -82,6 +83,8 @@ export const SettingsPage: React.FC = () => {
     setPinCode,
     removePinCode,
     lockApp,
+    isInstalled,
+    promptInstall,
   } = useFinancial();
 
   // Active Settings Tab
@@ -859,6 +862,56 @@ export const SettingsPage: React.FC = () => {
               <p className="text-3xs text-slate-400 mt-2 leading-relaxed">
                 💡 Bạn có thể chọn cố định là <strong>Ngân hàng</strong> hoặc <strong>Ví MoMo</strong>, hoặc chọn <strong>Tự động</strong> để hệ thống tự ưu tiên Ngân hàng / MoMo và nhớ tài khoản bạn dùng gần nhất.
               </p>
+            </div>
+          </div>
+
+          {/* PWA App Installation Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <Smartphone className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                    Cài ứng dụng ra màn hình chính (PWA)
+                  </h3>
+                  <p className="text-2xs text-slate-500 dark:text-slate-400">
+                    Đưa MoneyFlow ra màn hình điện thoại / máy tính như app tải từ CH Play / App Store
+                  </p>
+                </div>
+              </div>
+              <span
+                className={`text-3xs font-bold px-2 py-0.5 rounded-full ${
+                  isInstalled
+                    ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                    : 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                }`}
+              >
+                {isInstalled ? '✅ Đã cài đặt' : '💡 Có thể cài ngay'}
+              </span>
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  {isInstalled
+                    ? 'MoneyFlow đang chạy dưới dạng App độc lập trên thiết bị của bạn'
+                    : 'Cài đặt để mở 1 chạm từ màn hình chính, toàn màn hình và mượt mà hơn'}
+                </p>
+                <p className="text-2xs text-slate-400 mt-0.5">
+                  Không tốn dung lượng máy • Không dính thanh địa chỉ URL • Tự động cập nhật
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={promptInstall}
+                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{isInstalled ? 'Xem lại hướng dẫn' : 'Cài đặt ra màn hình'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
