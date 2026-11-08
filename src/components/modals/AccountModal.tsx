@@ -262,14 +262,6 @@ export const AccountModal: React.FC<AccountModalProps> = ({
 
             {isYieldEnabled && (
               <div className="pt-3 border-t border-pink-100/80 space-y-3 animate-in fade-in duration-200">
-                <div className="p-2.5 rounded-xl bg-pink-100/70 border border-pink-200/80 text-3xs text-pink-900 leading-relaxed space-y-1">
-                  <div>
-                    📅 <strong>Quy tắc MoMo Túi Thần Tài:</strong> Tiền nạp vào cần <strong>1–2 ngày làm việc (T+2, trừ T7, CN)</strong> để đối soát và bắt đầu sinh lời.
-                  </div>
-                  <div className="text-pink-800">
-                    💡 Bạn hoàn toàn có thể <strong>chỉnh sửa số dư ở trên bất cứ lúc nào</strong> để khớp 100% với số tiền thực tế đang hiển thị trong ứng dụng MoMo của bạn.
-                  </div>
-                </div>
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-semibold text-slate-700">
