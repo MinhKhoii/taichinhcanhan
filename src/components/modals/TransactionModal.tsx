@@ -403,7 +403,7 @@ export const TransactionModal: React.FC = () => {
         </div>
 
         {/* Form chính với vùng nội dung cuộn mượt mà độc lập */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <form noValidate onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 modal-content-scroll">
             {/* Type Selector Tabs */}
             <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
@@ -472,7 +472,6 @@ export const TransactionModal: React.FC = () => {
                   ref={amountInputRef}
                   type="text"
                   inputMode="numeric"
-                  pattern="[0-9]*"
                   autoFocus
                   placeholder="0"
                   value={

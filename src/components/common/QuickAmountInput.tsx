@@ -117,7 +117,6 @@ export const QuickAmountInput: React.FC<QuickAmountInputProps> = ({
         <input
           type="text"
           inputMode="numeric"
-          pattern="[0-9]*"
           autoFocus={autoFocus}
           placeholder={placeholder}
           value={numValue > 0 ? numValue.toLocaleString('vi-VN') : (value === '0' ? '0' : '')}

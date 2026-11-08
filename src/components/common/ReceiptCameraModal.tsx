@@ -378,3 +378,4 @@ export const ReceiptCameraModal: React.FC<ReceiptCameraModalProps> = ({
     document.body
   );
 };
+
