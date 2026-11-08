@@ -445,9 +445,6 @@ export const TransactionModal: React.FC = () => {
                 <label className="text-3xs uppercase tracking-wider font-bold text-slate-400">
                   Số tiền giao dịch (VNĐ)
                 </label>
-                <span className="text-3xs text-slate-400 font-medium">
-                  💡 Hỗ trợ gõ tắt: <code className="text-blue-600 font-mono">50k</code>, <code className="text-blue-600 font-mono">2tr</code> hoặc phép tính <code className="text-indigo-600 font-mono">35k + 20k</code>
-                </span>
               </div>
 
               {/* Main Display Input */}
@@ -455,6 +452,8 @@ export const TransactionModal: React.FC = () => {
                 <input
                   ref={amountInputRef}
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   autoFocus
                   placeholder="0"
                   value={

@@ -58,3 +58,4 @@ $dest.Dispose()
 $src.Dispose()
 
 Write-Output "All luxury icons generated successfully in public/!"
+
