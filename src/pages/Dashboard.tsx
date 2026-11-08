@@ -33,7 +33,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { formatVND, formatCompactVND, formatDateVN } from '../utils/formatters';
+import { formatVND, formatCompactVND, formatDateVN, getLocalDateString } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { subMonths, isSameMonth, parseISO, format } from 'date-fns';
 import { calculateFinancialHealthScore, calculate503020Rule } from '../utils/financialAssistant';
@@ -134,7 +134,7 @@ export const Dashboard: React.FC = () => {
     () => debts.filter((d) => d.totalAmount > d.paidAmount),
     [debts]
   );
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayStr = useMemo(() => getLocalDateString(), []);
 
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
   const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(() => {

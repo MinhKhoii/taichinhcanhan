@@ -21,7 +21,7 @@ import {
 import { DynamicIcon } from '../common/DynamicIcon';
 import { QuickAmountInput } from '../common/QuickAmountInput';
 import { useModalEscape } from '../../hooks/useModalEscape';
-import { formatVND } from '../../utils/formatters';
+import { formatVND, getLocalDateString } from '../../utils/formatters';
 
 interface GoalModalProps {
   isOpen: boolean;
@@ -64,7 +64,7 @@ export const GoalModal: React.FC<GoalModalProps> = ({
       // Default deadline: 6 months from now
       const d = new Date();
       d.setMonth(d.getMonth() + 6);
-      setDeadline(d.toISOString().split('T')[0]);
+      setDeadline(getLocalDateString(d));
       const defaultAcc = accounts.find((a) => a.balance > 0) || accounts[0];
       setLinkedAccountId(defaultAcc?.id || '');
       setNotes('');
@@ -123,7 +123,7 @@ export const GoalModal: React.FC<GoalModalProps> = ({
   const setPresetMonths = (months: number) => {
     const d = new Date();
     d.setMonth(d.getMonth() + months);
-    setDeadline(d.toISOString().split('T')[0]);
+    setDeadline(getLocalDateString(d));
   };
 
   const applyPlanToNotes = () => {

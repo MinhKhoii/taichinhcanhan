@@ -16,7 +16,7 @@ import {
   Sparkles,
   Coins,
 } from 'lucide-react';
-import { formatVND, getRelationshipIcon } from '../../utils/formatters';
+import { formatVND, getRelationshipIcon, getLocalDateString } from '../../utils/formatters';
 import { QuickAmountInput } from '../common/QuickAmountInput';
 import { useModalEscape } from '../../hooks/useModalEscape';
 import confetti from 'canvas-confetti';
@@ -36,7 +36,7 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
 
   // Khởi tạo rỗng '' giống hệt TransactionModal (chỉ khi người dùng gõ số thì mới hiện gợi ý)
   const [amountStr, setAmountStr] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [balanceAction, setBalanceAction] = useState<DebtBalanceAction>(
     debt?.type === 'lend' ? 'credit' : 'debit'

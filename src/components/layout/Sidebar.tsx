@@ -17,7 +17,7 @@ import {
   Sun,
   Moon,
 } from 'lucide-react';
-import { formatVND } from '../../utils/formatters';
+import { formatVND, getLocalDateString } from '../../utils/formatters';
 
 interface SidebarProps {
   isMobileOpen: boolean;
@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
 
   const totalNetWorth = accounts.reduce((sum, a) => sum + a.balance, 0);
   const activeDebtsCount = debts.filter((d) => d.totalAmount > d.paidAmount).length;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
   const overdueDebtsCount = debts.filter(
     (d) => (d.status === 'overdue' || (d.dueDate && d.dueDate < todayStr)) && d.totalAmount > d.paidAmount
   ).length;

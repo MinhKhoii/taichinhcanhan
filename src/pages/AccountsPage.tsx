@@ -23,7 +23,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
-import { formatVND, formatDateVN } from '../utils/formatters';
+import { formatVND, formatDateVN, getLocalDateString } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { AccountModal } from '../components/modals/AccountModal';
 import { TransferModal } from '../components/modals/TransferModal';
@@ -449,7 +449,7 @@ export const AccountsPage: React.FC = () => {
                           </span>
                         </div>
                         <span className="text-3xs text-slate-500 block truncate">
-                          {acc.lastYieldDate === new Date().toISOString().split('T')[0]
+                          {acc.lastYieldDate === getLocalDateString()
                             ? `Mức ${acc.yieldRate || 4.0}%/năm • Đã chốt, mai cộng lãi`
                             : `Mức ${acc.yieldRate || 4.0}%/năm • Tự động cộng hàng ngày`}
                         </span>
@@ -479,7 +479,7 @@ export const AccountsPage: React.FC = () => {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const today = new Date().toISOString().split('T')[0];
+                            const today = getLocalDateString();
                             if (acc.lastYieldDate === today) {
                               if (confirm(`Ví "${acc.name}" hôm nay đã được chốt số dư và theo quy tắc MoMo sẽ bắt đầu nhận tiền lời vào ngày mai.\n\nBạn có muốn cộng thử ngay tiền lời hôm nay không?`)) {
                                 forceCalculateYield(acc.id, true);
@@ -489,19 +489,19 @@ export const AccountsPage: React.FC = () => {
                             }
                           }}
                           className={`px-2 py-1 text-3xs font-bold rounded-lg transition-all cursor-pointer shadow-2xs flex items-center space-x-1 ${
-                            acc.lastYieldDate === new Date().toISOString().split('T')[0]
+                            acc.lastYieldDate === getLocalDateString()
                               ? 'bg-white text-pink-700 border border-pink-300 hover:bg-pink-100'
                               : 'text-white bg-pink-600 hover:bg-pink-700 active:scale-95'
                           }`}
                           title={
-                            acc.lastYieldDate === new Date().toISOString().split('T')[0]
+                            acc.lastYieldDate === getLocalDateString()
                               ? 'Hôm nay đã chốt số dư, ngày mai hệ thống sẽ tự động cộng lãi'
                               : 'Bấm để tính và cộng tiền lời ngay lập tức vào ví'
                           }
                         >
                           <Sparkles className="w-2.5 h-2.5" />
                           <span>
-                            {acc.lastYieldDate === new Date().toISOString().split('T')[0]
+                            {acc.lastYieldDate === getLocalDateString()
                               ? 'Đã chốt (mai cộng)'
                               : 'Sinh lời ngay'}
                           </span>

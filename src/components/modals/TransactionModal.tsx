@@ -28,6 +28,7 @@ import {
   getDefaultPaymentMethodForAccount,
   getSmartAmountSuggestions,
   parseQuickAmountInput,
+  getLocalDateString,
 } from '../../utils/formatters';
 import {
   evaluateMathExpression,
@@ -64,11 +65,11 @@ export const TransactionModal: React.FC = () => {
   const amountInputRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
 
-  const getTodayStr = () => new Date().toISOString().split('T')[0];
+  const getTodayStr = () => getLocalDateString();
   const getYesterdayStr = () => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
+    return getLocalDateString(d);
   };
 
   useEffect(() => {

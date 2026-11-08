@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { importExcelToMoneyFlow, ExcelImportResult } from '../utils/excelImport';
+import { getLocalDateString } from '../utils/formatters';
 import {
   initialAccounts,
   initialCategories,
@@ -175,8 +176,8 @@ export class DataService {
           initialBalance: 0,
           color: '#10B981',
           icon: 'Wallet',
-          createdAt: new Date().toISOString().split('T')[0],
-          updatedAt: new Date().toISOString().split('T')[0],
+          createdAt: getLocalDateString(),
+          updatedAt: getLocalDateString(),
         },
         {
           id: `acc_bank_${Date.now()}`,
@@ -187,8 +188,8 @@ export class DataService {
           initialBalance: 0,
           color: '#0284C7',
           icon: 'Building2',
-          createdAt: new Date().toISOString().split('T')[0],
-          updatedAt: new Date().toISOString().split('T')[0],
+          createdAt: getLocalDateString(),
+          updatedAt: getLocalDateString(),
         },
       ],
       categories: initialCategories,
@@ -223,7 +224,7 @@ export class DataService {
   public healAccountsState(db: AppDatabase): boolean {
     if (!db || !db.accounts) return false;
     let changed = false;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     // 1. Kiểm tra và loại bỏ các giao dịch cấn trừ tự động bị kích hoạt lỗi trước đây (nếu có)
     const hasNegativeAcc = db.accounts.some((a) => a.balance < 0);
@@ -617,7 +618,7 @@ export class DataService {
     const offsetAmount = Math.min(deficit, sourceAcc.balance);
     if (offsetAmount <= 0) return false;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
 
     // Tạo giao dịch chuyển khoản cấn trừ nội bộ
     this.createTransaction({
@@ -933,7 +934,7 @@ export class DataService {
         this.createTransaction({
           type: 'expense',
           amount,
-          date: new Date().toISOString().split('T')[0],
+          date: getLocalDateString(),
           accountId,
           note: `Nạp tiền vào mục tiêu tiết kiệm: ${goal.name}`,
           paymentMethod: 'transfer',
@@ -1949,7 +1950,7 @@ export class DataService {
 
   // ===================== DEBTS (SỔ NỢ / CHO VAY & ĐI VAY) =====================
   public getDebts(): DebtItem[] {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     if (!this.db.debts) this.db.debts = [];
     return this.db.debts.map((d) => {
       if (d.paidAmount >= d.totalAmount) {
@@ -1969,7 +1970,7 @@ export class DataService {
     data: Omit<DebtItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
     options?: { balanceAction?: DebtBalanceAction; syncAccount?: boolean }
   ): DebtItem {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     let status = data.status || 'pending';
     if (data.paidAmount >= data.totalAmount) {
       status = 'paid';
@@ -2040,7 +2041,7 @@ export class DataService {
     if (!debt) return null;
 
     Object.assign(debt, data, { updatedAt: new Date().toISOString() });
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     if (debt.paidAmount >= debt.totalAmount) {
       debt.status = 'paid';
     } else if (debt.dueDate && debt.dueDate < today) {
@@ -2067,7 +2068,7 @@ export class DataService {
     const debt = this.db.debts.find((d) => d.id === debtId);
     if (!debt) return null;
 
-    const paymentDate = date || new Date().toISOString().split('T')[0];
+    const paymentDate = date || getLocalDateString();
     const paymentId = `pmt_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
 
     debt.paidAmount = Math.min(debt.totalAmount, debt.paidAmount + amount);
@@ -2080,7 +2081,7 @@ export class DataService {
       accountId,
     });
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     if (debt.paidAmount >= debt.totalAmount) {
       debt.status = 'paid';
     } else if (debt.dueDate && debt.dueDate < today) {

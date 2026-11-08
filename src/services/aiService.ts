@@ -1,5 +1,5 @@
 import { Account, Category, Transaction, Budget, SavingsGoal, DebtItem, PaymentMethod } from '../types';
-import { formatVND } from '../utils/formatters';
+import { formatVND, getLocalDateString, getLocalMonthString } from '../utils/formatters';
 import { dataService } from './dataService';
 
 const STORAGE_KEY = 'moneyflow_gemini_api_key';
@@ -149,7 +149,7 @@ class AIService {
 
     const categoryNames = categories.map((c) => `${c.id}:${c.name} (${c.type})`).join(', ');
     const accountNames = accounts.map((a) => `${a.id}:${a.name} (${a.type})`).join(', ');
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     const prompt = `Bạn là trợ lý AI chuyên bóc tách thông tin từ ảnh chụp hóa đơn, biên lai tính tiền, bill siêu thị, quán cà phê hoặc ảnh chụp màn hình chuyển khoản ngân hàng Việt Nam.
 Ngày hôm nay: ${todayStr}.
@@ -232,7 +232,7 @@ Hãy quan sát kỹ ảnh hóa đơn này và trích xuất thông tin dưới �
   ): ParsedTransactionAI {
     const raw = text.trim();
     const lower = raw.toLowerCase();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     // Detect type
     let type: 'expense' | 'income' | 'transfer' = 'expense';
@@ -406,7 +406,7 @@ Hãy quan sát kỹ ảnh hóa đơn này và trích xuất thông tin dưới �
     }
 
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       const categoriesSummary = categories.map((c) => ({
         id: c.id,
         name: c.name,
@@ -499,7 +499,7 @@ CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TR�
       throw new Error('Bạn cần nhập Google Gemini API Key để sử dụng tính năng bóc tách ảnh hóa đơn.');
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const categoriesSummary = categories.map((c) => ({
       id: c.id,
       name: c.name,
@@ -615,7 +615,7 @@ CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TR�
       const catMap = new Map(categories.map((c) => [c.id, c.name]));
 
       // Current month stats
-      const nowStr = new Date().toISOString().slice(0, 7);
+      const nowStr = getLocalMonthString();
       const curMonthTx = transactions.filter((t) => (t.date || '').startsWith(nowStr));
       const curIncome = curMonthTx
         .filter((t) => t.type === 'income')
@@ -704,7 +704,7 @@ HƯỚNG DẪN TRẢ LỜI:
     const { userName, accounts, transactions, debts, goals } = contextData;
     const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
 
-    const nowStr = new Date().toISOString().slice(0, 7);
+    const nowStr = getLocalMonthString();
     const curMonthTx = transactions.filter((t) => (t.date || '').startsWith(nowStr));
     const curIncome = curMonthTx.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const curExpense = curMonthTx.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);

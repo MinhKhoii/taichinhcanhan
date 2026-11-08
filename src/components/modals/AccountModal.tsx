@@ -5,7 +5,7 @@ import { Account, AccountType } from '../../types';
 import { X, Check, Building2, Wallet, Smartphone, PiggyBank, Landmark, CircleDot, TrendingUp, Sparkles, Percent } from 'lucide-react';
 import { QuickAmountInput } from '../common/QuickAmountInput';
 import { useModalEscape } from '../../hooks/useModalEscape';
-import { formatVND } from '../../utils/formatters';
+import { formatVND, getLocalDateString } from '../../utils/formatters';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -77,7 +77,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     }
     const balance = parseInt(balanceStr || '0', 10);
     const parsedYieldRate = isYieldEnabled ? Math.max(0.1, Number(yieldRate) || 4.0) : undefined;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     if (editingAccount) {
       updateAccount(editingAccount.id, {

@@ -41,7 +41,7 @@ import { aiService } from '../services/aiService';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { dataService } from '../services/dataService';
 import { RecurringModal } from '../components/modals/RecurringModal';
-import { formatVND } from '../utils/formatters';
+import { formatVND, getLocalDateString } from '../utils/formatters';
 import { exportComprehensiveReportToExcel } from '../utils/exportData';
 import schemaSql from '../../supabase/schema.sql?raw';
 import { ConfirmClearDataModal } from '../components/modals/ConfirmClearDataModal';
@@ -194,7 +194,7 @@ export const SettingsPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `MoneyFlow_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `MoneyFlow_Backup_${getLocalDateString()}.json`;
     link.click();
     showToast('Tải file sao lưu JSON thành công!', 'success');
   };
@@ -207,7 +207,7 @@ export const SettingsPage: React.FC = () => {
       budgets,
       savingsGoals,
       debts,
-      `MoneyFlow_Toan_Bo_Du_Lieu_${new Date().toISOString().split('T')[0]}.xlsx`
+      `MoneyFlow_Toan_Bo_Du_Lieu_${getLocalDateString()}.xlsx`
     );
     showToast('Xuất toàn bộ dữ liệu ra Excel (.xlsx) thành công!', 'success');
   };

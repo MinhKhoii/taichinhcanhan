@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { QuickAmountInput } from '../common/QuickAmountInput';
 import { useModalEscape } from '../../hooks/useModalEscape';
+import { getLocalDateString } from '../../utils/formatters';
 
 interface DebtModalProps {
   isOpen: boolean;
@@ -43,7 +44,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   const [relationship, setRelationship] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [totalAmountStr, setTotalAmountStr] = useState('500000');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(getLocalDateString());
   const [dueDate, setDueDate] = useState('');
   const [hasDueDate, setHasDueDate] = useState(true);
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
@@ -73,11 +74,11 @@ export const DebtModal: React.FC<DebtModalProps> = ({
       setRelationship('');
       setPhoneNumber('');
       setTotalAmountStr('2000000');
-      setStartDate(new Date().toISOString().split('T')[0]);
+      setStartDate(getLocalDateString());
       // default deadline: 30 days later
       const d = new Date();
       d.setDate(d.getDate() + 30);
-      setDueDate(d.toISOString().split('T')[0]);
+      setDueDate(getLocalDateString(d));
       setHasDueDate(true);
       const defaultAcc = accounts.find((a) => a.balance > 0) || accounts[0];
       setAccountId(defaultAcc?.id || '');
@@ -349,7 +350,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                       else {
                         const d = new Date();
                         d.setDate(d.getDate() + 30);
-                        setDueDate(d.toISOString().split('T')[0]);
+                        setDueDate(getLocalDateString(d));
                       }
                     }}
                     className="w-3.5 h-3.5 text-blue-600 rounded-sm cursor-pointer accent-blue-600"
@@ -376,7 +377,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                       setHasDueDate(true);
                       const d = new Date();
                       d.setDate(d.getDate() + 30);
-                      setDueDate(d.toISOString().split('T')[0]);
+                      setDueDate(getLocalDateString(d));
                     }}
                     className="text-2xs text-blue-600 font-bold hover:underline shrink-0 ml-2 cursor-pointer"
                   >

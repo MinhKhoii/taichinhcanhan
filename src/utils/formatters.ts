@@ -64,6 +64,51 @@ export function getReadableVNDWords(amount: number): string {
 }
 
 /**
+ * Lấy ngày theo giờ địa phương (local time) chuẩn định dạng YYYY-MM-DD.
+ * Tuyệt đối không dùng new Date().toISOString().split('T')[0] vì sau 00:00 đêm đến 07:00 sáng
+ * tại múi giờ Việt Nam (UTC+7) sẽ bị lệch lùi lại 1 ngày thành ngày hôm qua (do UTC chạy sau 7 tiếng).
+ */
+export function getLocalDateString(input?: Date | string | number): string {
+  let d: Date;
+  if (!input) {
+    d = new Date();
+  } else if (input instanceof Date) {
+    d = input;
+  } else if (typeof input === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(input.trim())) return input.trim();
+    d = new Date(input);
+  } else {
+    d = new Date(input);
+  }
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Lấy tháng theo giờ địa phương chuẩn định dạng YYYY-MM.
+ */
+export function getLocalMonthString(input?: Date | string | number): string {
+  let d: Date;
+  if (!input) {
+    d = new Date();
+  } else if (input instanceof Date) {
+    d = input;
+  } else if (typeof input === 'string') {
+    if (/^\d{4}-\d{2}$/.test(input.trim())) return input.trim();
+    d = new Date(input);
+  } else {
+    d = new Date(input);
+  }
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+/**
  * Format Date to DD/MM/YYYY
  */
 export function formatDateVN(dateInput: string | Date): string {

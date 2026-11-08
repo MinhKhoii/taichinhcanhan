@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { AppDatabase } from '../services/dataService';
 import { Transaction, Account, Category, Budget, SavingsGoal, DebtItem } from '../types';
+import { getLocalDateString, getLocalMonthString } from './formatters';
 
 export interface ExcelImportResult {
   success: boolean;
@@ -22,7 +23,7 @@ export interface ExcelImportResult {
  * - Numeric Excel serial date (e.g., 45600)
  */
 function parseExcelDate(val: any): string {
-  if (!val) return new Date().toISOString().split('T')[0];
+  if (!val) return getLocalDateString();
 
   // If already YYYY-MM-DD
   if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
@@ -54,10 +55,10 @@ function parseExcelDate(val: any): string {
   // Fallback try Date object
   const dateObj = new Date(val);
   if (!isNaN(dateObj.getTime())) {
-    return dateObj.toISOString().split('T')[0];
+    return getLocalDateString(dateObj);
   }
 
-  return new Date().toISOString().split('T')[0];
+  return getLocalDateString();
 }
 
 /**
@@ -349,7 +350,7 @@ export function importExcelToMoneyFlow(
   if (budgetSheetName) {
     const rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[budgetSheetName]);
     rows.forEach((row) => {
-      const month = (row['Tháng'] || row['Month'] || new Date().toISOString().slice(0, 7)).toString().trim();
+      const month = (row['Tháng'] || row['Month'] || getLocalMonthString()).toString().trim();
       const amount = parseAmount(row['Hạn mức (VNĐ)'] || row['Hạn mức'] || row['Amount'] || 0);
       const catName = (row['Danh mục'] || row['Category'] || '').toString().trim();
       if (amount <= 0 || !catName) return;

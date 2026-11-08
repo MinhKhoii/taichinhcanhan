@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useFinancial } from '../../context/FinancialContext';
 import { aiService, AIChatMessage, ParsedTransactionAI } from '../../services/aiService';
 import { useModalEscape } from '../../hooks/useModalEscape';
-import { formatVND } from '../../utils/formatters';
+import { formatVND, getLocalDateString } from '../../utils/formatters';
 import {
   Sparkles,
   Send,
@@ -199,7 +199,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     createTransaction({
       type: data.type,
       amount: data.amount,
-      date: data.date || new Date().toISOString().split('T')[0],
+      date: data.date || getLocalDateString(),
       categoryId: data.categoryId,
       accountId: data.accountId,
       toAccountId: data.toAccountId,

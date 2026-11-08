@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useFinancial } from '../../context/FinancialContext';
 import { X, ArrowRight, Check } from 'lucide-react';
-import { formatVND } from '../../utils/formatters';
+import { formatVND, getLocalDateString } from '../../utils/formatters';
 import { QuickAmountInput } from '../common/QuickAmountInput';
 import { useModalEscape } from '../../hooks/useModalEscape';
 
@@ -27,7 +27,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   );
   const [amountStr, setAmountStr] = useState<string>('');
   const [note, setNote] = useState<string>('');
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(getLocalDateString());
 
   useModalEscape(onClose, isOpen);
 

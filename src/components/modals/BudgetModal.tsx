@@ -6,6 +6,7 @@ import { X, Check, Edit2, Plus } from 'lucide-react';
 import { DynamicIcon } from '../common/DynamicIcon';
 import { QuickAmountInput } from '../common/QuickAmountInput';
 import { useModalEscape } from '../../hooks/useModalEscape';
+import { getLocalMonthString } from '../../utils/formatters';
 
 interface BudgetModalProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
 }) => {
   const { categories, saveBudget, updateCategory, createCategory } = useFinancial();
 
-  const currentYearMonth = defaultMonth || new Date().toISOString().slice(0, 7); // YYYY-MM
+  const currentYearMonth = defaultMonth || getLocalMonthString(); // YYYY-MM
   const [categoryId, setCategoryId] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [month, setMonth] = useState(currentYearMonth);
