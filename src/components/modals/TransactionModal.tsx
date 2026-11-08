@@ -37,6 +37,7 @@ import {
 } from '../../utils/transactionHelpers';
 import { useModalEscape } from '../../hooks/useModalEscape';
 import { aiService } from '../../services/aiService';
+import { ReceiptCameraModal } from '../common/ReceiptCameraModal';
 
 export const TransactionModal: React.FC = () => {
   const {
@@ -64,6 +65,7 @@ export const TransactionModal: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   const getTodayStr = () => getLocalDateString();
   const getYesterdayStr = () => {
@@ -194,6 +196,30 @@ export const TransactionModal: React.FC = () => {
     }
   };
 
+  const processReceiptBase64 = async (base64Data: string, mimeType: string = 'image/jpeg') => {
+    setIsScanning(true);
+    showToast('AI Gemini đang đọc hóa đơn & bóc tách thông tin...', 'info');
+
+    try {
+      const parsed = await aiService.scanReceiptImage(base64Data, mimeType, categories, accounts);
+
+      if (parsed.type) setType(parsed.type);
+      if (parsed.amount) setAmountStr(parsed.amount.toString());
+      if (parsed.note) setNote(parsed.note);
+      if (parsed.categoryId) setCategoryId(parsed.categoryId);
+      if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
+      if (parsed.date) setDate(parsed.date);
+      if (parsed.accountId) setAccountId(parsed.accountId);
+
+      showToast(`✨ Đã nhận diện: ${parsed.note} (${formatVND(parsed.amount)})!`, 'success');
+      setIsCameraModalOpen(false);
+    } catch (err: any) {
+      showToast(err.message || 'Không thể đọc được hóa đơn này', 'error');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -210,9 +236,6 @@ export const TransactionModal: React.FC = () => {
       return;
     }
 
-    setIsScanning(true);
-    showToast('AI Gemini đang đọc hóa đơn & bóc tách thông tin...', 'info');
-
     try {
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -225,21 +248,9 @@ export const TransactionModal: React.FC = () => {
         reader.readAsDataURL(file);
       });
 
-      const parsed = await aiService.scanReceiptImage(base64Data, file.type, categories, accounts);
-
-      if (parsed.type) setType(parsed.type);
-      if (parsed.amount) setAmountStr(parsed.amount.toString());
-      if (parsed.note) setNote(parsed.note);
-      if (parsed.categoryId) setCategoryId(parsed.categoryId);
-      if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
-      if (parsed.date) setDate(parsed.date);
-      if (parsed.accountId) setAccountId(parsed.accountId);
-
-      showToast(`✨ Đã nhận diện: ${parsed.note} (${formatVND(parsed.amount)})!`, 'success');
+      await processReceiptBase64(base64Data, file.type || 'image/jpeg');
     } catch (err: any) {
       showToast(err.message || 'Không thể đọc được hóa đơn này', 'error');
-    } finally {
-      setIsScanning(false);
     }
   };
 
@@ -347,10 +358,17 @@ export const TransactionModal: React.FC = () => {
               <>
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    const key = aiService.getApiKey();
+                    if (!key) {
+                      showToast('Vui lòng vào Cài đặt -> Trợ lý AI để nhập Google Gemini API Key nhé!', 'info');
+                      return;
+                    }
+                    setIsCameraModalOpen(true);
+                  }}
                   disabled={isScanning}
                   className="flex items-center gap-1.5 px-3 py-1 text-2xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 rounded-full border border-indigo-200/80 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                  title="Chụp ảnh hoặc tải ảnh bill/hóa đơn để AI đọc tự động"
+                  title="Chụp ảnh trực tiếp hoặc tải ảnh bill/hóa đơn để AI đọc tự động"
                 >
                   {isScanning ? (
                     <>
@@ -851,6 +869,13 @@ export const TransactionModal: React.FC = () => {
           </div>
         </form>
       </div>
+
+      <ReceiptCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={processReceiptBase64}
+        isScanning={isScanning}
+      />
     </div>,
     document.body
   );

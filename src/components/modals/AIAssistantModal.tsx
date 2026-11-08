@@ -24,6 +24,7 @@ import {
   ClipboardPaste,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { ReceiptCameraModal } from '../common/ReceiptCameraModal';
 
 interface AIAssistantModalProps {
   isOpen: boolean;
@@ -78,6 +79,9 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   const [isListeningQuickAdd, setIsListeningQuickAdd] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const activeRecognitionRef = useRef<any>(null);
+
+  // Receipt Scanner Camera Modal
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   // Auto-Save Preference & Countdown States
   const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(() => {
@@ -452,7 +456,30 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       showToast('Tính năng quét ảnh hóa đơn yêu cầu Google Gemini API Key. Bạn vui lòng dán key miễn phí để sử dụng nhé!', 'info');
       return;
     }
-    fileInputRef.current?.click();
+    setIsCameraModalOpen(true);
+  };
+
+  // Process captured/selected receipt base64
+  const handleCaptureReceipt = async (base64Data: string, mimeType: string = 'image/jpeg') => {
+    setIsScanningReceipt(true);
+    showToast('Đang quét và bóc tách hóa đơn bằng Gemini AI... 🔍', 'info');
+
+    try {
+      const parsed = await aiService.parseReceiptImage(
+        base64Data,
+        mimeType,
+        categories,
+        accounts
+      );
+      setParsedPreview(parsed);
+      setQuickAddText(`[Hóa đơn] ${parsed.note} - ${formatVND(parsed.amount)}`);
+      showToast(`Đã nhận diện: ${parsed.note} (${formatVND(parsed.amount)}) ✨`, 'success');
+      setIsCameraModalOpen(false);
+    } catch (err: any) {
+      showToast(err?.message || 'Không thể đọc hóa đơn này. Hãy thử ảnh rõ hơn!', 'error');
+    } finally {
+      setIsScanningReceipt(false);
+    }
   };
 
   // Receipt Image file change
@@ -1006,6 +1033,13 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
           )}
         </div>
       </div>
+
+      <ReceiptCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={handleCaptureReceipt}
+        isScanning={isScanningReceipt}
+      />
     </div>,
     document.body
   );
