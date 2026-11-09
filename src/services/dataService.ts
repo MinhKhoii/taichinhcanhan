@@ -557,7 +557,7 @@ export class DataService {
   }
 
   // ===================== BALANCE OFFSET & SYNC =====================
-  public recalculateAccountBalances(): void {
+  public recalculateAccountBalances(save = true): void {
     for (const acc of this.db.accounts) {
       const txSum = this.getAccountNetTransactions(acc.id);
 
@@ -572,8 +572,10 @@ export class DataService {
         acc.balance = 0;
       }
     }
-    this.saveState();
-    this.notifyListeners();
+    if (save) {
+      this.saveState();
+      this.notifyListeners();
+    }
   }
 
   public autoOffsetNegativeAccount(negativeAccountId: string, sourceAccountId?: string): boolean {
@@ -1163,19 +1165,82 @@ export class DataService {
         } catch {}
         const deletedSet = new Set(deletedTxIds);
 
-        // Hợp nhất Tài khoản: ƯU TIÊN 100% số dư thực tế của Local (tránh Cloud cũ kéo lùi số dư)
-        const localAccMap = new Map((this.db.accounts || []).map((a) => [a.id, a]));
-        const mergedAccounts = (this.db.accounts && this.db.accounts.length > 0)
-          ? this.db.accounts.map((localAcc) => {
-              const cloudAcc = (cloudDb.accounts || []).find((ca) => ca.id === localAcc.id || ca.name.trim().toLowerCase() === localAcc.name.trim().toLowerCase());
-              return {
-                ...(cloudAcc || {}),
-                ...localAcc,
-                balance: localAcc.balance,
-                initialBalance: localAcc.initialBalance,
-              };
+        const cloudTime = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+        const lastSyncStr = localStorage.getItem('moneyflow_last_cloud_sync_at');
+        const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
+        const localTimeStr = localStorage.getItem('moneyflow_last_local_updated_at');
+        const localTime = localTimeStr ? new Date(localTimeStr).getTime() : 0;
+
+        const isCloudNewerThanLocal = cloudTime > localTime;
+        const isCloudNewerThanLastSync = cloudTime > (lastSyncTime + 1000);
+
+        // Hợp nhất Tài khoản thông minh hai chiều giữa Điện thoại & Máy tính:
+        const localAccounts = this.db.accounts || [];
+        const cloudAccounts = cloudDb.accounts || [];
+        const handledCloudAccountIds = new Set<string>();
+
+        const mergedAccounts: Account[] = (localAccounts.length > 0)
+          ? localAccounts.map((localAcc) => {
+              const cloudAcc = cloudAccounts.find(
+                (ca) => ca.id === localAcc.id || ca.name.trim().toLowerCase() === localAcc.name.trim().toLowerCase()
+              );
+
+              if (!cloudAcc) {
+                return localAcc;
+              }
+
+              handledCloudAccountIds.add(cloudAcc.id);
+
+              const localAccTime = localAcc.updatedAt ? new Date(localAcc.updatedAt).getTime() : 0;
+              const cloudAccTime = cloudAcc.updatedAt ? new Date(cloudAcc.updatedAt).getTime() : 0;
+
+              // Ưu tiên bản Cloud nếu:
+              // 1. Cloud có bản backup mới hơn lần sync trước của máy này (điện thoại vừa thao tác)
+              // 2. Hoặc tài khoản Cloud có updatedAt mới hơn local
+              // 3. Hoặc Cloud có bật sinh lời MoMo (isYieldEnabled) mà local chưa có
+              // 4. Hoặc Cloud có ngày sinh lời gần nhất (lastYieldDate) mới hơn local
+              const preferCloud =
+                isCloudNewerThanLastSync ||
+                isCloudNewerThanLocal ||
+                cloudAccTime > localAccTime ||
+                (cloudAcc.isYieldEnabled && !localAcc.isYieldEnabled) ||
+                Boolean(cloudAcc.lastYieldDate && (!localAcc.lastYieldDate || cloudAcc.lastYieldDate >= localAcc.lastYieldDate));
+
+              if (preferCloud) {
+                return {
+                  ...localAcc,
+                  ...cloudAcc,
+                  balance: cloudAcc.balance,
+                  initialBalance: cloudAcc.initialBalance !== undefined ? cloudAcc.initialBalance : localAcc.initialBalance,
+                  isYieldEnabled: cloudAcc.isYieldEnabled !== undefined ? cloudAcc.isYieldEnabled : localAcc.isYieldEnabled,
+                  yieldRate: cloudAcc.yieldRate ?? localAcc.yieldRate,
+                  lastYieldDate: cloudAcc.lastYieldDate || localAcc.lastYieldDate,
+                };
+              } else {
+                return {
+                  ...cloudAcc,
+                  ...localAcc,
+                  balance: localAcc.balance,
+                  initialBalance: localAcc.initialBalance !== undefined ? localAcc.initialBalance : cloudAcc.initialBalance,
+                  isYieldEnabled: localAcc.isYieldEnabled !== undefined ? localAcc.isYieldEnabled : cloudAcc.isYieldEnabled,
+                  yieldRate: localAcc.yieldRate ?? cloudAcc.yieldRate,
+                  lastYieldDate: localAcc.lastYieldDate || cloudAcc.lastYieldDate,
+                };
+              }
             })
-          : (cloudDb.accounts || []);
+          : [...cloudAccounts];
+
+        // Bổ sung các tài khoản mới trên Cloud mà Local chưa có
+        for (const cloudAcc of cloudAccounts) {
+          if (!handledCloudAccountIds.has(cloudAcc.id)) {
+            const exists = mergedAccounts.some(
+              (ma) => ma.id === cloudAcc.id || ma.name.trim().toLowerCase() === cloudAcc.name.trim().toLowerCase()
+            );
+            if (!exists) {
+              mergedAccounts.push(cloudAcc);
+            }
+          }
+        }
 
         // Hợp nhất Giao dịch:
         // - Bắt đầu từ toàn bộ giao dịch hiện tại của Local (đã chỉnh sửa, đã xóa bản ghi thừa)
@@ -1238,7 +1303,7 @@ export class DataService {
         };
 
         this.healAccountsState(this.db);
-        this.recalculateAccountBalances();
+        this.recalculateAccountBalances(false);
 
         const key = this.getStorageKey();
         localStorage.setItem(key, JSON.stringify(this.db));
@@ -1307,11 +1372,13 @@ export class DataService {
       }
 
       const cloudTime = new Date(cloudRes.data.updated_at).getTime();
+      const lastSyncStr = localStorage.getItem('moneyflow_last_cloud_sync_at');
+      const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
       const localTimeStr = localStorage.getItem('moneyflow_last_local_updated_at');
       const localTime = localTimeStr ? new Date(localTimeStr).getTime() : 0;
 
-      // Nếu trên Cloud mới hơn dữ liệu trên máy hiện tại ít nhất 2 giây:
-      if (cloudTime > localTime + 2000) {
+      // Nếu trên Cloud có cập nhật mới hơn lần sync gần nhất của máy này, hoặc mới hơn local:
+      if (cloudTime > lastSyncTime + 1000 || cloudTime > localTime + 2000) {
         const pullRes = await this.pullFromSupabase();
         if (pullRes.success) {
           return { updated: true, message: 'Đã tự động đồng bộ dữ liệu mới nhất từ Cloud!' };
@@ -1365,18 +1432,21 @@ export class DataService {
       }
 
       const cloudUpdatedAt = data?.updated_at ? new Date(data.updated_at).getTime() : 0;
+      const lastSyncStr = localStorage.getItem('moneyflow_last_cloud_sync_at');
+      const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
       const localUpdatedAtStr = localStorage.getItem('moneyflow_last_local_updated_at');
       const localUpdatedAt = localUpdatedAtStr ? new Date(localUpdatedAtStr).getTime() : 0;
 
       if (data?.data) {
-        // NẾU LOCAL MỚI HƠN HOẶC BẰNG CLOUD (Người dùng vừa thao tác trên máy này):
-        // Tuyệt đối KHÔNG kéo đè dữ liệu cũ của Cloud về làm mất thông tin người dùng vừa nhập!
-        // Thay vào đó: Tự động ĐẨY BẢN LOCAL MỚI NHẤT LÊN CLOUD để Cloud cập nhật tức thì!
-        if (localUpdatedAt >= cloudUpdatedAt && (this.db.transactions.length > 0 || this.db.accounts.some((a) => a.balance > 0))) {
+        // Nếu Cloud có bản cập nhật mới hơn lần sync trước của máy này (ví dụ điện thoại vừa thao tác):
+        if (cloudUpdatedAt > lastSyncTime + 1000 || cloudUpdatedAt > localUpdatedAt) {
+          await this.pullFromSupabase();
+        } else if (localUpdatedAt > cloudUpdatedAt + 3000 && lastSyncTime >= cloudUpdatedAt) {
+          // Chỉ đẩy nếu máy này thực sự có thao tác mới sau lần đồng bộ Cloud trước
           this.isCloudInitialCheckDone = true;
           await this.syncToSupabase();
         } else {
-          // Cloud thực sự mới hơn Local (ví dụ thao tác từ điện thoại khác vừa mới xong)
+          // Mặc định luôn kéo và hợp nhất an toàn để đảm bảo hai thiết bị đồng bộ 100%
           await this.pullFromSupabase();
         }
       } else {
@@ -1414,7 +1484,7 @@ export class DataService {
       if (parsed.transactions && parsed.accounts) {
         this.db = parsed;
         this.healAccountsState(this.db);
-        this.recalculateAccountBalances();
+        this.recalculateAccountBalances(false);
         this.saveState();
         this.notifyListeners();
         return { success: true, message: 'Đã hoàn tác và phục hồi dữ liệu trước khi đồng bộ thành công!' };
@@ -1863,6 +1933,7 @@ export class DataService {
 
       // Cập nhật ngày sinh lời gần nhất
       acc.lastYieldDate = todayStr;
+      acc.updatedAt = new Date().toISOString();
     });
 
     if (processedCount > 0) {
@@ -1922,6 +1993,7 @@ export class DataService {
     });
 
     acc.lastYieldDate = todayStr;
+    acc.updatedAt = new Date().toISOString();
     this.saveState();
     this.notifyListeners();
 

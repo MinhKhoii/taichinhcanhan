@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { dataService } from '../services/dataService';
 import { authService } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import { generateFinancialInsights, FinancialInsight } from '../utils/financialAssistant';
 import { formatVND } from '../utils/formatters';
 import {
@@ -651,11 +652,16 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const syncToCloud = async () => {
     setIsCloudSyncing(true);
     try {
+      // 1. Kéo và hợp nhất bản mới nhất từ Cloud về trước để tránh đè mất dữ liệu từ điện thoại
+      await dataService.pullFromSupabase();
+      syncState();
+
+      // 2. Đẩy bản đã hợp nhất hoàn chỉnh lên Cloud
       const result = await dataService.syncToSupabase();
       if (result.success) {
         const now = new Date().toISOString();
         setLastCloudSyncTime(now);
-        showToast(result.message, 'success');
+        showToast('☁️ Đã đồng bộ 2 chiều dữ liệu với Cloud thành công!', 'success');
       } else {
         showToast(result.message, 'error');
       }
@@ -673,7 +679,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         syncState();
         const now = new Date().toISOString();
         setLastCloudSyncTime(now);
-        showToast(result.message, 'success');
+        showToast('☁️ Đã tải và cập nhật số dư mới nhất từ Cloud!', 'success');
       } else {
         showToast(result.message, 'error');
       }
@@ -744,7 +750,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     let lastCheck = 0;
     const handleVisibilityOrFocus = () => {
       const now = Date.now();
-      if (document.visibilityState === 'visible' && now - lastCheck > 8000) {
+      if (document.visibilityState === 'visible' && now - lastCheck > 4000) {
         lastCheck = now;
         performAutoPull(true);
       }
@@ -753,18 +759,61 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
     window.addEventListener('focus', handleVisibilityOrFocus);
 
-    // 3. Định kỳ kiểm tra ngầm mỗi 30 giây nếu đang mở app
+    // 3. Định kỳ kiểm tra ngầm mỗi 15 giây nếu đang mở app
     const intervalTimer = setInterval(() => {
       if (document.visibilityState === 'visible') {
         handleVisibilityOrFocus();
       }
-    }, 30000);
+    }, 15000);
+
+    // 4. LẮNG NGHE THAY ĐỔI THEO THỜI GIAN THỰC (Supabase Realtime)
+    let channel: any = null;
+    try {
+      if (supabase) {
+        const userEmail = (dataService.getUser().email || 'default').toLowerCase().trim();
+        const backupId = `backup_${userEmail.replace(/[^a-z0-9]/g, '_')}`;
+
+        channel = supabase
+          .channel('realtime_device_sync')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'cloud_backups',
+            },
+            (payload: any) => {
+              const newRow = payload?.new;
+              if (!newRow) return;
+              const isMatch = newRow.id === backupId || newRow.id === 'moneyflow_cloud_state';
+              if (!isMatch) return;
+
+              const lastLocalSync = localStorage.getItem('moneyflow_last_cloud_sync_at');
+              if (newRow.updated_at && newRow.updated_at !== lastLocalSync) {
+                dataService.pullFromSupabase().then((res) => {
+                  if (res.success && isMounted) {
+                    syncState();
+                    setLastCloudSyncTime(newRow.updated_at);
+                    showToast('🔄 Dữ liệu tài khoản vừa được đồng bộ tự động từ thiết bị khác!', 'info');
+                  }
+                });
+              }
+            }
+          )
+          .subscribe();
+      }
+    } catch (e) {
+      console.warn('Realtime channel subscription error:', e);
+    }
 
     return () => {
       isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
       clearInterval(intervalTimer);
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [isCloudConfigured, syncState]);
 

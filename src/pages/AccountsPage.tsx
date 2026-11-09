@@ -22,6 +22,7 @@ import {
   RotateCw,
   ShieldCheck,
   Sparkles,
+  Cloud,
 } from 'lucide-react';
 import { formatVND, formatDateVN, getLocalDateString } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
@@ -42,6 +43,9 @@ export const AccountsPage: React.FC = () => {
     recalculateAccountBalances,
     forceCalculateYield,
     formatMoney,
+    syncToCloud,
+    isCloudSyncing,
+    isCloudConfigured,
   } = useFinancial();
 
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -147,6 +151,23 @@ export const AccountsPage: React.FC = () => {
             <RotateCw className="w-3.5 h-3.5 text-slate-500" />
             <span className="hidden sm:inline">Đồng bộ số dư</span>
           </button>
+
+          {/* Đồng bộ Đám mây 2 chiều giữa Điện thoại & Máy tính */}
+          {isCloudConfigured && (
+            <button
+              onClick={() => syncToCloud()}
+              disabled={isCloudSyncing}
+              className={`flex items-center space-x-1 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shadow-2xs ${
+                isCloudSyncing
+                  ? 'bg-blue-50 text-blue-400 border border-blue-200 cursor-not-allowed'
+                  : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer'
+              }`}
+              title="Đồng bộ 2 chiều dữ liệu tài khoản và số dư giữa điện thoại và máy tính qua Cloud"
+            >
+              <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-pulse text-blue-500' : 'text-emerald-600'}`} />
+              <span className="hidden sm:inline">{isCloudSyncing ? 'Đang đồng bộ...' : 'Đồng bộ Cloud'}</span>
+            </button>
+          )}
 
           <button
             onClick={() => handleOpenTransfer()}
