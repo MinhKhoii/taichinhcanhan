@@ -92,8 +92,11 @@ const AppContent: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-clip lg:pl-64">
-        {/* Sticky Header */}
+        {/* Fixed Header */}
         <Header onToggleMobileMenu={() => setIsMobileMenuOpen(true)} />
+
+        {/* Header spacer to prevent any content overlap */}
+        <div className="h-16 w-full shrink-0" aria-hidden="true" />
 
         {/* Page Content View */}
         <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-28 sm:pb-12 max-w-7xl w-full mx-auto overflow-x-hidden">
