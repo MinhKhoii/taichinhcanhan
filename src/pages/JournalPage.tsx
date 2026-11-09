@@ -106,23 +106,24 @@ export const JournalPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl shadow-2xs">
-            <Calendar className="w-4 h-4 text-blue-600" />
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center space-x-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl shadow-2xs">
+            <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="text-xs sm:text-sm font-semibold text-slate-700 bg-transparent focus:outline-hidden"
+              className="text-xs sm:text-sm font-semibold text-slate-700 bg-transparent focus:outline-hidden cursor-pointer"
             />
           </div>
 
           <button
             onClick={() => openAddTxModal()}
-            className="flex items-center space-x-1.5 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-md shadow-blue-500/20 transition-all"
+            className="flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-md shadow-blue-500/20 transition-all shrink-0 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            <span>Viết nhật ký thu chi</span>
+            <Plus className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Viết nhật ký thu chi</span>
+            <span className="sm:hidden">Viết nhật ký</span>
           </button>
         </div>
       </div>
@@ -258,7 +259,7 @@ export const JournalPage: React.FC = () => {
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
-                              <span className="text-xs sm:text-sm font-bold text-slate-800 truncate max-w-[170px] sm:max-w-xs md:max-w-none">
+                              <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">
                                 {displayTitle}
                               </span>
                               {isYield && (

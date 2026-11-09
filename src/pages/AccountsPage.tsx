@@ -413,7 +413,7 @@ export const AccountsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -460,73 +460,86 @@ export const AccountsPage: React.FC = () => {
 
                   {/* Thanh tích lũy sinh lời hàng ngày nếu được bật (Ví dụ Ví MoMo Túi Thần Tài) */}
                   {acc.isYieldEnabled && (
-                    <div className="mt-3.5 p-2.5 rounded-2xl bg-gradient-to-r from-pink-50/90 via-purple-50/60 to-pink-50/90 border border-pink-200/80 flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-3xs text-pink-900 font-medium flex items-center space-x-1">
-                          <TrendingUp className="w-3 h-3 text-pink-600 shrink-0" />
-                          <span className="font-bold">Lãi:</span>
-                          <span className="font-extrabold text-pink-700">
+                    <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-pink-50/90 via-purple-50/60 to-pink-50/90 border border-pink-200/80 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center space-x-1.5 min-w-0">
+                          <TrendingUp className="w-3.5 h-3.5 text-pink-600 shrink-0" />
+                          <span className="text-2xs font-extrabold text-pink-700 tracking-tight">
                             ~+{formatVND(Math.round((Math.max(0, acc.balance) * ((acc.yieldRate || 4.0) / 100)) / 365))}/ngày
                           </span>
-                        </div>
-                        <span className="text-3xs text-slate-500 block truncate">
-                          {acc.lastYieldDate === getLocalDateString()
-                            ? `Mức ${acc.yieldRate || 4.0}%/năm • Đã chốt, mai cộng lãi`
-                            : `Mức ${acc.yieldRate || 4.0}%/năm • Tự động cộng hàng ngày`}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const currentRate = acc.yieldRate || 4.0;
-                            const input = prompt(`Nhập lãi suất %/năm mới cho ví "${acc.name}":`, currentRate.toString());
-                            if (input !== null) {
-                              const parsed = parseFloat(input);
-                              if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
-                                updateAccount(acc.id, { yieldRate: parsed });
-                              } else {
-                                alert('Vui lòng nhập số % hợp lệ từ 0.1 đến 100');
-                              }
-                            }
-                          }}
-                          className="px-2 py-1 text-3xs font-bold text-slate-700 bg-white hover:bg-pink-100 hover:text-pink-700 rounded-lg border border-pink-200 transition-colors cursor-pointer"
-                          title="Chỉnh sửa tỷ lệ % lãi suất"
-                        >
-                          Đổi %
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const today = getLocalDateString();
-                            if (acc.lastYieldDate === today) {
-                              if (confirm(`Ví "${acc.name}" hôm nay đã được chốt số dư và theo quy tắc MoMo sẽ bắt đầu nhận tiền lời vào ngày mai.\n\nBạn có muốn cộng thử ngay tiền lời hôm nay không?`)) {
-                                forceCalculateYield(acc.id, true);
-                              }
-                            } else {
-                              forceCalculateYield(acc.id);
-                            }
-                          }}
-                          className={`px-2 py-1 text-3xs font-bold rounded-lg transition-all cursor-pointer shadow-2xs flex items-center space-x-1 ${
-                            acc.lastYieldDate === getLocalDateString()
-                              ? 'bg-white text-pink-700 border border-pink-300 hover:bg-pink-100'
-                              : 'text-white bg-pink-600 hover:bg-pink-700 active:scale-95'
-                          }`}
-                          title={
-                            acc.lastYieldDate === getLocalDateString()
-                              ? 'Hôm nay đã chốt số dư, ngày mai hệ thống sẽ tự động cộng lãi'
-                              : 'Bấm để tính và cộng tiền lời ngay lập tức vào ví'
-                          }
-                        >
-                          <Sparkles className="w-2.5 h-2.5" />
-                          <span>
-                            {acc.lastYieldDate === getLocalDateString()
-                              ? 'Đã chốt (mai cộng)'
-                              : 'Sinh lời ngay'}
+                          <span className="text-3xs px-1.5 py-0.5 rounded-md bg-pink-100/90 text-pink-700 font-bold shrink-0">
+                            {acc.yieldRate || 4.0}%/năm
                           </span>
-                        </button>
+                        </div>
+                        <div className="flex items-center space-x-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const currentRate = acc.yieldRate || 4.0;
+                              const input = prompt(`Nhập lãi suất %/năm mới cho ví "${acc.name}":`, currentRate.toString());
+                              if (input !== null) {
+                                const parsed = parseFloat(input);
+                                if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
+                                  updateAccount(acc.id, { yieldRate: parsed });
+                                } else {
+                                  alert('Vui lòng nhập số % hợp lệ từ 0.1 đến 100');
+                                }
+                              }
+                            }}
+                            className="px-2 py-1 text-3xs font-bold text-slate-700 bg-white hover:bg-pink-100 hover:text-pink-700 rounded-lg border border-pink-200 transition-colors cursor-pointer shadow-2xs"
+                            title="Chỉnh sửa tỷ lệ % lãi suất"
+                          >
+                            Đổi %
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const today = getLocalDateString();
+                              if (acc.lastYieldDate === today) {
+                                if (confirm(`Ví "${acc.name}" hôm nay đã được chốt số dư và theo quy tắc MoMo sẽ bắt đầu nhận tiền lời vào ngày mai.\n\nBạn có muốn cộng thử ngay tiền lời hôm nay không?`)) {
+                                  forceCalculateYield(acc.id, true);
+                                }
+                              } else {
+                                forceCalculateYield(acc.id);
+                              }
+                            }}
+                            className={`px-2 py-1 text-3xs font-bold rounded-lg transition-all cursor-pointer shadow-2xs flex items-center space-x-1 ${
+                              acc.lastYieldDate === getLocalDateString()
+                                ? 'bg-white text-pink-700 border border-pink-300 hover:bg-pink-100'
+                                : 'text-white bg-pink-600 hover:bg-pink-700 active:scale-95'
+                            }`}
+                            title={
+                              acc.lastYieldDate === getLocalDateString()
+                                ? 'Hôm nay đã chốt số dư, ngày mai hệ thống sẽ tự động cộng lãi'
+                                : 'Bấm để tính và cộng tiền lời ngay lập tức vào ví'
+                            }
+                          >
+                            <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                            <span>
+                              {acc.lastYieldDate === getLocalDateString()
+                                ? 'Đã chốt (mai cộng)'
+                                : 'Sinh lời ngay'}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="text-3xs text-slate-500 flex items-center justify-between border-t border-pink-200/50 pt-1.5">
+                        <span className="flex items-center gap-1 font-medium">
+                          {acc.lastYieldDate === getLocalDateString() ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                              <span className="text-slate-600">Hôm nay đã chốt số dư, mai sẽ cộng lời</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block"></span>
+                              <span className="text-slate-600">Tự động cộng tiền lời vào ví mỗi sáng</span>
+                            </>
+                          )}
+                        </span>
                       </div>
                     </div>
                   )}

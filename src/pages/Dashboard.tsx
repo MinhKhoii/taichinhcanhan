@@ -324,9 +324,9 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 self-start md:self-center">
+            <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
               {insights.length > 1 && (
-                <div className="flex items-center space-x-1 mr-2 bg-white/10 p-1 rounded-xl">
+                <div className="flex items-center space-x-1 mr-1 bg-white/10 p-1 rounded-xl">
                   <button
                     type="button"
                     onClick={() =>
@@ -937,14 +937,24 @@ export const Dashboard: React.FC = () => {
                   }
                 }
 
-                const displayTitle =
-                  t.note?.trim() ||
-                  catName ||
-                  (t.type === 'transfer' ? 'Chuyển khoản' : t.type === 'income' ? 'Khoản thu' : 'Khoản chi');
+                const isYield = t.isYield || (t.note && t.note.includes('[Tự động sinh lời]'));
+                if (isYield) {
+                  catName = 'Đầu tư & Lãi tiết kiệm';
+                  catIcon = 'TrendingUp';
+                  catColor = '#EC4899';
+                }
+
+                const displayTitle = isYield
+                  ? `Tiền lời tích lũy ${acc?.name || 'Ví'}`
+                  : t.note?.trim() ||
+                    catName ||
+                    (t.type === 'transfer' ? 'Chuyển khoản' : t.type === 'income' ? 'Khoản thu' : 'Khoản chi');
+
                 return (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between py-3 hover:bg-slate-50/80 px-2 rounded-xl transition-colors"
+                    onClick={() => openAddTxModal(t)}
+                    className="flex items-center justify-between py-3 hover:bg-slate-50/80 active:bg-slate-100/70 px-2 rounded-xl transition-colors cursor-pointer group"
                   >
                     <div className="flex items-center space-x-3 min-w-0 pr-3">
                       <div
@@ -954,11 +964,18 @@ export const Dashboard: React.FC = () => {
                         <DynamicIcon name={catIcon} className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-800 truncate">
-                          {displayTitle}
-                        </p>
+                        <div className="flex items-center space-x-1.5 flex-wrap">
+                          <p className="text-xs font-bold text-slate-800 truncate">
+                            {displayTitle}
+                          </p>
+                          {isYield && (
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-3xs font-extrabold bg-pink-50 text-pink-700 border border-pink-200 shrink-0">
+                              +{acc?.yieldRate || 4}%/năm
+                            </span>
+                          )}
+                        </div>
                         <p className="text-2xs text-slate-400 truncate mt-0.5">
-                          {formatDateVN(t.date)} • {acc?.name || 'Ví'} {catName ? `• ${catName}` : ''}
+                          {formatDateVN(t.date)} • {isYield ? `Sinh lời tự động • ${acc?.name || 'Ví'}` : `${acc?.name || 'Ví'}${catName ? ` • ${catName}` : ''}`}
                         </p>
                       </div>
                     </div>

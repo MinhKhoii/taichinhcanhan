@@ -76,6 +76,7 @@ export interface Transaction {
   note?: string;
   paymentMethod: PaymentMethod;
   recurringItemId?: string; // ID của mục lương / thu chi định kỳ liên kết
+  isYield?: boolean; // Đánh dấu giao dịch sinh lời tự động hàng ngày
   createdAt: string;
   updatedAt: string;
 }

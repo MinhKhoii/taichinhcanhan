@@ -96,7 +96,7 @@ const AppContent: React.FC = () => {
         <Header onToggleMobileMenu={() => setIsMobileMenuOpen(true)} />
 
         {/* Page Content View */}
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-x-hidden">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-28 sm:pb-12 max-w-7xl w-full mx-auto overflow-x-hidden">
           {renderActiveTab()}
         </main>
       </div>
