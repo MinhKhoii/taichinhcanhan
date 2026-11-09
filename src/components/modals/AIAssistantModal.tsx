@@ -140,6 +140,43 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownTimerRef = useRef<any>(null);
 
+  // Chat Voice Auto-Send 10s Countdown States
+  const [chatCountdown, setChatCountdown] = useState<number | null>(null);
+  const chatCountdownTimerRef = useRef<any>(null);
+  const pendingVoiceChatTextRef = useRef<string>('');
+
+  const cancelChatCountdown = () => {
+    if (chatCountdownTimerRef.current) {
+      clearInterval(chatCountdownTimerRef.current);
+      chatCountdownTimerRef.current = null;
+    }
+    setChatCountdown(null);
+    pendingVoiceChatTextRef.current = '';
+  };
+
+  const startChatSendCountdown = (text: string) => {
+    cancelChatCountdown();
+    pendingVoiceChatTextRef.current = text;
+    setChatCountdown(10);
+    chatCountdownTimerRef.current = setInterval(() => {
+      setChatCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          if (chatCountdownTimerRef.current) {
+            clearInterval(chatCountdownTimerRef.current);
+            chatCountdownTimerRef.current = null;
+          }
+          const textToSend = pendingVoiceChatTextRef.current;
+          pendingVoiceChatTextRef.current = '';
+          if (textToSend.trim()) {
+            handleSendMessage(textToSend.trim());
+          }
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   const toggleAutoSave = () => {
     const nextVal = !autoSaveEnabled;
     setAutoSaveEnabled(nextVal);
@@ -155,12 +192,13 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       setHasKey(aiService.hasApiKey());
       setApiKeyInput(aiService.getApiKey());
     } else {
-      // Khi đóng modal thì dừng đọc âm thanh
+      // Khi đóng modal thì dừng đọc âm thanh và hủy đếm ngược
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
       setSpeakingMessageId(null);
       activeUtteranceRef.current = null;
+      cancelChatCountdown();
     }
   }, [isOpen]);
 
@@ -177,6 +215,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       }
       setSpeakingMessageId(null);
       activeUtteranceRef.current = null;
+      cancelChatCountdown();
     };
   }, []);
 
@@ -189,6 +228,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
 
   // Send Chat Message
   const handleSendMessage = async (textToSend?: string) => {
+    cancelChatCountdown();
     const query = (textToSend || inputMessage).trim();
     if (!query || isThinking) return;
 
@@ -283,7 +323,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   // Countdown timer effect for Auto-Save
   useEffect(() => {
     if (parsedPreview && autoSaveEnabled && parsedPreview.amount > 0) {
-      setCountdown(3);
+      setCountdown(10);
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
       countdownTimerRef.current = setInterval(() => {
         setCountdown((prev) => {
@@ -367,8 +407,9 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       rec.onend = () => {
         setIsListeningChat(false);
         if (spokenChat.trim()) {
-          // Tự động gửi ngay khi nói xong - không cần bấm nút gửi!
-          handleSendMessage(spokenChat.trim());
+          setInputMessage(spokenChat.trim());
+          // Cho 10 giây đếm ngược để người dùng kịp nhìn và sửa nếu cần trước khi tự gửi
+          startChatSendCountdown(spokenChat.trim());
         }
       };
 
@@ -1127,9 +1168,42 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                   </div>
                 )}
 
+                {/* 10s Countdown Notice when Voice Input Ends */}
+                {chatCountdown !== null && chatCountdown > 0 && (
+                  <div className="flex items-center justify-between px-3 py-1.5 mb-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-900 dark:text-blue-100 shadow-xs animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-ping shrink-0" />
+                      <span className="text-2xs sm:text-xs">
+                        Tự động gửi sau <strong className="px-1.5 py-0.5 font-black text-white bg-blue-600 rounded-md text-xs">{chatCountdown}s</strong>...
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={cancelChatCountdown}
+                        className="px-2 py-0.5 text-3xs sm:text-2xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
+                      >
+                        Hủy để sửa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const text = inputMessage.trim() || pendingVoiceChatTextRef.current;
+                          cancelChatCountdown();
+                          if (text) handleSendMessage(text);
+                        }}
+                        className="px-2.5 py-0.5 text-3xs sm:text-2xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer shadow-xs"
+                      >
+                        Gửi ngay
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
+                    cancelChatCountdown();
                     handleSendMessage();
                   }}
                   className="flex items-center space-x-1.5"
@@ -1138,7 +1212,10 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                     type="text"
                     placeholder="Hỏi về thu chi, ngân sách, số dư..."
                     value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
+                    onChange={(e) => {
+                      setInputMessage(e.target.value);
+                      cancelChatCountdown();
+                    }}
                     disabled={isThinking}
                     className="flex-1 px-3.5 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100"
                   />
