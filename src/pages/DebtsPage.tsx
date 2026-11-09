@@ -473,10 +473,10 @@ export const DebtsPage: React.FC = () => {
                           {getNameInitials(debt.personName)}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <h3 className="text-sm font-bold text-slate-800 shrink-0">
-                              {debt.personName}
-                            </h3>
+                          <h3 className="text-sm font-bold text-slate-800 truncate leading-snug">
+                            {debt.personName}
+                          </h3>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1">
                             {debt.relationship && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-2xs font-bold bg-blue-50 text-blue-800 border border-blue-200/90 shadow-2xs whitespace-nowrap shrink-0">
                                 <span className="text-xs leading-none">{getRelationshipIcon(debt.relationship)}</span>
