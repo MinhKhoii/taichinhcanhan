@@ -285,6 +285,51 @@ export class DataService {
         (t) => !t.note?.includes('Thu nhập thêm / Thưởng tháng 11')
       );
 
+      // Xóa các giao dịch sinh lời trùng lặp trong cùng một ngày cho cùng một tài khoản (chỉ giữ 1 bản ghi duy nhất)
+      const seenYieldDays = new Set<string>();
+      const duplicateYieldTxIds = new Set<string>();
+
+      for (const t of db.transactions) {
+        const isYield = t.type === 'income' && (
+          t.note?.includes('[Tự động sinh lời]') ||
+          t.note?.includes('Túi Thần Tài') ||
+          t.note?.includes('Sinh lời')
+        );
+        if (isYield) {
+          const key = `${t.accountId}_${t.date}`;
+          if (seenYieldDays.has(key)) {
+            duplicateYieldTxIds.add(t.id);
+          } else {
+            seenYieldDays.add(key);
+          }
+        }
+      }
+
+      if (duplicateYieldTxIds.size > 0) {
+        // Trừ bớt số tiền trùng lặp khỏi số dư tài khoản tương ứng
+        for (const t of db.transactions) {
+          if (duplicateYieldTxIds.has(t.id)) {
+            const acc = db.accounts.find((a) => a.id === t.accountId);
+            if (acc) {
+              acc.balance = Math.max(0, acc.balance - t.amount);
+              if (balanceSnapshots.has(acc.id)) {
+                balanceSnapshots.set(acc.id, acc.balance);
+              }
+            }
+          }
+        }
+
+        if (!db.deletedTransactionIds) db.deletedTransactionIds = [];
+        for (const id of duplicateYieldTxIds) {
+          if (!db.deletedTransactionIds.includes(id)) {
+            db.deletedTransactionIds.push(id);
+          }
+        }
+
+        db.transactions = db.transactions.filter((t) => !duplicateYieldTxIds.has(t.id));
+        changed = true;
+      }
+
       if (db.transactions.length !== originalTxCount) {
         changed = true;
       }
@@ -2034,12 +2079,12 @@ export class DataService {
       (t) => t.date === todayStr && t.accountId === acc.id && (t.note?.includes('[Tự động sinh lời]') || t.note?.includes('Sinh lời'))
     );
 
-    if ((acc.lastYieldDate === todayStr || hasYieldToday) && !forceToday) {
+    if (hasYieldToday) {
       return {
         success: false,
         amount: 0,
         alreadyDoneToday: true,
-        message: `Ví "${acc.name}" hôm nay đã được chốt số dư rồi! Theo quy tắc MoMo (nạp hôm nay, nhận lãi ngày mai), tiền lời tiếp theo sẽ tự động cộng vào ngày mai.`,
+        message: `Ví "${acc.name}" hôm nay đã được tính tiền lời rồi! Mỗi ngày hệ thống chỉ cộng tiền lời 1 lần duy nhất theo chuẩn quy tắc MoMo.`,
       };
     }
 

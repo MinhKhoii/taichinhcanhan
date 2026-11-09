@@ -202,47 +202,92 @@ export const JournalPage: React.FC = () => {
                     const acc = accMap.get(t.accountId);
                     const toAcc = t.toAccountId ? accMap.get(t.toAccountId) : null;
 
+                    const isYield = t.type === 'income' && (
+                      t.note?.includes('[Tự động sinh lời]') ||
+                      t.note?.includes('Sinh lời') ||
+                      t.note?.includes('Túi Thần Tài')
+                    );
+                    const isTransfer = t.type === 'transfer';
+                    const isDebt = /(nợ|vay|cho mượn|thu hồi)/i.test(t.note || '');
+                    const isSalary = /lương/i.test(t.note || '');
+
+                    // Tiêu đề giao dịch tinh gọn, không bị dài dòng hay chèn ép giao diện
+                    let displayTitle = t.note || (isTransfer ? 'Chuyển tiền' : cat?.name || 'Giao dịch');
+                    if (isYield) {
+                      displayTitle = `Tiền lời tích lũy ${acc?.name || 'MoMo'}`;
+                    }
+
+                    const iconName = isYield
+                      ? 'TrendingUp'
+                      : isTransfer
+                      ? 'ArrowLeftRight'
+                      : cat?.icon || (isDebt ? 'HandCoins' : isSalary ? 'Coins' : 'Tag');
+
+                    const iconColor = isYield
+                      ? '#EC4899'
+                      : isTransfer
+                      ? '#3B82F6'
+                      : cat?.color || (isDebt ? '#2563EB' : isSalary ? '#10B981' : '#64748B');
+
+                    const paymentLabel =
+                      t.paymentMethod === 'ewallet'
+                        ? 'Ví điện tử'
+                        : t.paymentMethod === 'cash'
+                        ? 'Tiền mặt'
+                        : t.paymentMethod === 'transfer'
+                        ? 'Chuyển khoản'
+                        : t.paymentMethod === 'card'
+                        ? 'Thẻ'
+                        : t.paymentMethod === 'qr'
+                        ? 'Quét QR'
+                        : t.paymentMethod;
+
                     return (
                       <div
                         key={t.id}
-                        className="py-3 flex items-center justify-between hover:bg-slate-50/60 rounded-xl px-2 transition-colors group/item"
+                        onClick={() => openAddTxModal(t)}
+                        className="py-2.5 px-2.5 sm:px-3 flex items-center justify-between hover:bg-slate-50/80 active:bg-slate-100/70 rounded-2xl transition-all cursor-pointer group/item gap-3"
                       >
-                        <div className="flex items-center space-x-3.5">
-                          {(() => {
-                            const isDebt = /(nợ|vay|cho mượn|thu hồi)/i.test(t.note || '');
-                            const isSalary = /lương/i.test(t.note || '');
-                            const iconName = t.type === 'transfer' ? 'ArrowLeftRight' : cat?.icon || (isDebt ? 'HandCoins' : isSalary ? 'Coins' : 'Tag');
-                            const iconColor = t.type === 'transfer' ? '#3B82F6' : cat?.color || (isDebt ? '#2563EB' : isSalary ? '#10B981' : '#64748B');
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <div
+                            className="w-9 h-9 rounded-2xl flex items-center justify-center text-white text-xs shadow-2xs shrink-0"
+                            style={{ backgroundColor: iconColor }}
+                          >
+                            <DynamicIcon name={iconName} className="w-4 h-4" />
+                          </div>
 
-                            return (
-                              <div
-                                className="w-9 h-9 rounded-2xl flex items-center justify-center text-white text-xs shadow-2xs flex-shrink-0"
-                                style={{ backgroundColor: iconColor }}
-                              >
-                                <DynamicIcon name={iconName} className="w-4 h-4" />
-                              </div>
-                            );
-                          })()}
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs sm:text-sm font-bold text-slate-800">
-                                {t.note || (t.type === 'transfer' ? 'Chuyển khoản' : cat?.name || 'Giao dịch')}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
+                              <span className="text-xs sm:text-sm font-bold text-slate-800 truncate max-w-[170px] sm:max-w-xs md:max-w-none">
+                                {displayTitle}
                               </span>
-                              {t.note && cat && (
-                                <span className="text-2xs px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                                  {cat.name}
+                              {isYield && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-3xs font-extrabold bg-pink-50 text-pink-700 border border-pink-200 shrink-0">
+                                  +{acc?.yieldRate || 4}%/năm
                                 </span>
                               )}
                             </div>
-                            <p className="text-2xs text-slate-400 mt-0.5">
-                              {acc?.name}
-                              {toAcc ? ` ➔ ${toAcc.name}` : ''} •{' '}
-                              <span className="capitalize">{t.paymentMethod}</span>
+
+                            <p className="text-2xs text-slate-400 mt-0.5 truncate flex items-center space-x-1.5">
+                              {cat && !isYield && (
+                                <>
+                                  <span className="text-slate-500 font-medium">{cat.name}</span>
+                                  <span>•</span>
+                                </>
+                              )}
+                              <span className="text-slate-600 font-medium">{acc?.name || 'Ví'}</span>
+                              {toAcc && <span>➔ {toAcc.name}</span>}
+                              {paymentLabel && (
+                                <>
+                                  <span>•</span>
+                                  <span>{paymentLabel}</span>
+                                </>
+                              )}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-2 shrink-0 text-right">
                           <span
                             className={`text-xs sm:text-sm font-black ${
                               t.type === 'income'
@@ -256,7 +301,10 @@ export const JournalPage: React.FC = () => {
                             {formatVND(t.amount)}
                           </span>
 
-                          <div className="flex items-center space-x-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                          <div
+                            className="hidden sm:flex items-center space-x-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <button
                               onClick={() => openAddTxModal(t)}
                               className="p-1 text-slate-400 hover:text-blue-600 rounded-md"

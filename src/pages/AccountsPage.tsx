@@ -673,12 +673,14 @@ export const AccountsPage: React.FC = () => {
                               {isPositive ? '+' : '-'}
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-slate-800 truncate max-w-40">
+                              <p className="text-xs font-semibold text-slate-800 truncate max-w-48 sm:max-w-xs">
                                 {t.type === 'transfer'
                                   ? isSource
                                     ? `Chuyển đi`
                                     : `Nhận chuyển khoản`
-                                  : cat?.name || 'Giao dịch'}
+                                  : t.note?.includes('[Tự động sinh lời]')
+                                  ? '✨ Tiền lời tích lũy'
+                                  : t.note || cat?.name || 'Giao dịch'}
                               </p>
                               <span className="text-2xs text-slate-400 block">
                                 {formatDateVN(t.date)}
