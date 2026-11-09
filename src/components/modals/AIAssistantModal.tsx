@@ -54,6 +54,43 @@ const prepareTextForSpeech = (rawText: string): string => {
     .slice(0, 800);
 };
 
+/**
+ * Chia văn bản thành các câu ngắn (dưới 160 ký tự) để phát qua bộ phát âm thanh chuẩn Tiếng Việt mượt mà
+ */
+const splitTextIntoSentences = (text: string, maxLen = 160): string[] => {
+  const rawSentences = text
+    .split(/(?<=[.?!;\n])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const chunks: string[] = [];
+  let currentChunk = '';
+
+  for (const sentence of rawSentences) {
+    if ((currentChunk + ' ' + sentence).trim().length <= maxLen) {
+      currentChunk = (currentChunk + ' ' + sentence).trim();
+    } else {
+      if (currentChunk) chunks.push(currentChunk);
+      if (sentence.length <= maxLen) {
+        currentChunk = sentence;
+      } else {
+        const words = sentence.split(' ');
+        currentChunk = '';
+        for (const w of words) {
+          if ((currentChunk + ' ' + w).trim().length <= maxLen) {
+            currentChunk = (currentChunk + ' ' + w).trim();
+          } else {
+            if (currentChunk) chunks.push(currentChunk);
+            currentChunk = w;
+          }
+        }
+      }
+    }
+  }
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks.slice(0, 8);
+};
+
 interface AIAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -109,7 +146,26 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const activeUtteranceRef = useRef<any>(null);
   const activeRecognitionRef = useRef<any>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  // Dừng toàn bộ âm thanh đọc (cả Audio online lẫn SpeechSynthesis)
+  const stopAllSpeech = () => {
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = '';
+      } catch {}
+      currentAudioRef.current = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    setSpeakingMessageId(null);
+    activeUtteranceRef.current = null;
+  };
 
   // Preload TTS voices & listen to voiceschanged event
   useEffect(() => {
@@ -193,11 +249,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       setApiKeyInput(aiService.getApiKey());
     } else {
       // Khi đóng modal thì dừng đọc âm thanh và hủy đếm ngược
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      setSpeakingMessageId(null);
-      activeUtteranceRef.current = null;
+      stopAllSpeech();
       cancelChatCountdown();
     }
   }, [isOpen]);
@@ -210,11 +262,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
           activeRecognitionRef.current.abort();
         } catch {}
       }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      setSpeakingMessageId(null);
-      activeUtteranceRef.current = null;
+      stopAllSpeech();
       cancelChatCountdown();
     };
   }, []);
@@ -495,24 +543,16 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     }
   };
 
-  // Text to speech helper
+  // Text to speech helper (Tích hợp Dual-Engine: Google TTS Online chuẩn Tiếng Việt + Fallback SpeechSynthesis)
   const handleSpeakText = (messageId: string, text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      showToast('Trình duyệt chưa hỗ trợ bộ đọc giọng nói SpeechSynthesis. Bạn vui lòng thử dùng Chrome hoặc Edge nhé!', 'error');
-      return;
-    }
-
     // Nếu đang phát tin nhắn này thì bấm là Dừng lại
     if (speakingMessageId === messageId) {
-      window.speechSynthesis.cancel();
-      setSpeakingMessageId(null);
-      activeUtteranceRef.current = null;
+      stopAllSpeech();
       return;
     }
 
-    // Hủy các câu đọc đang dở trước đó và đánh thức TTS (khắc phục lỗi pending của Chromium)
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.resume();
+    // Dừng mọi âm thanh đang dở trước đó
+    stopAllSpeech();
 
     const cleanText = prepareTextForSpeech(text);
     if (!cleanText) {
@@ -520,62 +560,100 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       return;
     }
 
-    try {
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
+    const chunks = splitTextIntoSentences(cleanText);
+    if (chunks.length === 0) {
+      showToast('Không có nội dung văn bản để đọc.', 'info');
+      return;
+    }
 
-      // Tìm giọng đọc tiếng Việt tối ưu nhất từ hệ thống
-      const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
-      const viVoice = voices.find(
-        (v) =>
-          v.lang.toLowerCase() === 'vi-vn' ||
-          v.lang.toLowerCase().startsWith('vi') ||
-          v.name.toLowerCase().includes('vietnam') ||
-          v.name.toLowerCase().includes('tiếng việt') ||
-          v.name.toLowerCase().includes('hoaimy') ||
-          v.name.toLowerCase().includes('namminh')
-      );
+    // Đánh dấu ngay tin nhắn này đang phát để nút lập tức chuyển sang "Dừng đọc"
+    setSpeakingMessageId(messageId);
+    showToast('🔊 Đang phát giọng đọc...', 'info');
 
-      if (viVoice) {
-        utterance.voice = viVoice;
-        utterance.lang = viVoice.lang;
-      } else {
-        utterance.lang = 'vi-VN';
+    let currentChunkIndex = 0;
+    let isCancelled = false;
+
+    // Bộ phát tuần tự từng câu qua Audio Online (100% chạy trên mọi máy tính và điện thoại)
+    const playNextChunk = () => {
+      if (isCancelled || currentChunkIndex >= chunks.length) {
+        setSpeakingMessageId(null);
+        currentAudioRef.current = null;
+        return;
       }
 
-      utterance.onstart = () => {
-        setSpeakingMessageId(messageId);
+      const chunk = chunks[currentChunkIndex];
+      currentChunkIndex++;
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(chunk)}`;
+      const audio = new Audio(url);
+      currentAudioRef.current = audio;
+
+      audio.onended = () => {
+        playNextChunk();
       };
 
-      utterance.onend = () => {
-        setSpeakingMessageId(null);
-        activeUtteranceRef.current = null;
-      };
-
-      utterance.onerror = (e: any) => {
-        console.warn('SpeechSynthesis error:', e);
-        setSpeakingMessageId(null);
-        activeUtteranceRef.current = null;
-        if (e.error === 'not-allowed') {
-          showToast('Trình duyệt đang chặn âm thanh tự động. Hãy chạm vào màn hình rồi bấm Nghe lại nhé!', 'info');
-        } else if (e.error === 'language-unavailable' || e.error === 'voice-unavailable') {
-          showToast('Thiết bị chưa có sẵn gói đọc Tiếng Việt. Bạn hãy thử mở bằng Google Chrome hoặc Microsoft Edge nhé!', 'error');
-        } else if (e.error !== 'interrupted' && e.error !== 'canceled') {
-          showToast(`Lỗi phát âm thanh (${e.error || 'chưa rõ'}). Bạn vui lòng thử lại nhé!`, 'error');
+      audio.onerror = () => {
+        // Nếu online audio gặp lỗi thì chuyển sang thử SpeechSynthesis của máy
+        if (currentChunkIndex >= chunks.length) {
+          fallbackSpeechSynthesis();
+        } else {
+          playNextChunk();
         }
       };
 
-      // Lưu tham chiếu vào ref để tránh V8 Garbage Collector dọn dẹp làm mất âm thanh
-      activeUtteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
-    } catch (err: any) {
-      console.error('Speech error:', err);
-      setSpeakingMessageId(null);
-      activeUtteranceRef.current = null;
-      showToast('Không thể kích hoạt giọng đọc: ' + (err?.message || 'Lỗi'), 'error');
-    }
+      audio.play().catch((playErr) => {
+        console.warn('Audio play() error, trying fallback:', playErr);
+        fallbackSpeechSynthesis();
+      });
+    };
+
+    // Fallback: Sử dụng SpeechSynthesis cục bộ của trình duyệt nếu mất mạng
+    const fallbackSpeechSynthesis = () => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        setSpeakingMessageId(null);
+        showToast('Không thể phát âm thanh. Vui lòng kiểm tra loa máy tính nhé!', 'error');
+        return;
+      }
+
+      try {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.resume();
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.rate = 1.05;
+        utterance.lang = 'vi-VN';
+
+        const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
+        const viVoice = voices.find(
+          (v) =>
+            v.lang.toLowerCase() === 'vi-vn' ||
+            v.lang.toLowerCase().startsWith('vi') ||
+            v.name.toLowerCase().includes('vietnam') ||
+            v.name.toLowerCase().includes('tiếng việt')
+        );
+        if (viVoice) {
+          utterance.voice = viVoice;
+          utterance.lang = viVoice.lang;
+        }
+
+        utterance.onend = () => {
+          setSpeakingMessageId(null);
+          activeUtteranceRef.current = null;
+        };
+
+        utterance.onerror = () => {
+          setSpeakingMessageId(null);
+          activeUtteranceRef.current = null;
+          showToast('Không thể phát âm thanh. Bạn vui lòng kiểm tra âm lượng hoặc loa máy tính nhé!', 'error');
+        };
+
+        activeUtteranceRef.current = utterance;
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        setSpeakingMessageId(null);
+        showToast('Không thể phát âm thanh. Bạn vui lòng kiểm tra âm lượng máy nhé!', 'error');
+      }
+    };
+
+    playNextChunk();
   };
 
   // Save API Key handler
