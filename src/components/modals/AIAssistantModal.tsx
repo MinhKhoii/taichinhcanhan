@@ -973,7 +973,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                   title="Bật/Tắt tự động lưu sau khi nói"
                 >
                   <Zap className={`w-3 h-3 ${autoSaveEnabled ? 'text-emerald-500 fill-emerald-500' : 'text-slate-400'}`} />
-                  <span>Tự động lưu: <strong>{autoSaveEnabled ? 'BẬT (3s)' : 'TẮT'}</strong></span>
+                  <span>Tự động lưu: <strong>{autoSaveEnabled ? 'BẬT (10s)' : 'TẮT'}</strong></span>
                 </button>
 
                 {/* 2 Killer Features: Scan Receipt & Paste Bank SMS */}
