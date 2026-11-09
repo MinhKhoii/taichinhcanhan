@@ -139,7 +139,7 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
               <p className="text-2xs text-slate-500 truncate max-w-64 flex items-center gap-1.5 mt-0.5">
                 <span>Đối tác: <strong className="text-slate-700">{debt.personName}</strong></span>
                 {debt.relationship && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-3xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-3xs font-bold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap shrink-0">
                     <span>{getRelationshipIcon(debt.relationship)}</span>
                     <span>{debt.relationship}</span>
                   </span>

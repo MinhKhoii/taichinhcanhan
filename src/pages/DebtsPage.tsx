@@ -462,29 +462,29 @@ export const DebtsPage: React.FC = () => {
                 >
                   <div>
                     {/* Header: Person & Actions */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
                         <div
-                          className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-2xs flex-shrink-0 ${
+                          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-2xs shrink-0 ${
                             debt.type === 'lend' ? 'bg-blue-600' : 'bg-amber-600'
                           }`}
                           title={`Đối tác: ${debt.personName}`}
                         >
                           {getNameInitials(debt.personName)}
                         </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <h3 className="text-sm font-bold text-slate-800 line-clamp-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="text-sm font-bold text-slate-800 shrink-0">
                               {debt.personName}
                             </h3>
                             {debt.relationship && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200/90 shadow-2xs">
-                                <span className="text-sm leading-none">{getRelationshipIcon(debt.relationship)}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-2xs font-bold bg-blue-50 text-blue-800 border border-blue-200/90 shadow-2xs whitespace-nowrap shrink-0">
+                                <span className="text-xs leading-none">{getRelationshipIcon(debt.relationship)}</span>
                                 <span>{debt.relationship}</span>
                               </span>
                             )}
                             <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                              className={`px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider whitespace-nowrap shrink-0 ${
                                 debt.type === 'lend'
                                   ? 'bg-blue-100 text-blue-700'
                                   : 'bg-amber-100 text-amber-700'
@@ -495,12 +495,12 @@ export const DebtsPage: React.FC = () => {
                           </div>
 
                           {debt.phoneNumber && (
-                            <div className="flex items-center space-x-1.5 mt-0.5 text-xs text-slate-500">
-                              <Phone className="w-3 h-3" />
-                              <span>{debt.phoneNumber}</span>
+                            <div className="flex items-center space-x-1.5 mt-1 text-2xs text-slate-500">
+                              <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{debt.phoneNumber}</span>
                               <button
                                 onClick={() => copyPhone(debt.phoneNumber)}
-                                className="text-blue-500 hover:text-blue-600 p-0.5"
+                                className="text-blue-500 hover:text-blue-600 p-0.5 shrink-0 cursor-pointer"
                                 title="Copy SĐT"
                               >
                                 <Copy className="w-3 h-3" />
@@ -510,10 +510,10 @@ export const DebtsPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                         <button
                           onClick={() => handleOpenEdit(debt)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
                           title="Sửa thông tin"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -524,7 +524,7 @@ export const DebtsPage: React.FC = () => {
                               deleteDebt(debt.id);
                             }
                           }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                           title="Xóa khoản nợ"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

@@ -220,10 +220,10 @@ export const SavingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                       onClick={() => handleOpenEdit(goal)}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
                       title="Sửa mục tiêu"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -234,7 +234,7 @@ export const SavingsPage: React.FC = () => {
                           deleteSavingsGoal(goal.id);
                         }
                       }}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                       title="Xóa mục tiêu"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
