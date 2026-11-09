@@ -61,7 +61,7 @@ export const initialAccounts: Account[] = [
   {
     id: 'acc_momo_clean',
     userId: 'usr_default',
-    name: 'Ví MoMo',
+    name: 'Ví điện tử',
     type: 'ewallet',
     balance: 16870872,
     initialBalance: 16869023,

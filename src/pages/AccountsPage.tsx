@@ -131,11 +131,10 @@ export const AccountsPage: React.FC = () => {
           {/* Nút bật/tắt Tự động bù trừ khi âm */}
           <button
             onClick={() => updateUser({ autoOffsetNegative: user?.autoOffsetNegative === false ? true : false })}
-            className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-all ${
-              user?.autoOffsetNegative !== false
+            className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-all ${user?.autoOffsetNegative !== false
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 shadow-2xs'
                 : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-            }`}
+              }`}
             title="Khi BẬT: Hệ thống tự động cấn trừ từ tài khoản có tiền sang ví bị âm khi chi tiêu vượt số dư"
           >
             <ShieldCheck className={`w-3.5 h-3.5 ${user?.autoOffsetNegative !== false ? 'text-emerald-600' : 'text-slate-400'}`} />
@@ -157,11 +156,10 @@ export const AccountsPage: React.FC = () => {
             <button
               onClick={() => syncToCloud()}
               disabled={isCloudSyncing}
-              className={`flex items-center space-x-1 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shadow-2xs ${
-                isCloudSyncing
+              className={`flex items-center space-x-1 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shadow-2xs ${isCloudSyncing
                   ? 'bg-blue-50 text-blue-400 border border-blue-200 cursor-not-allowed'
                   : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer'
-              }`}
+                }`}
               title="Đồng bộ 2 chiều dữ liệu tài khoản và số dư giữa điện thoại và máy tính qua Cloud"
             >
               <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-pulse text-blue-500' : 'text-emerald-600'}`} />
@@ -204,7 +202,7 @@ export const AccountsPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-rose-800 mt-1 max-w-2xl leading-relaxed">
-                {negativeAccounts.map((a) => `"${a.name}" (-${formatVND(Math.abs(a.balance))})`).join(', ')} bị âm do chi tiêu hoặc trả nợ vượt quá số dư tiền mặt. 
+                {negativeAccounts.map((a) => `"${a.name}" (-${formatVND(Math.abs(a.balance))})`).join(', ')} bị âm do chi tiêu hoặc trả nợ vượt quá số dư tiền mặt.
                 {richestAccount ? (
                   <span> Bạn có thể nhấn cấn trừ tự động để hệ thống trích <strong>{formatVND(Math.min(totalDeficit, richestAccount.balance))}</strong> từ ví <strong>{richestAccount.name}</strong> (đang có {formatVND(richestAccount.balance)}) bù về 0 ₫ ngay lập tức.</span>
                 ) : (
@@ -352,233 +350,230 @@ export const AccountsPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {accounts.map((acc) => {
-              const isSelected = selectedAccount?.id === acc.id;
-              let typeLabel = 'Ngân hàng';
-              if (acc.type === 'cash') typeLabel = 'Tiền mặt';
-              if (acc.type === 'ewallet') typeLabel = 'Ví điện tử';
-              if (acc.type === 'savings') typeLabel = 'Sổ tiết kiệm';
-              if (acc.type === 'investment') typeLabel = 'Đầu tư';
+                const isSelected = selectedAccount?.id === acc.id;
+                let typeLabel = 'Ngân hàng';
+                if (acc.type === 'cash') typeLabel = 'Tiền mặt';
+                if (acc.type === 'ewallet') typeLabel = 'Ví điện tử';
+                if (acc.type === 'savings') typeLabel = 'Sổ tiết kiệm';
+                if (acc.type === 'investment') typeLabel = 'Đầu tư';
 
-              return (
-                <div
-                  key={acc.id}
-                  onClick={() => setSelectedAccountId(acc.id)}
-                  className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all cursor-pointer relative overflow-hidden group ${
-                    acc.balance < 0
-                      ? isSelected
-                        ? 'border-rose-500 bg-rose-50/60 shadow-md ring-2 ring-rose-500/30'
-                        : 'border-rose-300 bg-rose-50/30 hover:bg-rose-50/60 shadow-xs'
-                      : isSelected
-                        ? 'border-blue-600 bg-white shadow-md ring-2 ring-blue-500/30'
-                        : 'border-slate-200/80 bg-white hover:bg-slate-50/80 shadow-xs'
-                  }`}
-                >
-                  {/* Top indicator stripe */}
+                return (
                   <div
-                    className="absolute top-0 left-0 right-0 h-1.5"
-                    style={{ backgroundColor: acc.balance < 0 ? '#E11D48' : acc.color || '#3B82F6' }}
-                  />
+                    key={acc.id}
+                    onClick={() => setSelectedAccountId(acc.id)}
+                    className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all cursor-pointer relative overflow-hidden group ${acc.balance < 0
+                        ? isSelected
+                          ? 'border-rose-500 bg-rose-50/60 shadow-md ring-2 ring-rose-500/30'
+                          : 'border-rose-300 bg-rose-50/30 hover:bg-rose-50/60 shadow-xs'
+                        : isSelected
+                          ? 'border-blue-600 bg-white shadow-md ring-2 ring-blue-500/30'
+                          : 'border-slate-200/80 bg-white hover:bg-slate-50/80 shadow-xs'
+                      }`}
+                  >
+                    {/* Top indicator stripe */}
+                    <div
+                      className="absolute top-0 left-0 right-0 h-1.5"
+                      style={{ backgroundColor: acc.balance < 0 ? '#E11D48' : acc.color || '#3B82F6' }}
+                    />
 
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-2xs"
-                        style={{ backgroundColor: acc.balance < 0 ? '#E11D48' : acc.color || '#3B82F6' }}
-                      >
-                        <DynamicIcon name={acc.icon || 'Wallet'} className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                          <h3 className="text-sm font-bold text-slate-800 leading-tight">
-                            {acc.name}
-                          </h3>
-                          {acc.balance < 0 && (
-                            <span className="px-1.5 py-0.5 rounded-md text-3xs font-extrabold bg-rose-100 text-rose-700 border border-rose-200">
-                              Âm ví
-                            </span>
-                          )}
-                          {acc.isYieldEnabled && (
-                            <span
-                              className="px-2 py-0.5 rounded-full text-3xs font-extrabold bg-pink-50 text-pink-700 border border-pink-200 flex items-center space-x-0.5"
-                              title={`Tài khoản tích lũy sinh lời ${acc.yieldRate || 4.0}%/năm`}
-                            >
-                              <TrendingUp className="w-2.5 h-2.5 text-pink-600" />
-                              <span>+{acc.yieldRate || 4.0}%/năm</span>
-                            </span>
-                          )}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-2xs"
+                          style={{ backgroundColor: acc.balance < 0 ? '#E11D48' : acc.color || '#3B82F6' }}
+                        >
+                          <DynamicIcon name={acc.icon || 'Wallet'} className="w-5 h-5" />
                         </div>
-                        <span className="text-2xs text-slate-400 font-medium">
-                          {typeLabel} {acc.accountNumber ? `• ${acc.accountNumber}` : ''}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEdit(acc);
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
-                        title="Chỉnh sửa tài khoản"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Bạn có chắc muốn xóa tài khoản "${acc.name}"?`)) {
-                            deleteAccount(acc.id);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
-                        title="Xóa tài khoản"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xs font-semibold text-slate-400 uppercase tracking-wider">
-                        Số dư hiện tại
-                      </span>
-                      {acc.balance < 0 && (
-                        <span className="text-2xs font-bold text-rose-600 flex items-center space-x-0.5">
-                          <AlertTriangle className="w-3 h-3" />
-                          <span>Chi vượt số dư</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className={`text-xl font-extrabold mt-0.5 tracking-tight ${
-                      acc.balance < 0 ? 'text-rose-600' : 'text-slate-900'
-                    }`}>
-                      {formatMoney(acc.balance)}
-                    </div>
-                  </div>
-
-                  {/* Thanh tích lũy sinh lời hàng ngày nếu được bật (Ví dụ Ví MoMo Túi Thần Tài) */}
-                  {acc.isYieldEnabled && (
-                    <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-pink-50/90 via-purple-50/60 to-pink-50/90 border border-pink-200/80 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center space-x-1.5 min-w-0">
-                          <TrendingUp className="w-3.5 h-3.5 text-pink-600 shrink-0" />
-                          <span className="text-2xs font-extrabold text-pink-700 tracking-tight">
-                            ~+{formatVND(Math.round((Math.max(0, acc.balance) * ((acc.yieldRate || 4.0) / 100)) / 365))}/ngày
-                          </span>
-                          <span className="text-3xs px-1.5 py-0.5 rounded-md bg-pink-100/90 text-pink-700 font-bold shrink-0">
-                            {acc.yieldRate || 4.0}%/năm
+                        <div>
+                          <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                            <h3 className="text-sm font-bold text-slate-800 leading-tight">
+                              {acc.name}
+                            </h3>
+                            {acc.balance < 0 && (
+                              <span className="px-1.5 py-0.5 rounded-md text-3xs font-extrabold bg-rose-100 text-rose-700 border border-rose-200">
+                                Âm ví
+                              </span>
+                            )}
+                            {acc.isYieldEnabled && (
+                              <span
+                                className="px-2 py-0.5 rounded-full text-3xs font-extrabold bg-pink-50 text-pink-700 border border-pink-200 flex items-center space-x-0.5"
+                                title={`Tài khoản tích lũy sinh lời ${acc.yieldRate || 4.0}%/năm`}
+                              >
+                                <TrendingUp className="w-2.5 h-2.5 text-pink-600" />
+                                <span>+{acc.yieldRate || 4.0}%/năm</span>
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-2xs text-slate-400 font-medium">
+                            {typeLabel} {acc.accountNumber ? `• ${acc.accountNumber}` : ''}
                           </span>
                         </div>
-                        <div className="flex items-center space-x-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const currentRate = acc.yieldRate || 4.0;
-                              const input = prompt(`Nhập lãi suất %/năm mới cho ví "${acc.name}":`, currentRate.toString());
-                              if (input !== null) {
-                                const parsed = parseFloat(input);
-                                if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
-                                  updateAccount(acc.id, { yieldRate: parsed });
-                                } else {
-                                  alert('Vui lòng nhập số % hợp lệ từ 0.1 đến 100');
-                                }
-                              }
-                            }}
-                            className="px-2 py-1 text-3xs font-bold text-slate-700 bg-white hover:bg-pink-100 hover:text-pink-700 rounded-lg border border-pink-200 transition-colors cursor-pointer shadow-2xs"
-                            title="Chỉnh sửa tỷ lệ % lãi suất"
-                          >
-                            Đổi %
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const today = getLocalDateString();
-                              if (acc.lastYieldDate === today) {
-                                if (confirm(`Ví "${acc.name}" hôm nay đã được chốt số dư và theo quy tắc MoMo sẽ bắt đầu nhận tiền lời vào ngày mai.\n\nBạn có muốn cộng thử ngay tiền lời hôm nay không?`)) {
-                                  forceCalculateYield(acc.id, true);
-                                }
-                              } else {
-                                forceCalculateYield(acc.id);
-                              }
-                            }}
-                            className={`px-2 py-1 text-3xs font-bold rounded-lg transition-all cursor-pointer shadow-2xs flex items-center space-x-1 ${
-                              acc.lastYieldDate === getLocalDateString()
-                                ? 'bg-white text-pink-700 border border-pink-300 hover:bg-pink-100'
-                                : 'text-white bg-pink-600 hover:bg-pink-700 active:scale-95'
-                            }`}
-                            title={
-                              acc.lastYieldDate === getLocalDateString()
-                                ? 'Hôm nay đã chốt số dư, ngày mai hệ thống sẽ tự động cộng lãi'
-                                : 'Bấm để tính và cộng tiền lời ngay lập tức vào ví'
+                      </div>
+
+                      <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(acc);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
+                          title="Chỉnh sửa tài khoản"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Bạn có chắc muốn xóa tài khoản "${acc.name}"?`)) {
+                              deleteAccount(acc.id);
                             }
-                          >
-                            <Sparkles className="w-2.5 h-2.5 shrink-0" />
-                            <span>
-                              {acc.lastYieldDate === getLocalDateString()
-                                ? 'Đã chốt (mai cộng)'
-                                : 'Sinh lời ngay'}
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="text-3xs text-slate-500 flex items-center justify-between border-t border-pink-200/50 pt-1.5">
-                        <span className="flex items-center gap-1 font-medium">
-                          {acc.lastYieldDate === getLocalDateString() ? (
-                            <>
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                              <span className="text-slate-600">Hôm nay đã chốt số dư, mai sẽ cộng lời</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block"></span>
-                              <span className="text-slate-600">Tự động cộng tiền lời vào ví mỗi sáng</span>
-                            </>
-                          )}
-                        </span>
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                          title="Xóa tài khoản"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-                  )}
 
-                  {/* Nút cấn trừ nhanh ngay trên thẻ nếu bị âm */}
-                  {acc.balance < 0 && richestAccount && richestAccount.id !== acc.id && (
-                    <div className="mt-3 pt-2.5 border-t border-rose-200">
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xs font-semibold text-slate-400 uppercase tracking-wider">
+                          Số dư hiện tại
+                        </span>
+                        {acc.balance < 0 && (
+                          <span className="text-2xs font-bold text-rose-600 flex items-center space-x-0.5">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>Chi vượt số dư</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className={`text-xl font-extrabold mt-0.5 tracking-tight ${acc.balance < 0 ? 'text-rose-600' : 'text-slate-900'
+                        }`}>
+                        {formatMoney(acc.balance)}
+                      </div>
+                    </div>
+
+                    {/* Thanh tích lũy sinh lời hàng ngày nếu được bật (Ví dụ Ví MoMo Túi Thần Tài) */}
+                    {acc.isYieldEnabled && (
+                      <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-pink-50/90 via-purple-50/60 to-pink-50/90 border border-pink-200/80 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center space-x-1.5 min-w-0">
+                            <TrendingUp className="w-3.5 h-3.5 text-pink-600 shrink-0" />
+                            <span className="text-2xs font-extrabold text-pink-700 tracking-tight">
+                              ~+{formatVND(Math.round((Math.max(0, acc.balance) * ((acc.yieldRate || 4.0) / 100)) / 365))}/ngày
+                            </span>
+                            <span className="text-3xs px-1.5 py-0.5 rounded-md bg-pink-100/90 text-pink-700 font-bold shrink-0">
+                              {acc.yieldRate || 4.0}%/năm
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentRate = acc.yieldRate || 4.0;
+                                const input = prompt(`Nhập lãi suất %/năm mới cho ví "${acc.name}":`, currentRate.toString());
+                                if (input !== null) {
+                                  const parsed = parseFloat(input);
+                                  if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
+                                    updateAccount(acc.id, { yieldRate: parsed });
+                                  } else {
+                                    alert('Vui lòng nhập số % hợp lệ từ 0.1 đến 100');
+                                  }
+                                }
+                              }}
+                              className="px-2 py-1 text-3xs font-bold text-slate-700 bg-white hover:bg-pink-100 hover:text-pink-700 rounded-lg border border-pink-200 transition-colors cursor-pointer shadow-2xs"
+                              title="Chỉnh sửa tỷ lệ % lãi suất"
+                            >
+                              Đổi %
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const today = getLocalDateString();
+                                if (acc.lastYieldDate === today) {
+                                  if (confirm(`Ví "${acc.name}" hôm nay đã được chốt số dư và sẽ bắt đầu nhận tiền lời vào ngày mai.\n\nBạn có muốn cộng thử ngay tiền lời hôm nay không?`)) {
+                                    forceCalculateYield(acc.id, true);
+                                  }
+                                } else {
+                                  forceCalculateYield(acc.id);
+                                }
+                              }}
+                              className={`px-2 py-1 text-3xs font-bold rounded-lg transition-all cursor-pointer shadow-2xs flex items-center space-x-1 ${acc.lastYieldDate === getLocalDateString()
+                                  ? 'bg-white text-pink-700 border border-pink-300 hover:bg-pink-100'
+                                  : 'text-white bg-pink-600 hover:bg-pink-700 active:scale-95'
+                                }`}
+                              title={
+                                acc.lastYieldDate === getLocalDateString()
+                                  ? 'Hôm nay đã chốt số dư, ngày mai hệ thống sẽ tự động cộng lãi'
+                                  : 'Bấm để tính và cộng tiền lời ngay lập tức vào ví'
+                              }
+                            >
+                              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                              <span>
+                                {acc.lastYieldDate === getLocalDateString()
+                                  ? 'Đã chốt (mai cộng)'
+                                  : 'Sinh lời ngay'}
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="text-3xs text-slate-500 flex items-center justify-between border-t border-pink-200/50 pt-1.5">
+                          <span className="flex items-center gap-1 font-medium">
+                            {acc.lastYieldDate === getLocalDateString() ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                                <span className="text-slate-600">Hôm nay đã chốt số dư, mai sẽ cộng lời</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block"></span>
+                                <span className="text-slate-600">Tự động cộng tiền lời vào ví mỗi sáng</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Nút cấn trừ nhanh ngay trên thẻ nếu bị âm */}
+                    {acc.balance < 0 && richestAccount && richestAccount.id !== acc.id && (
+                      <div className="mt-3 pt-2.5 border-t border-rose-200">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            autoOffsetNegativeAccount(acc.id, richestAccount.id);
+                          }}
+                          className="w-full py-2 px-3 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-xs flex items-center justify-center space-x-1.5 transition-all"
+                          title={`Cấn trừ ${formatVND(Math.abs(acc.balance))} từ ví "${richestAccount.name}" để đưa ví này về 0 ₫`}
+                        >
+                          <Zap className="w-3.5 h-3.5 fill-current" />
+                          <span>⚡ Cấn trừ từ ví {richestAccount.name}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-2xs">
+                      <span className="text-slate-400">
+                        Tạo ngày {formatDateVN(acc.createdAt)}
+                      </span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          autoOffsetNegativeAccount(acc.id, richestAccount.id);
+                          handleOpenTransfer(acc.id);
                         }}
-                        className="w-full py-2 px-3 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-xs flex items-center justify-center space-x-1.5 transition-all"
-                        title={`Cấn trừ ${formatVND(Math.abs(acc.balance))} từ ví "${richestAccount.name}" để đưa ví này về 0 ₫`}
+                        className="font-semibold text-blue-600 hover:text-blue-700 flex items-center space-x-1"
                       >
-                        <Zap className="w-3.5 h-3.5 fill-current" />
-                        <span>⚡ Cấn trừ từ ví {richestAccount.name}</span>
+                        <span>Chuyển tiền</span>
+                        <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
-                  )}
-
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-2xs">
-                    <span className="text-slate-400">
-                      Tạo ngày {formatDateVN(acc.createdAt)}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenTransfer(acc.id);
-                      }}
-                      className="font-semibold text-blue-600 hover:text-blue-700 flex items-center space-x-1"
-                    >
-                      <span>Chuyển tiền</span>
-                      <ChevronRight className="w-3 h-3" />
-                    </button>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             </div>
           )}
         </div>
@@ -679,9 +674,8 @@ export const AccountsPage: React.FC = () => {
                         >
                           <div className="flex items-center space-x-2.5">
                             <div
-                              className={`w-7 h-7 rounded-xl flex items-center justify-center text-2xs font-bold ${
-                                isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                              }`}
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center text-2xs font-bold ${isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                                }`}
                             >
                               {isPositive ? '+' : '-'}
                             </div>
@@ -692,8 +686,8 @@ export const AccountsPage: React.FC = () => {
                                     ? `Chuyển đi`
                                     : `Nhận chuyển khoản`
                                   : t.note?.includes('[Tự động sinh lời]')
-                                  ? '✨ Tiền lời tích lũy'
-                                  : t.note || cat?.name || 'Giao dịch'}
+                                    ? '✨ Tiền lời tích lũy'
+                                    : t.note || cat?.name || 'Giao dịch'}
                               </p>
                               <span className="text-2xs text-slate-400 block">
                                 {formatDateVN(t.date)}
@@ -703,9 +697,8 @@ export const AccountsPage: React.FC = () => {
 
                           <div className="text-right">
                             <span
-                              className={`text-xs font-bold ${
-                                isPositive ? 'text-emerald-600' : 'text-rose-600'
-                              }`}
+                              className={`text-xs font-bold ${isPositive ? 'text-emerald-600' : 'text-rose-600'
+                                }`}
                             >
                               {isPositive ? '+' : '-'}
                               {formatVND(t.amount)}

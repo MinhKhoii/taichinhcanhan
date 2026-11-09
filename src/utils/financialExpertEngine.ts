@@ -162,7 +162,7 @@ ${salaryIntro}
        ? `🎉 **Rất tuyệt vời!** Tổng tài sản hiện có của bạn là **${formatVND(totalBalance)}**, đã vượt mức quỹ khẩn cấp cần thiết!`
        : `Hiện tổng tài sản của bạn là **${formatVND(totalBalance)}**, hãy ưu tiên gom đủ mức **${formatVND(emergencyFundTarget)}** trước tiên.`}
 2. **Bước 2 — Áp dụng nguyên tắc "Trả cho mình trước"**:
-   * Ngay ngày nhận lương, hãy chuyển ngay **${formatVND(savings20)}** sang ví tích lũy (như Ví MoMo Túi Thần Tài ~4%/năm hoặc sổ tiết kiệm), tuyệt đối không để lẫn vào tài khoản chi tiêu hàng ngày.
+   * Ngay ngày nhận lương, hãy chuyển ngay **${formatVND(savings20)}** sang ví tích lũy (như ví tích lũy sinh lời hàng ngày hoặc sổ tiết kiệm), tuyệt đối không để lẫn vào tài khoản chi tiêu hàng ngày.
 3. **Bước 3 — Đặt mục tiêu tiết kiệm cụ thể trong MoneyFlow**:
    * Bạn có thể bấm vào menu **"Mục tiêu tiết kiệm"** trên ứng dụng để chia nhỏ số tiền này vào các hũ mục tiêu (mua sắm đồ lớn, đi du lịch, phòng thân...).
 
@@ -260,7 +260,7 @@ ${goals.length > 0 ? `\n🎯 **Tiến độ mục tiêu tiết kiệm:**\n${goal
 
 ${activeDebtsCount > 0 ? `\n🤝 **Công nợ đang theo dõi**: Bạn đang có **${activeDebtsCount}** khoản nợ/cho vay cần quản lý.` : ''}
 
-💡 *Lời khuyên*: Với mức thặng dư hiện tại, bạn có thể trích một phần vào các Mục tiêu tiết kiệm hoặc để trong Ví MoMo sinh lời để hưởng lãi kép hàng ngày!`;
+💡 *Lời khuyên*: Với mức thặng dư hiện tại, bạn có thể trích một phần vào các Mục tiêu tiết kiệm hoặc để trong ví tích lũy sinh lời để hưởng lãi kép hàng ngày!`;
 }
 
 /**
@@ -343,7 +343,7 @@ Hôm nay của bạn thế nào? Công việc hay mọi chuyện đều thuận 
 1. 💬 **Trò chuyện tự nhiên & Giải đáp mọi thắc mắc**:
    - Trả lời các câu hỏi thường ngày, hỏi ăn gì hôm nay, tâm sự, kể chuyện vui...
 2. 🎙️ **Nhập giao dịch bằng Giọng nói siêu nhanh**:
-   - Ở tab "Nói để ghi chép", chạm vào biểu tượng Micro và nói câu tự nhiên như: *"Ăn bún chả 45 nghìn bằng ví momo"*.
+   - Ở tab "Nói để ghi chép", chạm vào biểu tượng Micro và nói câu tự nhiên như: *"Ăn bún chả 45 nghìn"*.
 3. 📷 **Quét hóa đơn / Quét Bill AI**:
    - Chụp hóa đơn trực tiếp bằng Camera hoặc tải ảnh bill từ máy để tự trích xuất số tiền và danh mục.
 4. 📈 **Cố vấn tài chính & Lập kế hoạch tiết kiệm chuẩn**:
@@ -545,7 +545,7 @@ ${borrowList.map((d) => `  - ${d.personName}: **${formatVND(d.totalAmount - d.pa
 * 🏦 **Phân bổ theo từng tài khoản & ví**:
 ${context.accounts.map((a) => `  - **${a.name}** (${a.type}): **${formatVND(a.balance)}**`).join('\n')}
 
-💡 *Gợi ý*: Tiền để trong tài khoản thông thường không sinh lãi. Hãy cân nhắc giữ một khoản vừa đủ chi tiêu hàng ngày trên thẻ, còn lại chuyển vào Ví MoMo Túi Thần Tài (~4%/năm) để tiền tự động sinh lời mỗi ngày!`;
+💡 *Gợi ý*: Tiền để trong tài khoản thông thường không sinh lãi. Hãy cân nhắc giữ một khoản vừa đủ chi tiêu hàng ngày trên thẻ, còn lại chuyển vào ví tích lũy sinh lời để tiền tự động sinh lời mỗi ngày!`;
   }
 
   // ==========================================

@@ -825,18 +825,18 @@ export const SettingsPage: React.FC = () => {
                     showToast(
                       chosenAcc
                         ? `Đã đặt "${chosenAcc.name}" làm tài khoản mặc định!`
-                        : 'Đã đặt: Tự động ưu tiên Ngân hàng / Ví MoMo',
+                        : 'Đã đặt: Tự động ưu tiên Ngân hàng / Ví điện tử',
                       'success'
                     );
                   }}
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   <option value="auto">
-                    🔄 Tự động: Ưu tiên Ngân hàng / Ví MoMo & nhớ lần dùng gần nhất
+                    🔄 Tự động: Ưu tiên Ngân hàng / Ví điện tử & nhớ lần dùng gần nhất
                   </option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') ? '🏦' : a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo') ? '👛' : '💵'} {a.name} ({formatVND(a.balance)})
+                      {a.type === 'bank' || (a.name || '').toLowerCase().includes('bank') ? '🏦' : a.type === 'ewallet' ? '👛' : '💵'} {a.name} ({formatVND(a.balance)})
                     </option>
                   ))}
                 </select>

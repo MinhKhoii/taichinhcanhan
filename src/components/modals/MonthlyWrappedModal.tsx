@@ -89,7 +89,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedModalProps> = ({ isOpen
 
     const favMethodNames: Record<string, string> = {
       transfer: 'Chuyển khoản Ngân hàng',
-      ewallet: 'Ví điện tử (MoMo / ZaloPay)',
+      ewallet: 'Ví điện tử',
       cash: 'Tiền mặt',
       card: 'Thẻ tín dụng / ghi nợ',
       qr: 'Quét mã QR',

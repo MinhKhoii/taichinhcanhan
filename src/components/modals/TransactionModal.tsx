@@ -93,10 +93,9 @@ export const TransactionModal: React.FC = () => {
 
       // Ưu tiên chọn tài khoản mặc định
       const savedLastId = localStorage.getItem('moneyflow_last_used_account');
-      const isBankOrMoMo = (a: Account) =>
+      const isBankOrEwallet = (a: Account) =>
         a.type === 'bank' ||
         a.type === 'ewallet' ||
-        (a.name || '').toLowerCase().includes('momo') ||
         (a.name || '').toLowerCase().includes('bank') ||
         (a.name || '').toLowerCase().includes('vietin') ||
         (a.name || '').toLowerCase().includes('vietcom') ||
@@ -105,8 +104,8 @@ export const TransactionModal: React.FC = () => {
       const defaultAcc =
         (user?.defaultAccountId && accounts.find((a) => a.id === user.defaultAccountId)) ||
         (savedLastId && accounts.find((a) => a.id === savedLastId)) ||
-        accounts.find((a) => isBankOrMoMo(a) && a.balance > 0) ||
-        accounts.find((a) => isBankOrMoMo(a)) ||
+        accounts.find((a) => isBankOrEwallet(a) && a.balance > 0) ||
+        accounts.find((a) => isBankOrEwallet(a)) ||
         accounts.find((a) => a.balance > 0) ||
         accounts[0];
 
@@ -706,7 +705,7 @@ export const TransactionModal: React.FC = () => {
                       a.type === 'bank' ||
                       (a.name || '').toLowerCase().includes('bank') ||
                       (a.name || '').toLowerCase().includes('vietin');
-                    const isEwallet = a.type === 'ewallet' || (a.name || '').toLowerCase().includes('momo');
+                    const isEwallet = a.type === 'ewallet' || (a.name || '').toLowerCase().includes('ví');
                     return (
                       <button
                         key={a.id}

@@ -54,13 +54,13 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     }
   }, [editingAccount, isOpen]);
 
-  // Tự động bật gợi ý MoMo Túi Thần Tài khi người dùng chọn ví điện tử hoặc gõ MoMo
+  // Tự động bật gợi ý sinh lời khi người dùng chọn ví điện tử
   const handleTypeSelect = (selectedType: AccountType, defaultIcon: string) => {
     setType(selectedType);
     setIcon(defaultIcon);
     if (selectedType === 'ewallet' && !editingAccount) {
       setIsYieldEnabled(true);
-      if (!name) setName('Ví MoMo');
+      if (!name) setName('Ví điện tử');
       setColor('#D946EF');
     }
   };
@@ -171,7 +171,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             <input
               type="text"
               required
-              placeholder="VD: Vietcombank Lương, Ví MoMo, ..."
+              placeholder="VD: Vietcombank, Ví điện tử, ..."
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
@@ -294,7 +294,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                       <span className="text-3xs text-slate-400 font-semibold mr-0.5">Mức phổ biến:</span>
                       {[
                         { label: '3.5%', rate: 3.5 },
-                        { label: '4.0% (MoMo)', rate: 4.0 },
+                        { label: '4.0%', rate: 4.0 },
                         { label: '5.0%', rate: 5.0 },
                         { label: '6.0%', rate: 6.0 },
                       ].map((p) => (

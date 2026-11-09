@@ -845,7 +845,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   ];
 
   const quickAddExamples = [
-    'Ăn phở 45k momo',
+    'Ăn phở 45k ví điện tử',
     'VCB: -85,000VND. ND: Cafe',
     'Đổ xăng 70k tiền mặt',
     'Nhận lương 15tr',
@@ -994,7 +994,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                   <p className="text-2xs text-slate-400 mt-0.5">
                     {isListeningQuickAdd
                       ? 'Nói xong ngừng 1 giây để tự động lưu'
-                      : 'Ví dụ: "Ăn bún bò 45k momo" hoặc "Đổ xăng 70k"'}
+                      : 'Ví dụ: "Ăn bún bò 45k" hoặc "Đổ xăng 70k"'}
                   </p>
                 </div>
 
@@ -1058,7 +1058,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                 <form onSubmit={handleQuickAddParse} className="flex items-center space-x-2">
                   <input
                     type="text"
-                    placeholder="Hoặc gõ: ăn bún đậu 45k momo..."
+                    placeholder="Hoặc gõ: ăn bún đậu 45k ví điện tử..."
                     value={quickAddText}
                     onChange={(e) => setQuickAddText(e.target.value)}
                     className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 shadow-2xs"

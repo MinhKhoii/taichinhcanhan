@@ -15,7 +15,7 @@ export interface User {
   avatarUrl?: string;
   currency: string;
   dateFormat: string;
-  defaultAccountId?: string; // Tài khoản chi tiêu mặc định khi tạo giao dịch mới (Ngân hàng / Ví MoMo / Tiền mặt)
+  defaultAccountId?: string; // Tài khoản chi tiêu mặc định khi tạo giao dịch mới (Ngân hàng / Ví điện tử / Tiền mặt)
   autoOffsetNegative?: boolean; // Tự động cấn trừ số dư âm từ tài khoản có tiền
   fontSize?: FontSizePreference; // Tùy chọn cỡ chữ: nhỏ gọn, vừa vặn, lớn, rất lớn
   theme?: ThemePreference; // Chế độ giao diện: sáng / tối
@@ -45,7 +45,7 @@ export interface Account {
   color?: string;
   icon?: string;
   isArchived?: boolean;
-  isYieldEnabled?: boolean; // Tự động sinh lời hàng ngày (Ví MoMo Túi Thần Tài / Tích lũy)
+  isYieldEnabled?: boolean; // Tự động sinh lời hàng ngày (Tài khoản tích lũy sinh lời)
   yieldRate?: number; // Lãi suất %/năm (mặc định 4.0)
   lastYieldDate?: string; // Ngày gần nhất đã cộng tiền lời (YYYY-MM-DD)
   createdAt: string;

@@ -182,7 +182,7 @@ export const Dashboard: React.FC = () => {
   // Cashflow timeline chart data (Day by day for active period)
   const cashflowChartData = useMemo(() => {
     const daysInMap: Record<string, { date: string; displayDate: string; thu: number; chi: number }> = {};
-    
+
     // Sort transactions ascending for chart
     const sorted = [...activeTx]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -320,7 +320,7 @@ export const Dashboard: React.FC = () => {
                   setIsBannerDismissed(true);
                   try {
                     localStorage.setItem('moneyflow_dismiss_assistant_banner', 'true');
-                  } catch {}
+                  } catch { }
                 }}
                 className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all cursor-pointer"
                 title="Đóng trợ lý tài chính (Tối giản giao diện)"
@@ -396,7 +396,7 @@ export const Dashboard: React.FC = () => {
               setIsBannerDismissed(false);
               try {
                 localStorage.removeItem('moneyflow_dismiss_assistant_banner');
-              } catch {}
+              } catch { }
             }}
             className="inline-flex items-center space-x-1.5 text-2xs font-semibold text-slate-500 hover:text-blue-600 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200/80 px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-2xs"
             title="Bấm để mở lại bảng gợi ý"
@@ -550,17 +550,16 @@ export const Dashboard: React.FC = () => {
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Sức khỏe Tài chính</h3>
               </div>
               <span
-                className={`text-3xs font-bold px-2.5 py-0.5 rounded-full ${
-                  !healthScore.hasData
+                className={`text-3xs font-bold px-2.5 py-0.5 rounded-full ${!healthScore.hasData
                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     : healthScore.rating === 'excellent'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : healthScore.rating === 'good'
-                    ? 'bg-blue-100 text-blue-700'
-                    : healthScore.rating === 'average'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-rose-100 text-rose-700'
-                }`}
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : healthScore.rating === 'good'
+                        ? 'bg-blue-100 text-blue-700'
+                        : healthScore.rating === 'average'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-rose-100 text-rose-700'
+                  }`}
               >
                 {healthScore.title}
               </span>
@@ -568,11 +567,10 @@ export const Dashboard: React.FC = () => {
 
             <div className="flex items-center space-x-4 my-4">
               <div
-                className={`w-16 h-16 rounded-2xl text-white flex flex-col items-center justify-center shadow-md shrink-0 ${
-                  !healthScore.hasData
+                className={`w-16 h-16 rounded-2xl text-white flex flex-col items-center justify-center shadow-md shrink-0 ${!healthScore.hasData
                     ? 'bg-slate-400 dark:bg-slate-700'
                     : 'bg-gradient-to-br from-emerald-500 to-teal-600'
-                }`}
+                  }`}
               >
                 <span className="text-xl font-black">{healthScore.hasData ? healthScore.score : '--'}</span>
                 <span className="text-3xs uppercase tracking-wider opacity-80">/ 100</span>
@@ -956,8 +954,8 @@ export const Dashboard: React.FC = () => {
                 const displayTitle = isYield
                   ? `Tiền lời tích lũy ${acc?.name || 'Ví'}`
                   : t.note?.trim() ||
-                    catName ||
-                    (t.type === 'transfer' ? 'Chuyển khoản' : t.type === 'income' ? 'Khoản thu' : 'Khoản chi');
+                  catName ||
+                  (t.type === 'transfer' ? 'Chuyển khoản' : t.type === 'income' ? 'Khoản thu' : 'Khoản chi');
 
                 return (
                   <div
@@ -990,13 +988,12 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div className="text-right shrink-0">
                       <span
-                        className={`text-xs font-bold ${
-                          t.type === 'income'
+                        className={`text-xs font-bold ${t.type === 'income'
                             ? 'text-emerald-600'
                             : t.type === 'expense'
-                            ? 'text-rose-600'
-                            : 'text-blue-600'
-                        }`}
+                              ? 'text-rose-600'
+                              : 'text-blue-600'
+                          }`}
                       >
                         {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}
                         {formatVND(t.amount)}
@@ -1080,11 +1077,10 @@ export const Dashboard: React.FC = () => {
                           </span>
                         )}
                         <span
-                          className={`text-2xs font-bold px-2 py-0.5 rounded-md ${
-                            d.type === 'lend'
+                          className={`text-2xs font-bold px-2 py-0.5 rounded-md ${d.type === 'lend'
                               ? 'bg-blue-100 text-blue-700'
                               : 'bg-amber-100 text-amber-700'
-                          }`}
+                            }`}
                         >
                           {d.type === 'lend' ? 'Cho vay' : 'Đi vay'}
                         </span>
@@ -1102,9 +1098,8 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div className="text-right shrink-0">
                       <span
-                        className={`text-xs sm:text-sm font-black ${
-                          d.type === 'lend' ? 'text-blue-600' : 'text-amber-600'
-                        }`}
+                        className={`text-xs sm:text-sm font-black ${d.type === 'lend' ? 'text-blue-600' : 'text-amber-600'
+                          }`}
                       >
                         {formatVND(rem)}
                       </span>
@@ -1164,19 +1159,18 @@ export const Dashboard: React.FC = () => {
 
                   <div className="flex justify-between items-center text-2xs">
                     <span
-                      className={`font-semibold ${
-                        b.percent >= 100
+                      className={`font-semibold ${b.percent >= 100
                           ? 'text-rose-600'
                           : b.percent >= 80
-                          ? 'text-amber-600'
-                          : 'text-slate-400'
-                      }`}
+                            ? 'text-amber-600'
+                            : 'text-slate-400'
+                        }`}
                     >
                       {b.percent >= 100
                         ? 'Đã vượt ngân sách!'
                         : b.percent >= 80
-                        ? 'Chạm ngưỡng 80% cảnh báo'
-                        : 'Trong giới hạn an toàn'}
+                          ? 'Chạm ngưỡng 80% cảnh báo'
+                          : 'Trong giới hạn an toàn'}
                     </span>
                     <span className="font-bold text-slate-700">{b.percent}%</span>
                   </div>

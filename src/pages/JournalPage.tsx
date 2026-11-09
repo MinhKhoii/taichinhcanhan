@@ -70,7 +70,7 @@ export const JournalPage: React.FC = () => {
           } else if (isYesterday(d)) {
             displayHeader = `Hôm qua • ${formatDateWithDayVN(t.date)}`;
           }
-        } catch {}
+        } catch { }
 
         groups[t.date] = {
           dateStr: t.date,
@@ -184,11 +184,10 @@ export const JournalPage: React.FC = () => {
                   <div className="flex items-center space-x-2 text-xs font-semibold">
                     <span className="text-slate-400">Biến động ngày:</span>
                     <span
-                      className={`px-2.5 py-1 rounded-xl text-xs font-bold ${
-                        dailyNet >= 0
+                      className={`px-2.5 py-1 rounded-xl text-xs font-bold ${dailyNet >= 0
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-rose-50 text-rose-700 border border-rose-200'
-                      }`}
+                        }`}
                     >
                       {dailyNet >= 0 ? '+' : ''}
                       {formatVND(dailyNet)}
@@ -215,33 +214,33 @@ export const JournalPage: React.FC = () => {
                     // Tiêu đề giao dịch tinh gọn, không bị dài dòng hay chèn ép giao diện
                     let displayTitle = t.note || (isTransfer ? 'Chuyển tiền' : cat?.name || 'Giao dịch');
                     if (isYield) {
-                      displayTitle = `Tiền lời tích lũy ${acc?.name || 'MoMo'}`;
+                      displayTitle = `Tiền lời tích lũy ${acc?.name || 'Ví'}`;
                     }
 
                     const iconName = isYield
                       ? 'TrendingUp'
                       : isTransfer
-                      ? 'ArrowLeftRight'
-                      : cat?.icon || (isDebt ? 'HandCoins' : isSalary ? 'Coins' : 'Tag');
+                        ? 'ArrowLeftRight'
+                        : cat?.icon || (isDebt ? 'HandCoins' : isSalary ? 'Coins' : 'Tag');
 
                     const iconColor = isYield
                       ? '#EC4899'
                       : isTransfer
-                      ? '#3B82F6'
-                      : cat?.color || (isDebt ? '#2563EB' : isSalary ? '#10B981' : '#64748B');
+                        ? '#3B82F6'
+                        : cat?.color || (isDebt ? '#2563EB' : isSalary ? '#10B981' : '#64748B');
 
                     const paymentLabel =
                       t.paymentMethod === 'ewallet'
                         ? 'Ví điện tử'
                         : t.paymentMethod === 'cash'
-                        ? 'Tiền mặt'
-                        : t.paymentMethod === 'transfer'
-                        ? 'Chuyển khoản'
-                        : t.paymentMethod === 'card'
-                        ? 'Thẻ'
-                        : t.paymentMethod === 'qr'
-                        ? 'Quét QR'
-                        : t.paymentMethod;
+                          ? 'Tiền mặt'
+                          : t.paymentMethod === 'transfer'
+                            ? 'Chuyển khoản'
+                            : t.paymentMethod === 'card'
+                              ? 'Thẻ'
+                              : t.paymentMethod === 'qr'
+                                ? 'Quét QR'
+                                : t.paymentMethod;
 
                     return (
                       <div
@@ -290,13 +289,12 @@ export const JournalPage: React.FC = () => {
 
                         <div className="flex items-center space-x-2 shrink-0 text-right">
                           <span
-                            className={`text-xs sm:text-sm font-black ${
-                              t.type === 'income'
+                            className={`text-xs sm:text-sm font-black ${t.type === 'income'
                                 ? 'text-emerald-600'
                                 : t.type === 'expense'
-                                ? 'text-rose-600'
-                                : 'text-blue-600'
-                            }`}
+                                  ? 'text-rose-600'
+                                  : 'text-blue-600'
+                              }`}
                           >
                             {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}
                             {formatVND(t.amount)}
