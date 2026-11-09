@@ -158,14 +158,14 @@ export const JournalPage: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="relative pl-4 sm:pl-6 border-l-2 border-slate-200 ml-4 sm:ml-6 space-y-8">
+        <div className="relative pl-3 sm:pl-6 border-l-2 border-slate-200 ml-2.5 sm:ml-6 space-y-6 sm:space-y-8">
           {groupedByDate.map((group) => {
             const dailyNet = group.dailyIncome - group.dailyExpense;
 
             return (
               <div key={group.dateStr} className="relative group/day">
                 {/* Timeline node icon */}
-                <div className="absolute -left-[27px] sm:-left-[35px] top-1.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border-2 border-blue-600 flex items-center justify-center shadow-xs">
+                <div className="absolute -left-[23px] sm:-left-[35px] top-1.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border-2 border-blue-600 flex items-center justify-center shadow-xs">
                   <div className="w-2 h-2 rounded-full bg-blue-600"></div>
                 </div>
 
@@ -197,7 +197,7 @@ export const JournalPage: React.FC = () => {
                 </div>
 
                 {/* List of transactions for this day */}
-                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs divide-y divide-slate-100 space-y-1">
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 border border-slate-200/80 shadow-xs divide-y divide-slate-100 space-y-1">
                   {group.items.map((t) => {
                     const cat = catMap.get(t.categoryId || '');
                     const acc = accMap.get(t.accountId);

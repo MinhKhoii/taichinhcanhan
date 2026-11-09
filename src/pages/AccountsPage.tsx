@@ -363,7 +363,7 @@ export const AccountsPage: React.FC = () => {
                 <div
                   key={acc.id}
                   onClick={() => setSelectedAccountId(acc.id)}
-                  className={`p-5 rounded-3xl border transition-all cursor-pointer relative overflow-hidden group ${
+                  className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all cursor-pointer relative overflow-hidden group ${
                     acc.balance < 0
                       ? isSelected
                         ? 'border-rose-500 bg-rose-50/60 shadow-md ring-2 ring-rose-500/30'
@@ -584,7 +584,7 @@ export const AccountsPage: React.FC = () => {
         </div>
 
         {/* Right: Selected Account Details & Transaction History */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           {!selectedAccount ? (
             <div className="py-20 text-center text-xs text-slate-400">
               Chưa có tài khoản nào để hiển thị lịch sử

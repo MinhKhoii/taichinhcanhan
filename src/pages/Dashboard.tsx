@@ -279,54 +279,73 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Top Banner: Smart Financial Assistant Highlight with Carousel */}
       {insights.length > 0 && !isBannerDismissed && (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-5 sm:p-6 shadow-xl animate-in fade-in duration-200">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 sm:p-5 shadow-xl">
           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
-          
-          {/* Close button - Tối giản màn hình */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsBannerDismissed(true);
-              try {
-                localStorage.setItem('moneyflow_dismiss_assistant_banner', 'true');
-              } catch {}
-            }}
-            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer"
-            title="Đóng trợ lý tài chính (Tối giản giao diện)"
-            aria-label="Đóng trợ lý tài chính"
-          >
-            <X className="w-4 h-4" />
-          </button>
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pr-6 md:pr-8">
-            <div className="flex items-start space-x-3.5">
-              <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md text-amber-300 flex-shrink-0 shadow-inner">
-                <Sparkles className="w-5 h-5 animate-pulse" />
+          {/* Top Bar: Title + Wrapped Badge + Close Button */}
+          <div className="relative z-10 flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
+            <div className="flex items-center space-x-2 min-w-0">
+              <div className="p-1.5 rounded-xl bg-white/10 backdrop-blur-md text-amber-300 flex-shrink-0 shadow-inner">
+                <Sparkles className="w-4 h-4 animate-pulse" />
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center flex-wrap gap-1.5">
-                  <span className="text-2xs uppercase tracking-wider font-bold text-blue-300">
-                    Trợ lý tài chính thông minh
+              <div className="flex items-center space-x-2 min-w-0">
+                <span className="text-2xs uppercase tracking-wider font-bold text-blue-300 truncate">
+                  Trợ lý tài chính thông minh
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                {insights.length > 1 && (
+                  <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-white/15 text-blue-100 shrink-0">
+                    {((activeInsightIndex % insights.length) + 1)}/{insights.length}
                   </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  {insights.length > 1 && (
-                    <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-white/15 text-blue-100">
-                      Gợi ý {((activeInsightIndex % insights.length) + 1)}/{insights.length}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-base sm:text-lg font-bold text-white mt-0.5">
-                  {insights[activeInsightIndex % insights.length]?.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-2xl leading-relaxed">
-                  {insights[activeInsightIndex % insights.length]?.message}
-                </p>
+                )}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+            <div className="flex items-center space-x-1.5 shrink-0">
+              {/* Wrapped Button inside top bar - Always stable, never causes height jumps! */}
+              <button
+                type="button"
+                onClick={() => setIsWrappedOpen(true)}
+                className="flex items-center space-x-1 px-2.5 py-1 text-2xs font-bold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 active:scale-95 text-slate-900 rounded-lg transition-all shadow-xs cursor-pointer"
+                title="Khám phá tổng kết thu chi tháng này phong cách Wrapped"
+              >
+                <span>🎁</span>
+                <span className="font-black">Wrapped {new Date().getMonth() + 1}</span>
+              </button>
+
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBannerDismissed(true);
+                  try {
+                    localStorage.setItem('moneyflow_dismiss_assistant_banner', 'true');
+                  } catch {}
+                }}
+                className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all cursor-pointer"
+                title="Đóng trợ lý tài chính (Tối giản giao diện)"
+                aria-label="Đóng trợ lý tài chính"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Banner Body Content: Stable min-height to prevent jumping */}
+          <div className="relative z-10 pt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="min-w-0 flex-1 min-h-[3.25rem] sm:min-h-[3rem] flex flex-col justify-center">
+              <h3 className="text-sm sm:text-base font-bold text-white line-clamp-1">
+                {insights[activeInsightIndex % insights.length]?.title}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-200 mt-0.5 max-w-2xl leading-relaxed line-clamp-2 sm:line-clamp-none">
+                {insights[activeInsightIndex % insights.length]?.message}
+              </p>
+            </div>
+
+            {/* Bottom Actions Row: Carousel Prev/Next & Insight Action Button */}
+            <div className="flex items-center justify-between md:justify-end gap-2 shrink-0 pt-1 md:pt-0">
               {insights.length > 1 && (
-                <div className="flex items-center space-x-1 mr-1 bg-white/10 p-1 rounded-xl">
+                <div className="flex items-center space-x-1 bg-white/10 p-1 rounded-xl">
                   <button
                     type="button"
                     onClick={() =>
@@ -350,29 +369,19 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
 
-              {insights[activeInsightIndex % insights.length]?.actionText && (
+              {insights[activeInsightIndex % insights.length]?.actionText ? (
                 <button
                   type="button"
                   onClick={() => {
                     const tab = insights[activeInsightIndex % insights.length]?.actionTab;
                     if (tab) setCurrentTab(tab);
                   }}
-                  className="flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold bg-white text-slate-900 hover:bg-slate-100 rounded-xl transition-all shadow-md flex-shrink-0 cursor-pointer"
+                  className="flex items-center space-x-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold bg-white text-slate-900 hover:bg-slate-100 active:scale-95 rounded-xl transition-all shadow-md cursor-pointer"
                 >
                   <span>{insights[activeInsightIndex % insights.length].actionText}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setIsWrappedOpen(true)}
-                className="flex items-center space-x-1 px-3.5 py-2 text-xs font-bold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 rounded-xl transition-all shadow-md flex-shrink-0 cursor-pointer"
-                title="Khám phá tổng kết thu chi tháng này phong cách Wrapped"
-              >
-                <span>🎁</span>
-                <span>Wrapped {new Date().getMonth() + 1}</span>
-              </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -398,9 +407,9 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* 4 Financial Key Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 lg:gap-5">
         {/* Card 1: Tổng tài sản hiện có */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -441,7 +450,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Card 2: Thu nhập trong kỳ */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Thu nhập ({periodLabel})
@@ -472,7 +481,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Card 3: Chi tiêu trong kỳ */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Chi tiêu ({periodLabel})
@@ -503,7 +512,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Card 4: Tích lũy & Tỷ lệ tiết kiệm */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs card-hover flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Tiết kiệm & Tỷ lệ

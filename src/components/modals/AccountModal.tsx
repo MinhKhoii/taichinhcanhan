@@ -272,8 +272,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <div className="relative flex-1">
+                  <div className="space-y-2">
+                    <div className="relative">
                       <input
                         type="number"
                         step="0.1"
@@ -282,33 +282,36 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                         value={yieldRate}
                         onChange={(e) => setYieldRate(parseFloat(e.target.value) || 0)}
                         placeholder="4.0"
-                        className="w-full px-3 py-1.5 text-xs font-bold text-slate-800 border border-pink-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:outline-hidden bg-white"
+                        className="w-full pl-3 pr-16 py-2 text-sm font-bold text-slate-800 border border-pink-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:outline-hidden bg-white"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-2xs font-extrabold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-200 pointer-events-none">
                         %/năm
                       </span>
                     </div>
 
                     {/* Quick rate presets */}
-                    {[
-                      { label: '3.5%', rate: 3.5 },
-                      { label: '4.0%', rate: 4.0 },
-                      { label: '5.0%', rate: 5.0 },
-                      { label: '6.0%', rate: 6.0 },
-                    ].map((p) => (
-                      <button
-                        type="button"
-                        key={p.rate}
-                        onClick={() => setYieldRate(p.rate)}
-                        className={`px-2.5 py-1.5 rounded-xl text-2xs font-bold transition-all cursor-pointer ${
-                          yieldRate === p.rate
-                            ? 'bg-pink-600 text-white shadow-2xs'
-                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-pink-50'
-                        }`}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-3xs text-slate-400 font-semibold mr-0.5">Mức phổ biến:</span>
+                      {[
+                        { label: '3.5%', rate: 3.5 },
+                        { label: '4.0% (MoMo)', rate: 4.0 },
+                        { label: '5.0%', rate: 5.0 },
+                        { label: '6.0%', rate: 6.0 },
+                      ].map((p) => (
+                        <button
+                          type="button"
+                          key={p.rate}
+                          onClick={() => setYieldRate(p.rate)}
+                          className={`px-2.5 py-1 rounded-lg text-2xs font-bold transition-all cursor-pointer ${
+                            yieldRate === p.rate
+                              ? 'bg-pink-600 text-white shadow-2xs'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-pink-50 hover:border-pink-200'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
