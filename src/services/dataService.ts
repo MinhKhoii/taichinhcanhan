@@ -231,23 +231,6 @@ export class DataService {
     let changed = false;
     const todayStr = getLocalDateString();
 
-    // 0. Chuẩn hóa tên tài khoản: loại bỏ tên MoMo, đổi thành 'Ví điện tử' nếu là tên mặc định
-    for (const acc of db.accounts) {
-      if (acc.name === 'Ví MoMo' || acc.name.toLowerCase() === 'momo') {
-        acc.name = 'Ví điện tử';
-        changed = true;
-      }
-    }
-
-    if (db.transactions) {
-      for (const t of db.transactions) {
-        if (t.note && t.note.includes('Ví MoMo')) {
-          t.note = t.note.replace(/Ví MoMo/g, 'Ví điện tử');
-          changed = true;
-        }
-      }
-    }
-
     // 1. Kiểm tra và loại bỏ các giao dịch cấn trừ tự động bị kích hoạt lỗi trước đây (nếu có)
     const hasNegativeAcc = db.accounts.some((a) => a.balance < 0);
     if (hasNegativeAcc && db.transactions) {
