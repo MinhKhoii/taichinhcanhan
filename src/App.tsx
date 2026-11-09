@@ -80,7 +80,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex max-w-full overflow-x-clip">
       {/* PIN Lock Screen if locked */}
       {isAppLocked && <PinLockScreen />}
 
@@ -91,7 +91,7 @@ const AppContent: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden lg:pl-64">
+      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-clip lg:pl-64">
         {/* Sticky Header */}
         <Header onToggleMobileMenu={() => setIsMobileMenuOpen(true)} />
 

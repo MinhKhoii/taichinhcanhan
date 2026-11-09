@@ -134,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-3.5 sm:px-6 md:px-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs max-w-full">
+    <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-3.5 sm:px-6 md:px-8 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs max-w-full">
       {/* Left: Mobile hamburger & Greeting */}
       <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
         <button
