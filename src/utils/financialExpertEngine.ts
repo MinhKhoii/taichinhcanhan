@@ -264,15 +264,204 @@ ${activeDebtsCount > 0 ? `\n🤝 **Công nợ đang theo dõi**: Bạn đang có
 }
 
 /**
- * Tổng hợp câu trả lời chuyên gia nội bộ hoàn hảo cho bất kỳ câu hỏi nào
+ * Tổng hợp câu trả lời chuyên gia thông minh cho bất kỳ câu hỏi nào:
+ * Trả lời tự nhiên, duyên dáng cả câu hỏi đời sống, danh tính, chào hỏi, tâm sự lẫn câu hỏi tài chính chuyên sâu!
  */
 export function generateExpertFinancialAnswer(
   query: string,
   context: FinancialContextData
 ): string {
-  const q = query.toLowerCase();
+  const q = query.trim().toLowerCase();
+  const userName = context.userName || 'bạn';
 
-  // 1. Câu hỏi về Tiết kiệm theo lương / Phân tích thu nhập
+  // ==========================================
+  // NHÓM 1: CÂU HỎI VỀ DANH TÍNH, TÊN GỌI CỦA AI
+  // ==========================================
+  if (
+    q.includes('tên là gì') ||
+    q.includes('tên bạn') ||
+    q.includes('bạn tên') ||
+    q.includes('mày tên') ||
+    q.includes('bạn là ai') ||
+    q.includes('mày là ai') ||
+    q.includes('ai tạo ra bạn') ||
+    q.includes('bạn là gì') ||
+    q.includes('là con gì') ||
+    q.includes('ai phát triển') ||
+    q.includes('giới thiệu bản thân') ||
+    q.includes('bạn là robot') ||
+    q.includes('bạn là người hay')
+  ) {
+    return `Dạ chào ${userName}! Mình là **MoneyFlow AI** — Trợ lý ảo thông minh kiêm Cố vấn tài chính cá nhân dành riêng cho bạn! 🤖✨
+
+Bạn hoàn toàn có thể trò chuyện tự nhiên với mình về mọi chủ đề:
+- 💬 **Trò chuyện đời sống**: Tâm sự, hỏi thăm, hỏi kinh nghiệm sống, mẹo ăn uống, giải tỏa căng thẳng...
+- 🎙️ **Ghi chép thu chi bằng giọng nói**: Chỉ cần bấm micro và nói (ví dụ: *"vừa ăn sáng 35k tiền mặt"*), mình tự động điền và lưu ngay!
+- 📷 **Quét hóa đơn thông minh**: Chụp ảnh hoặc tải ảnh bill để tự đọc số tiền nhanh chóng.
+- 📊 **Cố vấn kế hoạch tiền bạc**: Phân tích lương thực tế, gợi ý tỷ lệ tiết kiệm chuẩn 50/30/20, theo dõi số dư các ví, quản lý sổ nợ và hũ tiết kiệm.
+- 🔊 **Đọc to câu trả lời (Text-to-Speech)**: Bấm nút **"Nghe đọc"** bên dưới là mình sẽ đọc to cho bạn nghe!
+
+Bạn muốn trò chuyện về chủ đề gì hay cần mình hỗ trợ điều gì hôm nay nào? Cứ thoải mái nhắn cho mình nhé! 😊`;
+  }
+
+  // ==========================================
+  // NHÓM 2: CHÀO HỎI & HỎI THĂM
+  // ==========================================
+  if (
+    q === 'chào' ||
+    q === 'hi' ||
+    q === 'hello' ||
+    q === 'alo' ||
+    q === 'ê' ||
+    q.startsWith('chào bạn') ||
+    q.startsWith('xin chào') ||
+    q.includes('chào buổi') ||
+    q.includes('hôm nay thế nào') ||
+    q === 'bạn ơi' ||
+    q === 'ơi' ||
+    q === 'ai đó'
+  ) {
+    return `Dạ chào **${userName}**! Rất vui được gặp bạn! 👋✨
+
+Hôm nay của bạn thế nào? Công việc hay mọi chuyện đều thuận lợi chứ? Bạn có chuyện gì vui muốn chia sẻ, cần hỏi han hay muốn mình hỗ trợ quản lý chi tiêu, kiểm tra ví tiền không nào? Cứ tự nhiên nói với mình nhé! 😊`;
+  }
+
+  // ==========================================
+  // NHÓM 3: KHẢ NĂNG & HƯỚNG DẪN CỦA AI
+  // ==========================================
+  if (
+    q.includes('làm được gì') ||
+    q.includes('biết làm gì') ||
+    q.includes('chức năng') ||
+    q.includes('giúp gì') ||
+    q.includes('hướng dẫn sử dụng') ||
+    q.includes('có tác dụng gì') ||
+    q.includes('giúp được gì')
+  ) {
+    return `🎯 **CÁC TÍNH NĂNG TIỆN ÍCH MÀ MONEYFLOW AI CÓ THỂ GIÚP BẠN:**
+
+1. 💬 **Trò chuyện tự nhiên & Giải đáp mọi thắc mắc**:
+   - Trả lời các câu hỏi thường ngày, hỏi ăn gì hôm nay, tâm sự, kể chuyện vui...
+2. 🎙️ **Nhập giao dịch bằng Giọng nói siêu nhanh**:
+   - Ở tab "Nói để ghi chép", chạm vào biểu tượng Micro và nói câu tự nhiên như: *"Ăn bún chả 45 nghìn bằng ví momo"*.
+3. 📷 **Quét hóa đơn / Quét Bill AI**:
+   - Chụp hóa đơn trực tiếp bằng Camera hoặc tải ảnh bill từ máy để tự trích xuất số tiền và danh mục.
+4. 📈 **Cố vấn tài chính & Lập kế hoạch tiết kiệm chuẩn**:
+   - Hỏi mình: *"Lương tôi như vậy thì nên tiết kiệm bao nhiêu?"* Mình sẽ tính toán chi tiết theo quy tắc chuẩn 50/30/20.
+5. 🛒 **Tư vấn quyết định mua sắm**:
+   - Hỏi mình: *"Tôi có nên mua điện thoại 10 triệu không?"* Mình sẽ cân đối theo số dư tài sản hiện có của bạn để đưa ra lời khuyên khách quan.
+6. 🔊 **Nghe đọc bằng giọng nói**:
+   - Bấm nút **"Nghe đọc"** bên dưới bất kỳ tin nhắn nào để nghe giọng AI đọc to cho bạn nghe.`;
+  }
+
+  // ==========================================
+  // NHÓM 4: TÂM SỰ & CẢM XÚC (BUỒN, MỆT, ÁP LỰC)
+  // ==========================================
+  if (
+    q.includes('buồn') ||
+    q.includes('chán') ||
+    q.includes('mệt') ||
+    q.includes('stress') ||
+    q.includes('áp lực') ||
+    q.includes('nản') ||
+    q.includes('khó khăn') ||
+    q.includes('mệt mỏi')
+  ) {
+    return `Ôi ${userName} ơi! Cuộc sống đôi khi có những ngày mệt mỏi và áp lực như vậy đấy. Mình luôn ở đây để lắng nghe bạn. 🤗
+
+🌿 **Một vài mẹo nhỏ để nạp lại năng lượng nhé:**
+1. **Tạm gác lại mọi việc 15 phút**: Uống một ly nước ấm, nhắm mắt lại và hít thở thật sâu.
+2. **Đi dạo hoặc nghe một bài nhạc êm dịu**: Đừng ép bản thân phải gồng gánh quá nhiều cùng lúc.
+3. **Mọi khó khăn rồi cũng sẽ qua**: Bạn đã làm việc rất chăm chỉ rồi, hãy cho bản thân một chút thời gian nghỉ ngơi xứng đáng nhé!
+
+Nếu có điều gì muốn tâm sự hoặc cần người bầu bạn, cứ nhắn cho mình bất cứ lúc nào! ❤️`;
+  }
+
+  // ==========================================
+  // NHÓM 5: KỂ CHUYỆN CƯỜI & GIẢI TRÍ
+  // ==========================================
+  if (
+    q.includes('chuyện cười') ||
+    q.includes('kể chuyện vui') ||
+    q.includes('hài hước') ||
+    q.includes('kể chuyện hài') ||
+    q.includes('tiếu lâm') ||
+    q.includes('kể cái gì vui')
+  ) {
+    return `😄 **Tặng bạn một mẩu chuyện cười vui vẻ nè:**
+
+Một anh chàng than thở với bạn:
+- *"Dạo này đầu tháng lương về như cơn lốc, cuối tháng ví xẹp như bong bóng xì hơi vậy mày ạ!"*
+Người bạn liền khuyên:
+- *"Thế sao mày không dùng ứng dụng MoneyFlow để ghi chép lại?"*
+Anh chàng gãi đầu:
+- *"Tao dùng rồi, nhưng khổ nỗi con AI nó thông minh quá, tao vừa định mua cốc trà sữa là nó đã nhắc: 'Anh ơi, ngân sách tháng này còn có 20k thôi đấy!' làm tao không dám uống nữa!"* 😂
+
+Chúc bạn một ngày tràn đầy niềm vui và giữ ví tiền luôn rủng rỉnh nhé! ✨`;
+  }
+
+  // ==========================================
+  // NHÓM 6: CẢM ƠN & KHEN NGỢI
+  // ==========================================
+  if (
+    q.includes('cảm ơn') ||
+    q.includes('thank') ||
+    q.includes('tuyệt vời') ||
+    q.includes('giỏi quá') ||
+    q.includes('hay quá') ||
+    q.includes('thông minh đấy') ||
+    q.includes('ok rồi') ||
+    q.includes('được đấy')
+  ) {
+    return `Dạ không có gì ạ! 🥰 Được đồng hành và hỗ trợ bạn ${userName} là niềm vui lớn nhất của mình. Nếu có bất kỳ câu hỏi nào khác hoặc cần kiểm tra tài chính, bạn cứ gọi mình nhé! Chúc bạn một ngày thật rạng rỡ và nhiều may mắn! ✨`;
+  }
+
+  // ==========================================
+  // NHÓM 7: TẠM BIỆT & CHÚC NGỦ NGON
+  // ==========================================
+  if (
+    q.includes('tạm biệt') ||
+    q.includes('bye') ||
+    q.includes('ngủ ngon') ||
+    q.includes('chúc ngủ ngon') ||
+    q.includes('đi ngủ')
+  ) {
+    return `Chúc bạn ${userName} ngủ thật ngon và có những giấc mơ thật đẹp nhé! 🌙✨ Ngày mai thức dậy sẽ là một ngày mới tràn ngập niềm vui và thành công. Hẹn gặp lại bạn cùng MoneyFlow! 💤`;
+  }
+
+  // ==========================================
+  // NHÓM 8: ĂN UỐNG & ĐỜI SỐNG
+  // ==========================================
+  if (q.includes('ăn gì') || q.includes('món gì') || q.includes('nấu gì') || q.includes('gợi ý ăn')) {
+    return `🍽️ **Gợi ý thực đơn hôm nay cho bạn nè:**
+
+- 🍲 **Món nước ấm bụng**: Phở bò tái lăn, Bún bò Huế, Bánh đa cua, hoặc Hủ tiếu Nam Vang.
+- 🍛 **Cơm chuẩn vị**: Cơm tấm sườn bì chả, Cơm gà xối mỡ, hoặc Cơm rang dưa bò.
+- 🥗 **Ăn nhẹ & Thanh đạm**: Salad ức gà, Bún chả nem rán, hoặc Bánh mì kẹp truyền thống.
+- 🍳 **Tự nấu tại nhà**: Thịt kho trứng, Canh chua cá lóc, Rau muống xào tỏi — vừa ngon lành, vừa tiết kiệm ngân sách chi tiêu!
+
+Hôm nay bạn ưng món nào nhất? Nhớ ăn uống đầy đủ để có thật nhiều năng lượng làm việc nhé! 😋`;
+  }
+
+  // ==========================================
+  // NHÓM 9: THÔNG TIN BẢN THÂN (TUỔI TÁC, NƠI Ở)
+  // ==========================================
+  if (
+    q.includes('mấy tuổi') ||
+    q.includes('bao nhiêu tuổi') ||
+    q.includes('ở đâu') ||
+    q.includes('nhà ở đâu') ||
+    q.includes('sinh năm bao nhiêu') ||
+    q.includes('con trai hay con gái') ||
+    q.includes('giới tính')
+  ) {
+    return `Dạ mình là **MoneyFlow AI**, sinh ra từ những dòng code tâm huyết để phục vụ bạn! 🤖
+Mình không có tuổi tác theo năm tháng như con người, nhưng tâm hồn mình lúc nào cũng tràn đầy năng lượng tươi trẻ của tuổi 20. "Nhà" của mình nằm ngay trong chiếc điện thoại và máy tính của bạn, luôn sẵn sàng phục vụ 24/7 bất cứ khi nào bạn cần! ✨`;
+  }
+
+  // ==========================================
+  // NHÓM 10: TÀI CHÍNH - TIẾT KIỆM THEO LƯƠNG
+  // ==========================================
   const isSavingsQuestion =
     (q.includes('tiết kiệm') || q.includes('tích lũy') || q.includes('để dành') || q.includes('giữ tiền')) &&
     (q.includes('lương') || q.includes('tháng') || q.includes('bao nhiêu') || q.includes('cần đó') || q.includes('chừng đó') || q.includes('ngần đó') || q.includes('như thế') || q.includes('như vậy') || q.includes('%') || q.includes('tỷ lệ'));
@@ -287,17 +476,42 @@ export function generateExpertFinancialAnswer(
     return analyzeSalarySavings(query, context);
   }
 
-  // 2. Câu hỏi tư vấn mua sắm (Có nên mua X không?)
-  if (q.includes('có nên mua') || q.includes('có nên đổi') || q.includes('có nên chi') || q.includes('mua cái') || q.includes('mua con')) {
+  // ==========================================
+  // NHÓM 11: TÀI CHÍNH - QUYẾT ĐỊNH MUA SẮM
+  // ==========================================
+  if (
+    q.includes('có nên mua') ||
+    q.includes('có nên đổi') ||
+    q.includes('có nên chi') ||
+    q.includes('mua cái') ||
+    q.includes('mua con') ||
+    q.includes('mua xe') ||
+    q.includes('mua iphone') ||
+    q.includes('mua điện thoại') ||
+    q.includes('sắm')
+  ) {
     return analyzePurchaseDecision(query, context);
   }
 
-  // 3. Câu hỏi về tình hình tài chính, thu chi, tháng này
-  if (q.includes('tổng quan') || q.includes('báo cáo') || q.includes('tình hình') || q.includes('thu chi') || q.includes('tháng này ra sao') || q.includes('tiêu nhiều không')) {
+  // ==========================================
+  // NHÓM 12: TÀI CHÍNH - TỔNG QUAN DÒNG TIỀN / CHI TIÊU THÁNG NÀY
+  // ==========================================
+  if (
+    q.includes('tổng quan') ||
+    q.includes('báo cáo') ||
+    q.includes('tình hình') ||
+    q.includes('thu chi') ||
+    q.includes('tháng này ra sao') ||
+    q.includes('tiêu nhiều không') ||
+    q.includes('tháng này tiêu') ||
+    q.includes('tháng này hết bao nhiêu')
+  ) {
     return analyzeMonthlyCashflow(context);
   }
 
-  // 4. Câu hỏi về sổ nợ, công nợ
+  // ==========================================
+  // NHÓM 13: TÀI CHÍNH - CÔNG NỢ & CHO VAY
+  // ==========================================
   if (q.includes('nợ') || q.includes('vay') || q.includes('mượn') || q.includes('đòi')) {
     const totalLend = context.debts
       .filter((d) => d.type === 'lend')
@@ -320,8 +534,10 @@ ${borrowList.map((d) => `  - ${d.personName}: **${formatVND(d.totalAmount - d.pa
 💡 *Chiến lược quản lý nợ*: Nếu có nợ, hãy áp dụng phương pháp **Quả cầu tuyết (Snowball)** — ưu tiên trả dứt điểm các khoản nợ nhỏ nhất trước để giải phóng tâm lý, sau đó dồn lực trả các khoản lớn hơn!`;
   }
 
-  // 5. Câu hỏi về tài sản, số dư ví
-  if (q.includes('tài sản') || q.includes('số dư') || q.includes('ví') || q.includes('còn bao nhiêu tiền')) {
+  // ==========================================
+  // NHÓM 14: TÀI CHÍNH - TÀI SẢN & SỐ DƯ VÍ
+  // ==========================================
+  if (q.includes('tài sản') || q.includes('số dư') || q.includes('ví') || q.includes('còn bao nhiêu tiền') || q.includes('có bao nhiêu tiền')) {
     const totalBalance = context.accounts.reduce((s, a) => s + a.balance, 0);
     return `💼 **CHI TIẾT TÀI SẢN VÀ CÁC NGUỒN TIỀN CỦA BẠN:**
 
@@ -332,6 +548,14 @@ ${context.accounts.map((a) => `  - **${a.name}** (${a.type}): **${formatVND(a.ba
 💡 *Gợi ý*: Tiền để trong tài khoản thông thường không sinh lãi. Hãy cân nhắc giữ một khoản vừa đủ chi tiêu hàng ngày trên thẻ, còn lại chuyển vào Ví MoMo Túi Thần Tài (~4%/năm) để tiền tự động sinh lời mỗi ngày!`;
   }
 
-  // 6. Mặc định: Phân tích đầy đủ và trả lời theo ngữ cảnh tài chính
-  return analyzeSalarySavings(query, context);
+  // ==========================================
+  // NHÓM 15: CÁC CÂU HỎI TỰ DO KHÁC (FALLBACK TRÒ CHUYỆN TỰ NHIÊN)
+  // ==========================================
+  return `Dạ chào ${userName}! Về câu hỏi của bạn:
+*"${query}"*
+
+Mình là **MoneyFlow AI** — luôn sẵn lòng trò chuyện, tâm sự và hỗ trợ bạn trong cuộc sống cũng như quản lý tài chính cá nhân.
+Bạn có thể hỏi mình mọi thứ: từ chuyện trò chuyện hàng ngày, ăn uống, cho đến việc phân tích mức lương, kiểm tra ví tiền hay lập kế hoạch tiết kiệm tiền.
+
+Hôm nay bạn muốn chúng mình cùng bàn luận tiếp về điều gì nào? Cứ tự nhiên nhắn cho mình nhé! 😊`;
 }
