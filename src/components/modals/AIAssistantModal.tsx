@@ -584,14 +584,17 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       const chunk = chunks[currentChunkIndex];
       currentChunkIndex++;
       const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(chunk)}`;
-      const audio = new Audio(url);
+      const audio = document.createElement('audio');
+      audio.setAttribute('referrerpolicy', 'no-referrer');
+      audio.src = url;
       currentAudioRef.current = audio;
 
       audio.onended = () => {
         playNextChunk();
       };
 
-      audio.onerror = () => {
+      audio.onerror = (e) => {
+        console.warn('Google TTS audio chunk error:', e);
         // Nếu online audio gặp lỗi thì chuyển sang thử SpeechSynthesis của máy
         if (currentChunkIndex >= chunks.length) {
           fallbackSpeechSynthesis();
@@ -619,7 +622,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         window.speechSynthesis.resume();
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.rate = 1.05;
-        utterance.lang = 'vi-VN';
 
         const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
         const viVoice = voices.find(
@@ -632,6 +634,10 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         if (viVoice) {
           utterance.voice = viVoice;
           utterance.lang = viVoice.lang;
+        } else if (voices.length > 0) {
+          utterance.voice = voices[0];
+        } else {
+          utterance.lang = 'vi-VN';
         }
 
         utterance.onend = () => {
@@ -1162,7 +1168,10 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                         <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
                           <button
                             type="button"
-                            onClick={() => handleSpeakText(m.id, m.content)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSpeakText(m.id, m.content);
+                            }}
                             className={`text-2xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer font-semibold transition-all ${
                               speakingMessageId === m.id
                                 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 ring-1 ring-amber-400 shadow-xs animate-pulse'
