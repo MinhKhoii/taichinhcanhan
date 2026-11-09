@@ -36,6 +36,11 @@ export interface AppDatabase {
   notifications: NotificationItem[];
   recurringItems: RecurringItem[];
   debts: DebtItem[];
+  deletedTransactionIds?: string[];
+  deletedAccountIds?: string[];
+  deletedDebtIds?: string[];
+  deletedRecurringIds?: string[];
+  deletedGoalIds?: string[];
 }
 
 export class DataService {
@@ -552,6 +557,10 @@ export class DataService {
     if (hasTx) {
       throw new Error('Không thể xóa tài khoản đã có lịch sử giao dịch. Bạn có thể lưu trữ (archive) thay thế.');
     }
+    if (!this.db.deletedAccountIds) this.db.deletedAccountIds = [];
+    if (!this.db.deletedAccountIds.includes(id)) {
+      this.db.deletedAccountIds.push(id);
+    }
     this.db.accounts = this.db.accounts.filter((a) => a.id !== id);
     this.saveState();
   }
@@ -778,6 +787,13 @@ export class DataService {
 
     // Lưu ID vào danh sách đã xóa để khi đồng bộ Cloud không bị kéo lại
     try {
+      if (!this.db.deletedTransactionIds) this.db.deletedTransactionIds = [];
+      if (!this.db.deletedTransactionIds.includes(id)) {
+        this.db.deletedTransactionIds.push(id);
+        if (this.db.deletedTransactionIds.length > 500) {
+          this.db.deletedTransactionIds = this.db.deletedTransactionIds.slice(-500);
+        }
+      }
       const deletedIds = JSON.parse(localStorage.getItem('moneyflow_deleted_tx_ids') || '[]');
       if (!deletedIds.includes(id)) {
         deletedIds.push(id);
@@ -933,6 +949,10 @@ export class DataService {
   }
 
   public deleteSavingsGoal(id: string): void {
+    if (!this.db.deletedGoalIds) this.db.deletedGoalIds = [];
+    if (!this.db.deletedGoalIds.includes(id)) {
+      this.db.deletedGoalIds.push(id);
+    }
     this.db.savingsGoals = this.db.savingsGoals.filter((g) => g.id !== id);
     this.saveState();
   }
@@ -1158,12 +1178,38 @@ export class DataService {
         } catch {}
 
         // 2. HỢP NHẤT THÔNG MINH BẢO VỆ DỮ LIỆU LOCAL TUYỆT ĐỐI:
-        // Danh sách ID giao dịch đã bị xóa chủ động: KHÔNG BAO GIỜ hồi sinh lại từ Cloud!
-        let deletedTxIds: string[] = [];
+        // HỢP NHẤT DANH SÁCH ĐÃ XÓA (Tombstones - ngăn chặn việc hồi sinh dữ liệu đã xóa giữa các thiết bị)
+        let localDeletedTxIds: string[] = [];
         try {
-          deletedTxIds = JSON.parse(localStorage.getItem('moneyflow_deleted_tx_ids') || '[]');
+          localDeletedTxIds = JSON.parse(localStorage.getItem('moneyflow_deleted_tx_ids') || '[]');
         } catch {}
-        const deletedSet = new Set(deletedTxIds);
+
+        const allDeletedTx = new Set([
+          ...localDeletedTxIds,
+          ...(this.db.deletedTransactionIds || []),
+          ...(cloudDb.deletedTransactionIds || []),
+        ]);
+        const mergedDeletedTxList = Array.from(allDeletedTx).slice(-500);
+        try {
+          localStorage.setItem('moneyflow_deleted_tx_ids', JSON.stringify(mergedDeletedTxList));
+        } catch {}
+
+        const allDeletedAccounts = new Set([
+          ...(this.db.deletedAccountIds || []),
+          ...(cloudDb.deletedAccountIds || []),
+        ]);
+        const allDeletedDebts = new Set([
+          ...(this.db.deletedDebtIds || []),
+          ...(cloudDb.deletedDebtIds || []),
+        ]);
+        const allDeletedRecur = new Set([
+          ...(this.db.deletedRecurringIds || []),
+          ...(cloudDb.deletedRecurringIds || []),
+        ]);
+        const allDeletedGoals = new Set([
+          ...(this.db.deletedGoalIds || []),
+          ...(cloudDb.deletedGoalIds || []),
+        ]);
 
         const cloudTime = data.updated_at ? new Date(data.updated_at).getTime() : 0;
         const lastSyncStr = localStorage.getItem('moneyflow_last_cloud_sync_at');
@@ -1175,8 +1221,8 @@ export class DataService {
         const isCloudNewerThanLastSync = cloudTime > (lastSyncTime + 1000);
 
         // Hợp nhất Tài khoản thông minh hai chiều giữa Điện thoại & Máy tính:
-        const localAccounts = this.db.accounts || [];
-        const cloudAccounts = cloudDb.accounts || [];
+        const localAccounts = (this.db.accounts || []).filter((a) => !allDeletedAccounts.has(a.id));
+        const cloudAccounts = (cloudDb.accounts || []).filter((a) => !allDeletedAccounts.has(a.id));
         const handledCloudAccountIds = new Set<string>();
 
         const mergedAccounts: Account[] = (localAccounts.length > 0)
@@ -1242,15 +1288,21 @@ export class DataService {
           }
         }
 
+        const cleanMergedAccounts = mergedAccounts.filter((a) => !allDeletedAccounts.has(a.id));
+
         // Hợp nhất Giao dịch:
-        // - Bắt đầu từ toàn bộ giao dịch hiện tại của Local (đã chỉnh sửa, đã xóa bản ghi thừa)
+        // - Bắt đầu từ toàn bộ giao dịch hiện tại của Local (chưa từng bị xóa)
         // - Chỉ bổ sung từ Cloud các giao dịch THỰC SỰ MỚI (chưa có ở Local VÀ CHƯA TỪNG BỊ XÓA)
-        const localTxMap = new Map((this.db.transactions || []).map((t) => [t.id, t]));
-        const mergedTransactions = [...(this.db.transactions || [])];
+        const localTxMap = new Map(
+          (this.db.transactions || [])
+            .filter((t) => !allDeletedTx.has(t.id))
+            .map((t) => [t.id, t])
+        );
+        const mergedTransactions = [...localTxMap.values()];
 
         for (const cloudTx of (cloudDb.transactions || [])) {
-          if (deletedSet.has(cloudTx.id)) {
-            continue; // Bỏ qua giao dịch đã bị xóa
+          if (allDeletedTx.has(cloudTx.id)) {
+            continue; // Bỏ qua giao dịch đã bị xóa trên bất kỳ máy nào
           }
           if (!localTxMap.has(cloudTx.id)) {
             mergedTransactions.push(cloudTx);
@@ -1260,29 +1312,41 @@ export class DataService {
         // Sắp xếp giao dịch mới nhất lên đầu
         mergedTransactions.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-        // Hợp nhất Sổ nợ theo ID:
-        const cloudDebtMap = new Map((cloudDb.debts || []).map((d) => [d.id, d]));
-        const mergedDebts = [...(cloudDb.debts || [])];
+        // Hợp nhất Sổ nợ theo ID (loại trừ đã xóa):
+        const cloudDebtMap = new Map(
+          (cloudDb.debts || [])
+            .filter((d) => !allDeletedDebts.has(d.id))
+            .map((d) => [d.id, d])
+        );
+        const mergedDebts = [...cloudDebtMap.values()];
         for (const localDebt of (this.db.debts || [])) {
-          if (!cloudDebtMap.has(localDebt.id)) {
+          if (!allDeletedDebts.has(localDebt.id) && !cloudDebtMap.has(localDebt.id)) {
             mergedDebts.push(localDebt);
           }
         }
 
-        // Hợp nhất Lương & Thu chi định kỳ theo ID:
-        const cloudRecurMap = new Map((cloudDb.recurringItems || []).map((r) => [r.id, r]));
-        const mergedRecurring = [...(cloudDb.recurringItems || [])];
+        // Hợp nhất Lương & Thu chi định kỳ theo ID (loại trừ đã xóa):
+        const cloudRecurMap = new Map(
+          (cloudDb.recurringItems || [])
+            .filter((r) => !allDeletedRecur.has(r.id))
+            .map((r) => [r.id, r])
+        );
+        const mergedRecurring = [...cloudRecurMap.values()];
         for (const localRecur of (this.db.recurringItems || [])) {
-          if (!cloudRecurMap.has(localRecur.id)) {
+          if (!allDeletedRecur.has(localRecur.id) && !cloudRecurMap.has(localRecur.id)) {
             mergedRecurring.push(localRecur);
           }
         }
 
-        // Hợp nhất Mục tiêu tiết kiệm theo ID:
-        const cloudGoalMap = new Map((cloudDb.savingsGoals || []).map((g) => [g.id, g]));
-        const mergedGoals = [...(cloudDb.savingsGoals || [])];
+        // Hợp nhất Mục tiêu tiết kiệm theo ID (loại trừ đã xóa):
+        const cloudGoalMap = new Map(
+          (cloudDb.savingsGoals || [])
+            .filter((g) => !allDeletedGoals.has(g.id))
+            .map((g) => [g.id, g])
+        );
+        const mergedGoals = [...cloudGoalMap.values()];
         for (const localGoal of (this.db.savingsGoals || [])) {
-          if (!cloudGoalMap.has(localGoal.id)) {
+          if (!allDeletedGoals.has(localGoal.id) && !cloudGoalMap.has(localGoal.id)) {
             mergedGoals.push(localGoal);
           }
         }
@@ -1294,12 +1358,17 @@ export class DataService {
             ...cloudDb.user,
             geminiApiKey: this.db.user?.geminiApiKey || cloudDb.user?.geminiApiKey,
           },
-          accounts: mergedAccounts,
+          accounts: cleanMergedAccounts,
           transactions: mergedTransactions,
           debts: mergedDebts,
           recurringItems: mergedRecurring,
           savingsGoals: mergedGoals,
           budgets: cloudDb.budgets && cloudDb.budgets.length > 0 ? cloudDb.budgets : this.db.budgets,
+          deletedTransactionIds: mergedDeletedTxList,
+          deletedAccountIds: Array.from(allDeletedAccounts).slice(-100),
+          deletedDebtIds: Array.from(allDeletedDebts).slice(-100),
+          deletedRecurringIds: Array.from(allDeletedRecur).slice(-100),
+          deletedGoalIds: Array.from(allDeletedGoals).slice(-100),
         };
 
         this.healAccountsState(this.db);
@@ -1749,6 +1818,10 @@ export class DataService {
       }
     }
 
+    if (!this.db.deletedRecurringIds) this.db.deletedRecurringIds = [];
+    if (!this.db.deletedRecurringIds.includes(id)) {
+      this.db.deletedRecurringIds.push(id);
+    }
     this.db.recurringItems = this.db.recurringItems.filter((r) => r.id !== id);
     this.recalculateAccountBalances();
     this.saveState();
@@ -2190,6 +2263,10 @@ export class DataService {
 
   public deleteDebt(id: string): void {
     if (!this.db.debts) this.db.debts = [];
+    if (!this.db.deletedDebtIds) this.db.deletedDebtIds = [];
+    if (!this.db.deletedDebtIds.includes(id)) {
+      this.db.deletedDebtIds.push(id);
+    }
     this.db.debts = this.db.debts.filter((d) => d.id !== id);
     this.saveState();
   }
