@@ -40,6 +40,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     budgets,
     savingsGoals,
     debts,
+    recurringItems,
     createTransaction,
     showToast,
   } = useFinancial();
@@ -161,6 +162,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         budgets,
         goals: savingsGoals,
         debts,
+        recurringItems,
       });
 
       setMessages((prev) => [

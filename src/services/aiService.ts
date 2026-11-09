@@ -1,17 +1,19 @@
-import { Account, Category, Transaction, Budget, SavingsGoal, DebtItem, PaymentMethod } from '../types';
+import { Account, Category, Transaction, Budget, SavingsGoal, DebtItem, PaymentMethod, RecurringItem } from '../types';
 import { formatVND, getLocalDateString, getLocalMonthString } from '../utils/formatters';
 import { dataService } from './dataService';
+import {
+  generateExpertFinancialAnswer,
+  detectUserSalary,
+  FinancialContextData,
+} from '../utils/financialExpertEngine';
 
 const STORAGE_KEY = 'moneyflow_gemini_api_key';
 
 const CANDIDATE_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
   'gemini-1.5-flash',
-  'gemini-3.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-3-flash-preview',
-  'gemini-3.8-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
 ];
 
 async function callGeminiAPI(key: string, payload: any): Promise<any> {
@@ -33,14 +35,27 @@ async function callGeminiAPI(key: string, payload: any): Promise<any> {
       const msg = errData?.error?.message || `HTTP ${res.status}`;
       lastError = new Error(msg);
 
-      // If model not found or deprecated, try next model in candidate list
-      if (res.status === 404 || msg.includes('no longer available') || msg.includes('not found')) {
+      // If model not found, rate limited or overloaded, try next candidate
+      if (
+        res.status === 404 ||
+        res.status === 429 ||
+        res.status === 503 ||
+        msg.includes('no longer available') ||
+        msg.includes('not found') ||
+        msg.includes('Resource has been exhausted')
+      ) {
         continue;
       }
       throw lastError;
     } catch (e: any) {
       lastError = e;
-      if (e.message && (e.message.includes('no longer available') || e.message.includes('not found') || e.message.includes('404'))) {
+      if (
+        e.message &&
+        (e.message.includes('no longer available') ||
+          e.message.includes('not found') ||
+          e.message.includes('404') ||
+          e.message.includes('429'))
+      ) {
         continue;
       }
       throw e;
@@ -583,21 +598,13 @@ CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TR�
   async askFinancialAdvisor(
     userQuestion: string,
     history: { role: 'user' | 'model'; text: string }[],
-    contextData: {
-      userName: string;
-      accounts: Account[];
-      transactions: Transaction[];
-      categories: Category[];
-      budgets: Budget[];
-      goals: SavingsGoal[];
-      debts: DebtItem[];
-    }
+    contextData: FinancialContextData
   ): Promise<string> {
     const key = this.getApiKey();
 
-    // If no API key, provide helpful algorithmic response & guidance
+    // If no API key, provide our expert financial engine response directly
     if (!key) {
-      return this.generateOfflineAdvisorResponse(userQuestion, contextData);
+      return generateExpertFinancialAnswer(userQuestion, contextData);
     }
 
     try {
@@ -613,6 +620,13 @@ CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TR�
 
       const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
       const catMap = new Map(categories.map((c) => [c.id, c.name]));
+
+      // Detected salary & savings breakdown
+      const salaryInfo = detectUserSalary(userQuestion, contextData);
+      const estSalary = salaryInfo.salary;
+      const recSavings20 = Math.round(estSalary * 0.2);
+      const recSavings30 = Math.round(estSalary * 0.3);
+      const recNeeds50 = Math.round(estSalary * 0.5);
 
       // Current month stats
       const nowStr = getLocalMonthString();
@@ -639,10 +653,14 @@ CHỈ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON HỢP LỆ THEO CẤU TR�
         .filter((d) => d.type === 'borrow')
         .reduce((s, d) => s + Math.max(0, d.totalAmount - d.paidAmount), 0);
 
-      const systemPrompt = `Bạn là MoneyFlow AI - Chuyên gia Cố vấn Tài chính Cá nhân Thông minh, Tận tâm và Thực tế.
+      const systemPrompt = `Bạn là MoneyFlow AI - Chuyên gia Cố vấn Tài chính Cá nhân Xuất sắc, Tận tâm và Thực tế.
 Bạn đang tư vấn cho người dùng tên: "${userName}".
 DỮ LIỆU TÀI CHÍNH THỰC TẾ CỦA NGƯỜI DÙNG:
 - Tổng tài sản ròng: ${formatVND(totalBalance)} (phân bổ trên ${accounts.length} ví/tài khoản: ${accounts.map((a) => `${a.name}: ${formatVND(a.balance)}`).join(', ')})
+- Mức lương / thu nhập hàng tháng: ${formatVND(estSalary)}/tháng (Nguồn: ${salaryInfo.source})
+  + Mức tiết kiệm chuẩn 20% khuyên dùng: ${formatVND(recSavings20)}/tháng (~${formatVND(recSavings20 * 12)}/năm)
+  + Mức tiết kiệm bứt phá 30%: ${formatVND(recSavings30)}/tháng (~${formatVND(recSavings30 * 12)}/năm)
+  + 50% Nhu cầu thiết yếu: ${formatVND(recNeeds50)}/tháng
 - Tình hình tài chính tháng này (${nowStr}):
   + Tổng thu nhập: +${formatVND(curIncome)}
   + Tổng chi tiêu: -${formatVND(curExpense)}
@@ -653,12 +671,13 @@ DỮ LIỆU TÀI CHÍNH THỰC TẾ CỦA NGƯỜI DÙNG:
 - Mục tiêu tiết kiệm: ${goals.map((g) => `"${g.name}": đã có ${formatVND(g.currentAmount)} / mục tiêu ${formatVND(g.targetAmount)}`).join('; ') || 'Chưa đặt mục tiêu'}
 - Công nợ: Người khác nợ: ${formatVND(totalLend)} | Đang nợ người khác: ${formatVND(totalBorrow)}
 
-HƯỚNG DẪN TRẢ LỜI:
-1. Luôn trả lời bằng tiếng Việt tự nhiên, thân thiện, lịch thiệp và thực tế.
-2. Dựa trực tiếp vào số liệu thực tế được cung cấp ở trên để đưa ra câu trả lời chính xác từng con số và tên ví/mục tiêu.
-3. Khi người dùng hỏi cách tiết kiệm, kiểm soát chi tiêu hay lập kế hoạch mua sắm/đầu tư, hãy phân tích cụ thể (ví dụ dựa trên quy tắc 50/30/20 hoặc cắt giảm các khoản chi lớn).
-4. Sử dụng định dạng Markdown đẹp mắt: gạch đầu dòng, in đậm các con số quan trọng, ngắt đoạn dễ đọc.
-5. Tuyệt đối không bịa đặt số liệu tài chính ngoài các số liệu được cung cấp ở trên.`;
+HƯỚNG DẪN TRẢ LỜI ĐẶC BIỆT:
+1. Khi người dùng hỏi "lương tôi chừng đó/ngần đó thì tháng nên tiết kiệm bao nhiêu", hãy tính toán cụ thể theo mức lương ${formatVND(estSalary)}:
+   * Phân bổ 50/30/20 rõ ràng từng con số: 50% thiết yếu (${formatVND(recNeeds50)}), 30% sở thích (${formatVND(recSavings30)}), 20% tiết kiệm (${formatVND(recSavings20)}/tháng = ${formatVND(recSavings20 * 12)}/năm).
+   * Đưa ra các mốc tiết kiệm: Tiêu chuẩn (20%), Bứt phá (30%), Khởi đầu (10-15%).
+   * Đưa ra lộ trình 3 bước: Quỹ khẩn cấp, Trả cho mình trước, Gửi tích lũy sinh lời.
+2. Trả lời bằng tiếng Việt tự nhiên, nhiệt tình, thực tế, bố cục Markdown rõ ràng với bảng và gạch đầu dòng.
+3. Luôn lấy số liệu thực tế được cung cấp ở trên làm trọng tâm, không trả lời chung chung hoặc né tránh câu hỏi.`;
 
       const contents = [
         { role: 'user', parts: [{ text: systemPrompt }] },
@@ -674,57 +693,19 @@ HƯỚNG DẪN TRẢ LỜI:
         contents,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1200,
+          maxOutputTokens: 1500,
         },
       });
 
-      return (
-        resData?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        'Xin lỗi, mình chưa thể xử lý câu trả lời lúc này. Bạn thử lại nhé!'
-      );
+      const reply = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (reply && reply.trim()) return reply.trim();
+
+      // If empty response, fallback to local expert engine
+      return generateExpertFinancialAnswer(userQuestion, contextData);
     } catch (err: any) {
-      console.error('Gemini chat error:', err);
-      return `⚠️ Lỗi kết nối Gemini AI: ${err?.message || 'Không thể kết nối'}. Vui lòng kiểm tra lại API Key hoặc kết nối mạng!`;
+      console.warn('Gemini chat error, falling back to local expert engine:', err);
+      return generateExpertFinancialAnswer(userQuestion, contextData);
     }
-  }
-
-  // 6. Offline smart advisor answers if user hasn't configured API key yet
-  private generateOfflineAdvisorResponse(
-    question: string,
-    contextData: {
-      userName: string;
-      accounts: Account[];
-      transactions: Transaction[];
-      budgets: Budget[];
-      goals: SavingsGoal[];
-      debts: DebtItem[];
-    }
-  ): string {
-    const q = question.toLowerCase();
-    const { userName, accounts, transactions, debts, goals } = contextData;
-    const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
-
-    const nowStr = getLocalMonthString();
-    const curMonthTx = transactions.filter((t) => (t.date || '').startsWith(nowStr));
-    const curIncome = curMonthTx.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const curExpense = curMonthTx.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    const net = curIncome - curExpense;
-
-    let responseBody = '';
-
-    if (q.includes('tài sản') || q.includes('tiền') || q.includes('số dư') || q.includes('còn bao nhiêu')) {
-      responseBody = `📊 **Tình hình tài sản hiện tại của bạn:**\n- Tổng tài sản khả dụng: **${formatVND(totalBalance)}**\n- Phân bổ qua các ví:\n${accounts.map((a) => `  + **${a.name}**: ${formatVND(a.balance)}`).join('\n')}`;
-    } else if (q.includes('chi tiêu') || q.includes('tiêu') || q.includes('thu nhập') || q.includes('tháng này')) {
-      responseBody = `📈 **Dòng tiền tháng này (${nowStr}):**\n- Tổng thu nhập: **+${formatVND(curIncome)}**\n- Tổng chi tiêu: **-${formatVND(curExpense)}**\n- Chênh lệch thặng dư: **${formatVND(net, true)}** ${net >= 0 ? '🎉 (Tích lũy tốt)' : '⚠️ (Đang thâm hụt)'}`;
-    } else if (q.includes('nợ') || q.includes('vay') || q.includes('đòi')) {
-      const lend = debts.filter((d) => d.type === 'lend').reduce((s, d) => s + Math.max(0, d.totalAmount - d.paidAmount), 0);
-      const borrow = debts.filter((d) => d.type === 'borrow').reduce((s, d) => s + Math.max(0, d.totalAmount - d.paidAmount), 0);
-      responseBody = `🤝 **Sổ nợ & Cho vay:**\n- Người khác nợ bạn: **${formatVND(lend)}**\n- Bạn nợ người khác: **${formatVND(borrow)}**`;
-    } else {
-      responseBody = `Chào bạn ${userName}! Hiện tại mình đang trả lời bạn ở chế độ **Phân tích Nội bộ**. Tổng tài sản của bạn đang là **${formatVND(totalBalance)}**, tháng này bạn đã chi tiêu **${formatVND(curExpense)}** và thu nhập **${formatVND(curIncome)}**.`;
-    }
-
-    return `${responseBody}\n\n💡 *Mách nhỏ: Bạn có thể dán **Google Gemini API Key** (hoàn toàn Miễn Phí 100% từ Google) vào mục Cài đặt hoặc góc trên hộp thoại để mở khóa toàn bộ trí tuệ nhân tạo đàm thoại tự do, lập kế hoạch đầu tư và trò chuyện chuyên sâu bất kỳ lúc nào nhé!*`;
   }
 }
 
