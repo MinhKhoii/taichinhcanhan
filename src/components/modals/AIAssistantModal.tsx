@@ -20,11 +20,39 @@ import {
   Mic,
   MicOff,
   Volume2,
+  VolumeX,
   Camera,
   ClipboardPaste,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { ReceiptCameraModal } from '../common/ReceiptCameraModal';
+
+/**
+ * Chuẩn hóa và làm sạch văn bản phản hồi của AI trước khi đưa vào bộ đọc SpeechSynthesis
+ */
+const prepareTextForSpeech = (rawText: string): string => {
+  if (!rawText) return '';
+  return rawText
+    // Bỏ hàng tiêu đề hoặc dòng kẻ bảng Markdown |---|---|
+    .replace(/\|[^\n]+\|/g, ' ')
+    .replace(/[-:]{3,}/g, ' ')
+    // Chuẩn hóa ký hiệu tiền tệ sang từ ngữ để phát âm chuẩn tiếng Việt
+    .replace(/(\d+[\d.,]*)\s*₫/g, '$1 đồng')
+    .replace(/(\d+[\d.,]*)\s*đ/gi, '$1 đồng')
+    .replace(/(\d+[\d.,]*)\s*tr\b/gi, '$1 triệu')
+    .replace(/(\d+[\d.,]*)\s*k\b/gi, '$1 nghìn')
+    // Bỏ định dạng Markdown: tiêu đề, in đậm, in nghiêng, gạch đầu dòng, link
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/[*_~`]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[*\-+]\s+/gm, '')
+    // Bỏ emoji và các icon đồ họa
+    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+    // Rút gọn khoảng trắng thừa
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 800);
+};
 
 interface AIAssistantModalProps {
   isOpen: boolean;
@@ -78,8 +106,29 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   // Voice Recognition & Speech Synthesis States
   const [isListeningChat, setIsListeningChat] = useState(false);
   const [isListeningQuickAdd, setIsListeningQuickAdd] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const activeUtteranceRef = useRef<any>(null);
   const activeRecognitionRef = useRef<any>(null);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  // Preload TTS voices & listen to voiceschanged event
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const loadVoices = () => {
+        try {
+          const list = window.speechSynthesis.getVoices();
+          if (list && list.length > 0) {
+            setAvailableVoices(list);
+          }
+        } catch {}
+      };
+      loadVoices();
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+      return () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+      };
+    }
+  }, []);
 
   // Receipt Scanner Camera Modal
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
@@ -105,6 +154,13 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     if (isOpen) {
       setHasKey(aiService.hasApiKey());
       setApiKeyInput(aiService.getApiKey());
+    } else {
+      // Khi đóng modal thì dừng đọc âm thanh
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setSpeakingMessageId(null);
+      activeUtteranceRef.current = null;
     }
   }, [isOpen]);
 
@@ -119,6 +175,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
+      setSpeakingMessageId(null);
+      activeUtteranceRef.current = null;
     };
   }, []);
 
@@ -397,21 +455,86 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   };
 
   // Text to speech helper
-  const handleSpeakText = (text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+  const handleSpeakText = (messageId: string, text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      showToast('Trình duyệt chưa hỗ trợ bộ đọc giọng nói SpeechSynthesis. Bạn vui lòng thử dùng Chrome hoặc Edge nhé!', 'error');
       return;
     }
-    const cleanText = text.replace(/[*_#`~\[\]()]/g, '').slice(0, 300);
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'vi-VN';
-    utterance.rate = 1.05;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+
+    // Nếu đang phát tin nhắn này thì bấm là Dừng lại
+    if (speakingMessageId === messageId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
+      activeUtteranceRef.current = null;
+      return;
+    }
+
+    // Hủy các câu đọc đang dở trước đó và đánh thức TTS (khắc phục lỗi pending của Chromium)
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+
+    const cleanText = prepareTextForSpeech(text);
+    if (!cleanText) {
+      showToast('Không có nội dung văn bản để đọc.', 'info');
+      return;
+    }
+
+    try {
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      // Tìm giọng đọc tiếng Việt tối ưu nhất từ hệ thống
+      const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
+      const viVoice = voices.find(
+        (v) =>
+          v.lang.toLowerCase() === 'vi-vn' ||
+          v.lang.toLowerCase().startsWith('vi') ||
+          v.name.toLowerCase().includes('vietnam') ||
+          v.name.toLowerCase().includes('tiếng việt') ||
+          v.name.toLowerCase().includes('hoaimy') ||
+          v.name.toLowerCase().includes('namminh')
+      );
+
+      if (viVoice) {
+        utterance.voice = viVoice;
+        utterance.lang = viVoice.lang;
+      } else {
+        utterance.lang = 'vi-VN';
+      }
+
+      utterance.onstart = () => {
+        setSpeakingMessageId(messageId);
+      };
+
+      utterance.onend = () => {
+        setSpeakingMessageId(null);
+        activeUtteranceRef.current = null;
+      };
+
+      utterance.onerror = (e: any) => {
+        console.warn('SpeechSynthesis error:', e);
+        setSpeakingMessageId(null);
+        activeUtteranceRef.current = null;
+        if (e.error === 'not-allowed') {
+          showToast('Trình duyệt đang chặn âm thanh tự động. Hãy chạm vào màn hình rồi bấm Nghe lại nhé!', 'info');
+        } else if (e.error === 'language-unavailable' || e.error === 'voice-unavailable') {
+          showToast('Thiết bị chưa có sẵn gói đọc Tiếng Việt. Bạn hãy thử mở bằng Google Chrome hoặc Microsoft Edge nhé!', 'error');
+        } else if (e.error !== 'interrupted' && e.error !== 'canceled') {
+          showToast(`Lỗi phát âm thanh (${e.error || 'chưa rõ'}). Bạn vui lòng thử lại nhé!`, 'error');
+        }
+      };
+
+      // Lưu tham chiếu vào ref để tránh V8 Garbage Collector dọn dẹp làm mất âm thanh
+      activeUtteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    } catch (err: any) {
+      console.error('Speech error:', err);
+      setSpeakingMessageId(null);
+      activeUtteranceRef.current = null;
+      showToast('Không thể kích hoạt giọng đọc: ' + (err?.message || 'Lỗi'), 'error');
+    }
   };
 
   // Save API Key handler
@@ -917,15 +1040,28 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
 
                       {/* Speaker button to listen to AI response */}
                       {m.role === 'assistant' && (
-                        <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
                           <button
                             type="button"
-                            onClick={() => handleSpeakText(m.content)}
-                            className="text-3xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-semibold"
-                            title="Nghe đọc"
+                            onClick={() => handleSpeakText(m.id, m.content)}
+                            className={`text-2xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer font-semibold transition-all ${
+                              speakingMessageId === m.id
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 ring-1 ring-amber-400 shadow-xs animate-pulse'
+                                : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800'
+                            }`}
+                            title={speakingMessageId === m.id ? 'Bấm để dừng đọc' : 'AI đọc câu trả lời này cho bạn nghe'}
                           >
-                            <Volume2 className="w-3 h-3" />
-                            <span>{isSpeaking ? 'Dừng' : 'Nghe'}</span>
+                            {speakingMessageId === m.id ? (
+                              <>
+                                <VolumeX className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span>Dừng đọc</span>
+                              </>
+                            ) : (
+                              <>
+                                <Volume2 className="w-3.5 h-3.5 shrink-0" />
+                                <span>Nghe đọc</span>
+                              </>
+                            )}
                           </button>
                           <span className="text-3xs opacity-50 text-slate-400">{m.timestamp}</span>
                         </div>
