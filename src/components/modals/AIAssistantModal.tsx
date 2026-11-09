@@ -147,10 +147,17 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   const activeUtteranceRef = useRef<any>(null);
   const activeRecognitionRef = useRef<any>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const cancelSpeechQueueRef = useRef<(() => void) | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   // Dừng toàn bộ âm thanh đọc (cả Audio online lẫn SpeechSynthesis)
   const stopAllSpeech = () => {
+    if (cancelSpeechQueueRef.current) {
+      try {
+        cancelSpeechQueueRef.current();
+      } catch {}
+      cancelSpeechQueueRef.current = null;
+    }
     if (currentAudioRef.current) {
       try {
         currentAudioRef.current.pause();
@@ -560,7 +567,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       return;
     }
 
-    const chunks = splitTextIntoSentences(cleanText);
+    const chunks = splitTextIntoSentences(cleanText, 180);
     if (chunks.length === 0) {
       showToast('Không có nội dung văn bản để đọc.', 'info');
       return;
@@ -568,35 +575,60 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
 
     // Đánh dấu ngay tin nhắn này đang phát để nút lập tức chuyển sang "Dừng đọc"
     setSpeakingMessageId(messageId);
-    showToast('🔊 Đang phát giọng đọc...', 'info');
+
+    const PLAYBACK_SPEED = 1.2; // Tốc độ đọc nhanh hơn một chút theo yêu cầu (nhanh nhẹn, tự nhiên, không bị lê thê)
 
     let currentChunkIndex = 0;
     let isCancelled = false;
 
+    // TẢI TRƯỚC (PRELOAD) TẤT CẢ CÁC ĐOẠN ÂM THANH SONG SONG
+    // Khi câu 1 đang phát thì câu 2, 3 đã được tải xong vào bộ nhớ đệm, chuyển câu mượt mà 0ms độ trễ!
+    const audioElements = chunks.map((chunk) => {
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(chunk)}`;
+      const aud = document.createElement('audio');
+      aud.setAttribute('referrerpolicy', 'no-referrer');
+      aud.preload = 'auto';
+      aud.playbackRate = PLAYBACK_SPEED;
+      aud.defaultPlaybackRate = PLAYBACK_SPEED;
+      aud.src = url;
+      aud.onplay = () => {
+        aud.playbackRate = PLAYBACK_SPEED;
+      };
+      return aud;
+    });
+
+    cancelSpeechQueueRef.current = () => {
+      isCancelled = true;
+      audioElements.forEach((aud) => {
+        try {
+          aud.pause();
+          aud.src = '';
+        } catch {}
+      });
+    };
+
     // Bộ phát tuần tự từng câu qua Audio Online (100% chạy trên mọi máy tính và điện thoại)
     const playNextChunk = () => {
-      if (isCancelled || currentChunkIndex >= chunks.length) {
+      if (isCancelled || currentChunkIndex >= audioElements.length) {
         setSpeakingMessageId(null);
         currentAudioRef.current = null;
+        cancelSpeechQueueRef.current = null;
         return;
       }
 
-      const chunk = chunks[currentChunkIndex];
+      const audio = audioElements[currentChunkIndex];
       currentChunkIndex++;
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(chunk)}`;
-      const audio = document.createElement('audio');
-      audio.setAttribute('referrerpolicy', 'no-referrer');
-      audio.src = url;
       currentAudioRef.current = audio;
 
       audio.onended = () => {
-        playNextChunk();
+        if (!isCancelled) {
+          playNextChunk();
+        }
       };
 
       audio.onerror = (e) => {
         console.warn('Google TTS audio chunk error:', e);
-        // Nếu online audio gặp lỗi thì chuyển sang thử SpeechSynthesis của máy
-        if (currentChunkIndex >= chunks.length) {
+        if (currentChunkIndex >= audioElements.length) {
           fallbackSpeechSynthesis();
         } else {
           playNextChunk();
@@ -621,7 +653,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         window.speechSynthesis.cancel();
         window.speechSynthesis.resume();
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.rate = 1.05;
+        utterance.rate = PLAYBACK_SPEED;
 
         const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
         const viVoice = voices.find(
@@ -648,7 +680,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         utterance.onerror = () => {
           setSpeakingMessageId(null);
           activeUtteranceRef.current = null;
-          showToast('Không thể phát âm thanh. Bạn vui lòng kiểm tra âm lượng hoặc loa máy tính nhé!', 'error');
         };
 
         activeUtteranceRef.current = utterance;
