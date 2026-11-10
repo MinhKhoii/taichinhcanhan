@@ -65,6 +65,8 @@ interface CloudUserInfo {
   debtCount: number;
   sizeKb: number;
   isAdmin: boolean;
+  daysInactive: number;
+  status: 'active' | 'away' | 'dormant';
   rawData?: any;
 }
 
@@ -96,7 +98,7 @@ export const AdminPage: React.FC = () => {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [userLoadError, setUserLoadError] = useState<string | null>(null);
   const [userSearchTerm, setUserSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'member'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'member' | 'active' | 'dormant'>('all');
   const [selectedUserDetail, setSelectedUserDetail] = useState<CloudUserInfo | null>(null);
 
   // Database Tab & Storage State
@@ -108,6 +110,7 @@ export const AdminPage: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState(false);
   const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
   const [isCleaningGuests, setIsCleaningGuests] = useState(false);
+  const [isCleaningDormant, setIsCleaningDormant] = useState(false);
 
   // Live Latency Ping State
   const [pingResult, setPingResult] = useState<{
@@ -190,6 +193,15 @@ export const AdminPage: React.FC = () => {
             const sizeBytes = JSON.stringify(r.data || {}).length;
             const sizeKb = sizeBytes / 1024;
 
+            const lastActiveDate = new Date(r.updated_at || r.created_at || Date.now());
+            const daysInactive = Math.max(0, Math.floor((Date.now() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24)));
+            let status: 'active' | 'away' | 'dormant' = 'active';
+            if (daysInactive >= 30) {
+              status = 'dormant';
+            } else if (daysInactive >= 7) {
+              status = 'away';
+            }
+
             return {
               id: r.id,
               email,
@@ -203,6 +215,8 @@ export const AdminPage: React.FC = () => {
               debtCount,
               sizeKb,
               isAdmin: isAdm,
+              daysInactive,
+              status,
               rawData: dataObj,
             };
           });
@@ -243,6 +257,18 @@ export const AdminPage: React.FC = () => {
     () => cloudUsers.filter((u) => !u.isAdmin).length,
     [cloudUsers]
   );
+  const activeUsersCount = useMemo(
+    () => cloudUsers.filter((u) => u.status === 'active').length,
+    [cloudUsers]
+  );
+  const awayUsersCount = useMemo(
+    () => cloudUsers.filter((u) => u.status === 'away').length,
+    [cloudUsers]
+  );
+  const dormantUsersCount = useMemo(
+    () => cloudUsers.filter((u) => !u.isAdmin && u.status === 'dormant').length,
+    [cloudUsers]
+  );
 
   // Filtered Users
   const filteredUsers = useMemo(() => {
@@ -255,6 +281,8 @@ export const AdminPage: React.FC = () => {
       if (!matchSearch) return false;
       if (roleFilter === 'admin') return u.isAdmin;
       if (roleFilter === 'member') return !u.isAdmin;
+      if (roleFilter === 'active') return u.status === 'active';
+      if (roleFilter === 'dormant') return !u.isAdmin && u.status === 'dormant';
       return true;
     });
   }, [cloudUsers, userSearchTerm, roleFilter]);
@@ -402,7 +430,7 @@ export const AdminPage: React.FC = () => {
       const guestIds = (rows || [])
         .map((r: any) => r.id)
         .filter(
-          (id: string) => id.startsWith('backup_guest_') || id === 'moneyflow_cloud_state'
+          (id: string) => id.includes('guest') || id === 'moneyflow_cloud_state'
         );
 
       if (guestIds.length === 0) {
@@ -420,6 +448,45 @@ export const AdminPage: React.FC = () => {
       showToast('Lỗi dọn dẹp: ' + err.message, 'error');
     } finally {
       setIsCleaningGuests(false);
+    }
+  };
+
+  // 7. Batch Clean Dormant Users (> 30 days inactive)
+  const handleCleanDormantBackups = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      showToast('Chưa kết nối Supabase Cloud', 'error');
+      return;
+    }
+
+    const dormantUsers = cloudUsers.filter((u) => !u.isAdmin && u.daysInactive >= 30);
+
+    if (dormantUsers.length === 0) {
+      showToast('Không có tài khoản nào ngừng hoạt động quá 30 ngày.', 'info');
+      return;
+    }
+
+    const totalDormantKb = dormantUsers.reduce((sum, u) => sum + u.sizeKb, 0).toFixed(1);
+    const userNames = dormantUsers
+      .map((u) => `• ${u.fullName} (${u.email}) - Vắng mặt ${u.daysInactive} ngày`)
+      .join('\n');
+
+    const confirmed = confirm(
+      `Phát hiện ${dormantUsers.length} tài khoản không hoạt động hơn 30 ngày (chiếm ~${totalDormantKb} KB dung lượng):\n\n${userNames}\n\n🛡️ CƠ CHẾ BẢO VỆ DỮ LIỆU AN TOÀN:\n1. Dữ liệu trên thiết bị của người dùng (LocalStorage điện thoại/máy tính) vẫn NGUYÊN VẸN 100% không bị ảnh hưởng.\n2. Khi người dùng mở lại MoneyFlow trong tương lai, hệ thống sẽ tự động thông báo rõ ràng và tái tạo bản sao lưu mới lên Cloud.\n\nBạn có muốn giải phóng ${dormantUsers.length} bản sao lưu Cloud này ngay không?`
+    );
+
+    if (!confirmed) return;
+
+    setIsCleaningDormant(true);
+    try {
+      for (const u of dormantUsers) {
+        await supabase.from('cloud_backups').delete().eq('id', u.id);
+      }
+      showToast(`✓ Đã giải phóng an toàn ${dormantUsers.length} bản sao lưu không hoạt động >30 ngày!`, 'success');
+      fetchCloudUsers();
+    } catch (err: any) {
+      showToast('Lỗi khi dọn dẹp: ' + err.message, 'error');
+    } finally {
+      setIsCleaningDormant(false);
     }
   };
 
@@ -904,6 +971,28 @@ export const AdminPage: React.FC = () => {
               >
                 Thành viên ({memberUsersCount})
               </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter('active')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
+                  roleFilter === 'active'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100'
+                }`}
+              >
+                🟢 Hoạt động ({activeUsersCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter('dormant')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
+                  roleFilter === 'dormant'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100'
+                }`}
+              >
+                💤 Vắng mặt &gt;30 ngày ({dormantUsersCount})
+              </button>
             </div>
           </div>
 
@@ -978,6 +1067,23 @@ export const AdminPage: React.FC = () => {
                             </span>
                           )}
 
+                          {/* Activity Status Badge */}
+                          {u.status === 'active' ? (
+                            <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Hoạt động ({u.daysInactive === 0 ? 'Hôm nay' : `${u.daysInactive} ngày trước`})</span>
+                            </span>
+                          ) : u.status === 'away' ? (
+                            <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5 text-amber-500" />
+                              <span>Vắng mặt ({u.daysInactive} ngày)</span>
+                            </span>
+                          ) : (
+                            <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 flex items-center gap-1">
+                              <span>💤 Không hoạt động ({u.daysInactive} ngày)</span>
+                            </span>
+                          )}
+
                           <span className="text-3xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                             {u.sizeKb.toFixed(1)} KB
                           </span>
@@ -1038,18 +1144,32 @@ export const AdminPage: React.FC = () => {
           {/* Bottom Maintenance Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-100 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs gap-3">
             <span className="text-slate-600 dark:text-slate-400">
-              Tổng cộng <strong>{cloudUsers.length}</strong> tài khoản đang sử dụng bộ nhớ đám mây (<strong>{totalSizeKb.toFixed(1)} KB</strong>).
+              Tổng cộng <strong>{cloudUsers.length}</strong> tài khoản ({dormantUsersCount} tài khoản vắng mặt &gt;30 ngày, <strong>{totalSizeKb.toFixed(1)} KB</strong>).
             </span>
 
-            <button
-              type="button"
-              onClick={handleCleanGuestBackups}
-              disabled={isCleaningGuests}
-              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 rounded-xl border border-rose-200 dark:border-rose-900 transition-all cursor-pointer self-start sm:self-auto disabled:opacity-50"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{isCleaningGuests ? 'Đang dọn...' : 'Dọn dẹp bản ghi khách thử nghiệm'}</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleCleanGuestBackups}
+                disabled={isCleaningGuests}
+                className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 rounded-xl border border-slate-300 dark:border-slate-600 transition-all cursor-pointer disabled:opacity-50"
+                title="Dọn dẹp tài khoản guest hoặc bản ghi test"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+                <span>{isCleaningGuests ? 'Đang dọn...' : 'Dọn dẹp bản ghi khách/test'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCleanDormantBackups}
+                disabled={isCleaningDormant || dormantUsersCount === 0}
+                className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 rounded-xl border border-rose-200 dark:border-rose-900 transition-all cursor-pointer disabled:opacity-50"
+                title="Dọn dẹp các tài khoản không hoạt động quá 30 ngày (dữ liệu trên máy họ vẫn an toàn 100%)"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>{isCleaningDormant ? 'Đang giải phóng...' : `💤 Dọn tài khoản vắng mặt >30 ngày (${dormantUsersCount})`}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1814,6 +1934,19 @@ export const AdminPage: React.FC = () => {
                 </span>
               </div>
             </div>
+
+            {/* Dormancy Warning Notice if inactive >= 30 days */}
+            {selectedUserDetail.daysInactive >= 30 && !selectedUserDetail.isAdmin && (
+              <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-2xl text-2xs text-rose-700 dark:text-rose-300 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>Tài khoản không hoạt động trong {selectedUserDetail.daysInactive} ngày (&gt;30 ngày)</span>
+                </div>
+                <p className="leading-relaxed opacity-90">
+                  Bản sao lưu Cloud này có thể được giải phóng an toàn để tiết kiệm tài nguyên máy chủ. Toàn bộ dữ liệu của người dùng trên thiết bị cá nhân của họ vẫn an toàn tuyệt đối 100%! Khi họ mở lại MoneyFlow trong tương lai, hệ thống sẽ tự động thông báo rõ ràng và tái tạo bản sao lưu mới lên Cloud.
+                </p>
+              </div>
+            )}
 
             {/* Wallets breakdown if present */}
             {selectedUserDetail.rawData?.accounts && selectedUserDetail.rawData.accounts.length > 0 && (

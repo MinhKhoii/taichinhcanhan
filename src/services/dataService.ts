@@ -1078,6 +1078,12 @@ export class DataService {
     }
     const userEmail = (this.db.user.email || 'default').toLowerCase().trim();
 
+    // 1. Chặn khách dùng thử (Guest / Demo) đồng bộ lên Supabase Cloud
+    // Dữ liệu của khách dùng thử chỉ lưu cục bộ trên máy thiết bị (LocalStorage) để tránh rác Cloud!
+    if (!userEmail || userEmail === 'guest@moneyflow.vn' || userEmail.startsWith('guest_') || userEmail === 'default' || userEmail === 'usr_default') {
+      return { success: true, message: 'Khách dùng thử được lưu trữ an toàn trên thiết bị này.' };
+    }
+
     try {
       let supaUserId: string | null = null;
       try {
@@ -1158,6 +1164,7 @@ export class DataService {
 
       localStorage.setItem('moneyflow_last_local_updated_at', nowIso);
       localStorage.setItem('moneyflow_last_cloud_sync_at', nowIso);
+      localStorage.setItem('moneyflow_was_synced_cloud', 'true');
       return { success: true, message: 'Đồng bộ toàn bộ dữ liệu lên Supabase Cloud thành công!' };
     } catch (e: any) {
       return { success: false, message: `Lỗi kết nối: ${e.message || e}` };
@@ -1169,6 +1176,11 @@ export class DataService {
       return { success: false, message: 'Chưa cấu hình thông tin Supabase trong .env!' };
     }
     const userEmail = (this.db.user.email || 'default').toLowerCase().trim();
+
+    // Chặn khách dùng thử đồng bộ với Cloud
+    if (!userEmail || userEmail === 'guest@moneyflow.vn' || userEmail.startsWith('guest_') || userEmail === 'default' || userEmail === 'usr_default') {
+      return { success: true, message: 'Dữ liệu khách dùng thử được lưu trữ an toàn trên thiết bị này.' };
+    }
 
     try {
       let supaUserId: string | null = null;
@@ -1202,6 +1214,15 @@ export class DataService {
 
       if (error) {
         if (error.code === 'PGRST116') {
+          const wasSynced = localStorage.getItem('moneyflow_was_synced_cloud');
+          if (wasSynced === 'true') {
+            this.addNotification(
+              'Bảo trì dữ liệu đám mây',
+              'Bản sao lưu Cloud của bạn đã được giải phóng do không hoạt động hơn 30 ngày. Toàn bộ dữ liệu trên thiết bị này của bạn vẫn an toàn 100%! Bạn có thể bấm Cài đặt để đồng bộ lại lên Cloud bất cứ lúc nào.',
+              'info',
+              'settings'
+            );
+          }
           return { success: false, message: 'Chưa có bản sao lưu nào trên đám mây Supabase!' };
         }
         if (error.code === 'PGRST205' || error.message.includes('not find the table') || error.message.includes('cloud_backups')) {
@@ -1455,6 +1476,11 @@ export class DataService {
 
     const userEmail = (this.db.user.email || 'default').toLowerCase().trim();
 
+    // Chặn khách dùng thử đồng bộ với Cloud
+    if (!userEmail || userEmail === 'guest@moneyflow.vn' || userEmail.startsWith('guest_') || userEmail === 'default' || userEmail === 'usr_default') {
+      return { updated: false };
+    }
+
     try {
       let supaUserId: string | null = null;
       try {
@@ -1518,6 +1544,13 @@ export class DataService {
 
     try {
       const userEmail = (this.db.user.email || 'default').toLowerCase().trim();
+
+      // Chặn khách dùng thử đồng bộ với Cloud
+      if (!userEmail || userEmail === 'guest@moneyflow.vn' || userEmail.startsWith('guest_') || userEmail === 'default' || userEmail === 'usr_default') {
+        this.isCloudInitialCheckDone = true;
+        return { success: true, message: 'Dữ liệu khách dùng thử được lưu trữ an toàn trên thiết bị.' };
+      }
+
       let supaUserId: string | null = null;
       try {
         const { data } = await supabase.auth.getUser();
@@ -1564,7 +1597,18 @@ export class DataService {
           await this.pullFromSupabase();
         }
       } else {
-        // Cloud hoàn toàn trống: Nếu local đã có giao dịch thật thì mới đẩy lên Cloud
+        // Cloud hoàn toàn trống hoặc vừa được giải phóng do không hoạt động >30 ngày:
+        const wasSynced = localStorage.getItem('moneyflow_was_synced_cloud');
+        if (wasSynced === 'true') {
+          this.addNotification(
+            'Bảo trì dữ liệu đám mây',
+            'Bản sao lưu Cloud của bạn đã được giải phóng định kỳ sau hơn 30 ngày không hoạt động. Toàn bộ dữ liệu chi tiêu trên thiết bị này của bạn vẫn an toàn tuyệt đối 100%! MoneyFlow đã tự động tái tạo bản sao lưu mới lên Cloud cho bạn.',
+            'info',
+            'settings'
+          );
+        }
+
+        // Tự động khôi phục và tái tạo bản sao lưu mới lên Cloud
         if (this.db.transactions.length > 0 || this.db.accounts.some((a) => a.balance > 0)) {
           this.isCloudInitialCheckDone = true;
           await this.syncToSupabase();
