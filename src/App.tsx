@@ -20,6 +20,7 @@ import { DebtsPage } from './pages/DebtsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { JournalPage } from './pages/JournalPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AdminPage } from './pages/AdminPage';
 
 const AppContent: React.FC = () => {
   const {
@@ -74,6 +75,8 @@ const AppContent: React.FC = () => {
         return <JournalPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'admin':
+        return <AdminPage />;
       default:
         return <Dashboard />;
     }

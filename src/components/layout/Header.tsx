@@ -59,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     isCloudSyncing,
     syncToCloud,
     isAuthenticated,
+    isAdmin,
     openAuthModal,
     logout,
     lockApp,
@@ -557,6 +558,25 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                 </div>
 
                 <div className="p-1 space-y-0.5">
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        setCurrentTab('admin');
+                      }}
+                      className="w-full px-3 py-2 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-xl flex items-center space-x-2 transition-colors cursor-pointer border border-amber-200/80 mb-1"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-amber-600" />
+                      <div className="flex items-center justify-between w-full">
+                        <span>Trang Quản trị Admin</span>
+                        <span className="text-3xs font-black px-1.5 py-0.5 rounded-sm bg-amber-200 text-amber-900">
+                          👑 ADMIN
+                        </span>
+                      </div>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {

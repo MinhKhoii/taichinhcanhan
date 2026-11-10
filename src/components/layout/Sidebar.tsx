@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Sun,
   Moon,
+  ShieldCheck,
 } from 'lucide-react';
 import { formatVND, getLocalDateString } from '../../utils/formatters';
 
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     theme,
     toggleTheme,
     openAIModal,
+    isAdmin,
   } = useFinancial();
 
   const totalNetWorth = accounts.reduce((sum, a) => sum + a.balance, 0);
@@ -162,6 +164,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             <Sparkles className="w-4 h-4 mr-3 text-indigo-400 group-hover:scale-110 transition-transform" />
             <span className="truncate">Trợ lý giọng nói</span>
           </button>
+
+          {/* Dedicated Admin Portal Nav Item (Visible ONLY to Admin) */}
+          {isAdmin && (
+            <div className="pt-3 mt-3 border-t border-slate-800/90">
+              <div className="px-3 pb-2 text-2xs font-bold tracking-wider text-amber-500 uppercase flex items-center justify-between">
+                <span>Quản Trị Hệ Thống</span>
+                <span className="text-3xs font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                  ADMIN
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentTab('admin');
+                  onCloseMobile();
+                }}
+                className={`flex items-center w-full px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 group cursor-pointer ${
+                  currentTab === 'admin'
+                    ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-amber-600/30 font-bold'
+                    : 'text-amber-400 hover:text-amber-200 hover:bg-amber-950/40 border border-amber-500/20'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 mr-3 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+                <span className="truncate">Bảng điều hành Admin</span>
+              </button>
+            </div>
+          )}
         </nav>
 
         {/* Quick Theme Toggle for Mobile Drawer */}
