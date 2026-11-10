@@ -212,3 +212,68 @@ export function exportTransactionsToCSV(
   document.body.removeChild(link);
 }
 
+export function exportAdminSystemReportToExcel(
+  users: Array<{
+    id: string;
+    email: string;
+    fullName: string;
+    createdAt: string;
+    lastActive: string;
+    txCount: number;
+    accCount: number;
+    budgetCount: number;
+    savingsCount: number;
+    debtCount: number;
+    sizeKb: number;
+    isAdmin: boolean;
+  }>,
+  summary: {
+    totalUsers: number;
+    adminCount: number;
+    memberCount: number;
+    totalTx: number;
+    totalAcc: number;
+    totalSizeKb: number;
+    supabaseHost: string;
+  },
+  fileName = 'MoneyFlow_Bao_Cao_He_Thong.xlsx'
+) {
+  const workbook = XLSX.utils.book_new();
+
+  // Sheet 1: Danh sách người dùng
+  const usersData = users.map((u, idx) => ({
+    STT: idx + 1,
+    'Họ và Tên': u.fullName,
+    Email: u.email,
+    'Vai trò': u.isAdmin ? 'Quản trị viên' : 'Thành viên',
+    'Số ví tài khoản': u.accCount,
+    'Số giao dịch': u.txCount,
+    'Số ngân sách': u.budgetCount,
+    'Số mục tiêu': u.savingsCount,
+    'Số khoản nợ': u.debtCount,
+    'Dung lượng Cloud (KB)': Number(u.sizeKb.toFixed(2)),
+    'Ngày khởi tạo': new Date(u.createdAt).toLocaleDateString('vi-VN'),
+    'Hoạt động lần cuối': new Date(u.lastActive).toLocaleString('vi-VN'),
+    'Mã Backup Cloud': u.id,
+  }));
+  const sheetUsers = XLSX.utils.json_to_sheet(usersData);
+  XLSX.utils.book_append_sheet(workbook, sheetUsers, 'Nguoi_Dung');
+
+  // Sheet 2: Tổng quan hệ thống
+  const summaryData = [
+    { 'Chỉ Số Hệ Thống': 'Tổng số người dùng đăng ký', 'Giá Trị': String(summary.totalUsers) },
+    { 'Chỉ Số Hệ Thống': 'Số lượng Quản trị viên', 'Giá Trị': String(summary.adminCount) },
+    { 'Chỉ Số Hệ Thống': 'Số lượng Thành viên thường', 'Giá Trị': String(summary.memberCount) },
+    { 'Chỉ Số Hệ Thống': 'Tổng số giao dịch toàn hệ thống', 'Giá Trị': String(summary.totalTx) },
+    { 'Chỉ Số Hệ Thống': 'Tổng số ví / tài khoản toàn hệ thống', 'Giá Trị': String(summary.totalAcc) },
+    { 'Chỉ Số Hệ Thống': 'Tổng dung lượng CSDL sử dụng (KB)', 'Giá Trị': summary.totalSizeKb.toFixed(2) + ' KB' },
+    { 'Chỉ Số Hệ Thống': 'Máy chủ Đám mây Supabase', 'Giá Trị': summary.supabaseHost },
+    { 'Chỉ Số Hệ Thống': 'Thời điểm xuất báo cáo', 'Giá Trị': new Date().toLocaleString('vi-VN') },
+  ];
+  const sheetSummary = XLSX.utils.json_to_sheet(summaryData);
+  XLSX.utils.book_append_sheet(workbook, sheetSummary, 'Tong_Quan');
+
+  XLSX.writeFile(workbook, fileName);
+}
+
+

@@ -37,10 +37,19 @@ import {
   PieChart,
   Target,
   HandCoins,
+  FileSpreadsheet,
+  HardDrive,
+  Trash2,
+  Megaphone,
+  Radio,
+  Send,
+  Zap,
+  AlertTriangle,
 } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { formatVND } from '../utils/formatters';
+import { exportAdminSystemReportToExcel } from '../utils/exportData';
 import schemaSql from '../../supabase/schema.sql?raw';
 
 interface CloudUserInfo {
@@ -54,8 +63,17 @@ interface CloudUserInfo {
   budgetCount: number;
   savingsCount: number;
   debtCount: number;
+  sizeKb: number;
   isAdmin: boolean;
   rawData?: any;
+}
+
+interface SystemAnnouncement {
+  title: string;
+  message: string;
+  type: 'info' | 'warning' | 'success';
+  createdAt: string;
+  author?: string;
 }
 
 export const AdminPage: React.FC = () => {
@@ -71,7 +89,7 @@ export const AdminPage: React.FC = () => {
   } = useFinancial();
 
   // Tab State inside Admin
-  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'database' | 'ai' | 'security'>('users');
+  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'database' | 'announcement' | 'ai' | 'security'>('users');
 
   // Users Monitor State
   const [cloudUsers, setCloudUsers] = useState<CloudUserInfo[]>([]);
@@ -81,13 +99,30 @@ export const AdminPage: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'member'>('all');
   const [selectedUserDetail, setSelectedUserDetail] = useState<CloudUserInfo | null>(null);
 
-  // Database Tab State
+  // Database Tab & Storage State
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [showSqlViewer, setShowSqlViewer] = useState(true);
   const [copiedSql, setCopiedSql] = useState(false);
   const [showAnonKey, setShowAnonKey] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
+  const [isCleaningGuests, setIsCleaningGuests] = useState(false);
+
+  // Live Latency Ping State
+  const [pingResult, setPingResult] = useState<{
+    latency: number;
+    status: 'fast' | 'good' | 'slow';
+    timestamp: string;
+  } | null>(null);
+  const [isPinging, setIsPinging] = useState(false);
+
+  // System Broadcast Announcement State
+  const [activeAnnouncement, setActiveAnnouncement] = useState<SystemAnnouncement | null>(null);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementMessage, setAnnouncementMessage] = useState('');
+  const [announcementType, setAnnouncementType] = useState<'info' | 'warning' | 'success'>('info');
+  const [isPublishingAnn, setIsPublishingAnn] = useState(false);
 
   // Gemini AI Tab State
   const [geminiKeyInput, setGeminiKeyInput] = useState(aiService.getApiKey());
@@ -103,7 +138,7 @@ export const AdminPage: React.FC = () => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rlqicielkddwyzgpwgnm.supabase.co';
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_v57oN4cuVfMxcR1DM3AgRQ_E8R4cR8B';
 
-  // Fetch all registered users from Supabase cloud_backups
+  // 1. Fetch all registered users & active announcement from Supabase
   const fetchCloudUsers = async () => {
     if (!isSupabaseConfigured || !supabase) {
       setUserLoadError('Chưa cấu hình Supabase Client.');
@@ -125,8 +160,17 @@ export const AdminPage: React.FC = () => {
       }
 
       if (rows) {
+        // Extract active broadcast announcement if present
+        const annRow = rows.find((r) => r.id === 'system_announcement');
+        if (annRow && annRow.data) {
+          setActiveAnnouncement(annRow.data);
+        } else {
+          setActiveAnnouncement(null);
+        }
+
+        // Parse user backups (excluding special system keys)
         const parsed: CloudUserInfo[] = rows
-          .filter((r) => r.id !== 'moneyflow_cloud_state')
+          .filter((r) => r.id !== 'moneyflow_cloud_state' && r.id !== 'system_announcement')
           .map((r) => {
             const dataObj = r.data || {};
             const u = dataObj.user || {};
@@ -143,6 +187,8 @@ export const AdminPage: React.FC = () => {
                 : 'Khách trải nghiệm');
 
             const isAdm = email.toLowerCase().includes('minhkhoj') || u.role === 'admin';
+            const sizeBytes = JSON.stringify(r.data || {}).length;
+            const sizeKb = sizeBytes / 1024;
 
             return {
               id: r.id,
@@ -155,6 +201,7 @@ export const AdminPage: React.FC = () => {
               budgetCount,
               savingsCount,
               debtCount,
+              sizeKb,
               isAdmin: isAdm,
               rawData: dataObj,
             };
@@ -184,6 +231,10 @@ export const AdminPage: React.FC = () => {
     () => cloudUsers.reduce((sum, u) => sum + u.accCount, 0),
     [cloudUsers]
   );
+  const totalSizeKb = useMemo(
+    () => cloudUsers.reduce((sum, u) => sum + u.sizeKb, 0),
+    [cloudUsers]
+  );
   const adminUsersCount = useMemo(
     () => cloudUsers.filter((u) => u.isAdmin).length,
     [cloudUsers]
@@ -207,6 +258,227 @@ export const AdminPage: React.FC = () => {
       return true;
     });
   }, [cloudUsers, userSearchTerm, roleFilter]);
+
+  // 2. Measure Live Latency to Supabase (Ping Test)
+  const handlePingSupabase = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      showToast('Chưa kết nối máy chủ Supabase', 'error');
+      return;
+    }
+    setIsPinging(true);
+    try {
+      const start = performance.now();
+      await supabase.from('cloud_backups').select('id').limit(1);
+      const latency = Math.round(performance.now() - start);
+
+      let status: 'fast' | 'good' | 'slow' = 'fast';
+      if (latency > 300) status = 'slow';
+      else if (latency > 120) status = 'good';
+
+      setPingResult({
+        latency,
+        status,
+        timestamp: new Date().toLocaleTimeString('vi-VN'),
+      });
+      showToast(`⚡ Độ trễ phản hồi Supabase: ${latency}ms`, 'success');
+    } catch {
+      showToast('Không thể kết nối đo độ trễ tới Supabase', 'error');
+    } finally {
+      setIsPinging(false);
+    }
+  };
+
+  // 3. Export System Data to Excel (.xlsx)
+  const handleExportSystemExcel = () => {
+    if (cloudUsers.length === 0) {
+      showToast('Chưa có dữ liệu người dùng để xuất!', 'error');
+      return;
+    }
+    try {
+      const summary = {
+        totalUsers: cloudUsers.length,
+        adminCount: adminUsersCount,
+        memberCount: memberUsersCount,
+        totalTx: totalSystemTransactions,
+        totalAcc: totalSystemAccounts,
+        totalSizeKb,
+        supabaseHost: supabaseUrl,
+      };
+      exportAdminSystemReportToExcel(cloudUsers, summary);
+      showToast('✓ Đã xuất báo cáo Excel toàn hệ thống thành công!', 'success');
+    } catch {
+      showToast('Lỗi khi xuất file Excel', 'error');
+    }
+  };
+
+  // 4. Download Full System Database Backup (JSON)
+  const handleDownloadFullSystemBackup = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      showToast('Chưa kết nối Supabase Cloud', 'error');
+      return;
+    }
+
+    setIsDownloadingBackup(true);
+    try {
+      const { data: rows, error } = await supabase.from('cloud_backups').select('*');
+      if (error) throw error;
+
+      const payload = {
+        system: 'MoneyFlow Executive Suite',
+        version: '2.5',
+        exportType: 'full_database_snapshot',
+        exportedAt: new Date().toISOString(),
+        exportedBy: 'minhkhoj2002@gmail.com',
+        totalRecords: rows?.length || 0,
+        data: rows || [],
+      };
+
+      const jsonStr = JSON.stringify(payload, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MoneyFlow_Full_System_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('✓ Đã tải bản sao lưu toàn bộ CSDL Supabase về máy!', 'success');
+    } catch (err: any) {
+      showToast('Lỗi tải bản sao lưu CSDL: ' + err.message, 'error');
+    } finally {
+      setIsDownloadingBackup(false);
+    }
+  };
+
+  // 5. Delete a specific user's cloud backup
+  const handleDeleteUserBackup = async (userToDelete: CloudUserInfo) => {
+    if (!isSupabaseConfigured || !supabase) {
+      showToast('Chưa kết nối Supabase Cloud', 'error');
+      return;
+    }
+    if (userToDelete.isAdmin) {
+      showToast('Không thể xóa tài khoản Quản trị viên!', 'error');
+      return;
+    }
+    if (
+      !confirm(
+        `Bạn có chắc chắn muốn xóa bản sao lưu của "${userToDelete.fullName}" (${userToDelete.email}) khỏi Supabase Cloud?\nDữ liệu trên Cloud sẽ được giải phóng hoàn toàn.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('cloud_backups').delete().eq('id', userToDelete.id);
+      if (error) throw error;
+      showToast(`Đã xóa bản sao lưu của "${userToDelete.fullName}" khỏi Cloud!`, 'success');
+      if (selectedUserDetail?.id === userToDelete.id) {
+        setSelectedUserDetail(null);
+      }
+      fetchCloudUsers();
+    } catch (err: any) {
+      showToast('Lỗi xóa bản sao lưu: ' + err.message, 'error');
+    }
+  };
+
+  // 6. Batch Clean Guest / Test Backups
+  const handleCleanGuestBackups = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      showToast('Chưa kết nối Supabase Cloud', 'error');
+      return;
+    }
+    if (
+      !confirm(
+        'Bạn có chắc muốn dọn dẹp các tài khoản khách thử nghiệm vãng lai (guest) và bản ghi test trên Cloud?'
+      )
+    ) {
+      return;
+    }
+
+    setIsCleaningGuests(true);
+    try {
+      const { data: rows } = await supabase.from('cloud_backups').select('id');
+      const guestIds = (rows || [])
+        .map((r: any) => r.id)
+        .filter(
+          (id: string) => id.startsWith('backup_guest_') || id === 'moneyflow_cloud_state'
+        );
+
+      if (guestIds.length === 0) {
+        showToast('Không có bản ghi khách thử nghiệm nào cần dọn dẹp.', 'info');
+        return;
+      }
+
+      for (const gid of guestIds) {
+        await supabase.from('cloud_backups').delete().eq('id', gid);
+      }
+
+      showToast(`✓ Đã dọn dẹp sạch ${guestIds.length} bản ghi khách thử nghiệm khỏi Cloud!`, 'success');
+      fetchCloudUsers();
+    } catch (err: any) {
+      showToast('Lỗi dọn dẹp: ' + err.message, 'error');
+    } finally {
+      setIsCleaningGuests(false);
+    }
+  };
+
+  // 7. Publish / Broadcast System Announcement
+  const handlePublishAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSupabaseConfigured || !supabase) {
+      showToast('Chưa kết nối Supabase Cloud', 'error');
+      return;
+    }
+    if (!announcementTitle.trim() || !announcementMessage.trim()) {
+      showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung thông báo!', 'error');
+      return;
+    }
+
+    setIsPublishingAnn(true);
+    try {
+      const payload: SystemAnnouncement = {
+        title: announcementTitle.trim(),
+        message: announcementMessage.trim(),
+        type: announcementType,
+        createdAt: new Date().toISOString(),
+        author: 'Admin Khôi',
+      };
+
+      const { error } = await supabase.from('cloud_backups').upsert({
+        id: 'system_announcement',
+        data: payload,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
+      setActiveAnnouncement(payload);
+      setAnnouncementTitle('');
+      setAnnouncementMessage('');
+      showToast('🚀 Đã phát thông báo toàn hệ thống! Người dùng sẽ nhận được khi mở app.', 'success');
+    } catch (err: any) {
+      showToast('Lỗi phát thông báo: ' + err.message, 'error');
+    } finally {
+      setIsPublishingAnn(false);
+    }
+  };
+
+  // 8. Delete / Withdraw Announcement
+  const handleDeleteAnnouncement = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      showToast('Chưa kết nối Supabase Cloud', 'error');
+      return;
+    }
+    if (!confirm('Bạn có chắc muốn thu hồi / xóa thông báo toàn hệ thống này?')) return;
+    try {
+      await supabase.from('cloud_backups').delete().eq('id', 'system_announcement');
+      setActiveAnnouncement(null);
+      showToast('Đã thu hồi thông báo toàn hệ thống!', 'info');
+    } catch (err: any) {
+      showToast('Lỗi thu hồi thông báo: ' + err.message, 'error');
+    }
+  };
 
   // Copy SQL script
   const handleCopySql = () => {
@@ -348,36 +620,79 @@ export const AdminPage: React.FC = () => {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-black tracking-wider uppercase">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>Trung Tâm Quản Trị Hệ Thống • Admin Portal</span>
+              <span>Trung Tâm Quản Trị Hệ Thống • MoneyFlow Pro Suite</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2.5">
               <span>Bảng Điều Hành MoneyFlow</span>
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" title="Hệ thống trực tuyến" />
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Giám sát người dùng thời gian thực, quản lý cơ sở dữ liệu Supabase Cloud, cấu hình API Trí tuệ nhân tạo và kiểm tra an toàn hệ thống.
+              Giám sát người dùng thời gian thực, quản lý sao lưu CSDL Supabase, phát thông báo toàn hệ thống và xuất báo cáo phân tích.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Ping Button */}
+            <button
+              type="button"
+              onClick={handlePingSupabase}
+              disabled={isPinging}
+              className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer shadow-xs"
+              title="Đo độ trễ mạng thực tế tới Supabase"
+            >
+              <Zap className={`w-3.5 h-3.5 ${isPinging ? 'animate-bounce text-amber-400' : 'text-amber-400'}`} />
+              <span>
+                {isPinging
+                  ? 'Đang đo...'
+                  : pingResult
+                  ? `${pingResult.latency}ms`
+                  : 'Đo Ping'}
+              </span>
+            </button>
+
+            {/* Export Excel Button */}
+            <button
+              type="button"
+              onClick={handleExportSystemExcel}
+              className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer shadow-md shadow-emerald-600/25"
+              title="Xuất danh sách và thống kê toàn hệ thống ra Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="hidden sm:inline">Xuất Excel</span>
+            </button>
+
+            {/* Full JSON Backup Download */}
+            <button
+              type="button"
+              onClick={handleDownloadFullSystemBackup}
+              disabled={isDownloadingBackup}
+              className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer shadow-md shadow-indigo-600/25 disabled:opacity-50"
+              title="Tải toàn bộ snapshot CSDL Supabase về máy"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Backup JSON</span>
+            </button>
+
+            {/* Back to Personal Finance */}
             <button
               type="button"
               onClick={() => setCurrentTab('dashboard')}
-              className="flex items-center space-x-2 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-200 bg-slate-800/80 hover:bg-slate-700 hover:text-white rounded-xl border border-slate-700 transition-all cursor-pointer shadow-xs"
+              className="flex items-center space-x-2 px-4 py-2 text-xs font-bold text-slate-200 bg-slate-800/90 hover:bg-slate-700 hover:text-white rounded-xl border border-slate-700 transition-all cursor-pointer shadow-xs"
               title="Về giao diện tài chính cá nhân"
             >
               <ArrowLeft className="w-4 h-4 text-slate-400" />
-              <span>← Về Tài chính cá nhân</span>
+              <span>← Về Tài chính</span>
             </button>
 
+            {/* Refresh */}
             <button
               type="button"
               onClick={fetchCloudUsers}
               disabled={isLoadingUsers}
-              className="flex items-center space-x-2 px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 rounded-xl shadow-md shadow-amber-600/30 transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 rounded-xl shadow-md shadow-amber-600/30 transition-all cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
-              <span>{isLoadingUsers ? 'Đang truy vấn...' : 'Làm mới'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingUsers ? 'animate-spin' : ''}`} />
+              <span>{isLoadingUsers ? 'Tải...' : 'Làm mới'}</span>
             </button>
           </div>
         </div>
@@ -416,25 +731,25 @@ export const AdminPage: React.FC = () => {
               {isLoadingUsers ? '...' : totalSystemTransactions.toLocaleString('vi-VN')}
             </div>
             <p className="text-3xs text-emerald-600 dark:text-emerald-400 truncate mt-0.5">
-              Ghi nhận trên toàn hệ thống
+              Toàn hệ thống Cloud
             </p>
           </div>
         </div>
 
-        {/* Card 3: Total Accounts */}
+        {/* Card 3: Storage & Accounts */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center space-x-3.5">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-            <Wallet className="w-6 h-6" />
+            <HardDrive className="w-6 h-6" />
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-              Tổng ví & tài khoản
+              Dung lượng CSDL
             </span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              {isLoadingUsers ? '...' : totalSystemAccounts}
+              {isLoadingUsers ? '...' : `${totalSizeKb.toFixed(1)} KB`}
             </div>
             <p className="text-3xs text-blue-600 dark:text-blue-400 truncate mt-0.5">
-              Ngân hàng, ví điện tử, tiền mặt
+              {totalSystemAccounts} ví • &lt;0.05% quota
             </p>
           </div>
         </div>
@@ -449,8 +764,10 @@ export const AdminPage: React.FC = () => {
               Supabase Cloud
             </span>
             <div className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 truncate">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Hoạt động 100%</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>
+                {pingResult ? `${pingResult.latency}ms (Online)` : 'Hoạt động 100%'}
+              </span>
             </div>
             <p className="text-3xs text-slate-400 font-mono truncate mt-0.5">
               rlqic••••.supabase.co
@@ -489,7 +806,23 @@ export const AdminPage: React.FC = () => {
           }`}
         >
           <Database className="w-4 h-4" />
-          <span>☁️ CSDL & SQL Schema</span>
+          <span>☁️ CSDL & Sao Lưu Cloud</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveAdminTab('announcement')}
+          className={`flex items-center space-x-2 px-4 py-3 rounded-2xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+            activeAdminTab === 'announcement'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+          }`}
+        >
+          <Megaphone className="w-4 h-4" />
+          <span>📢 Phát Thông Báo</span>
+          {activeAnnouncement && (
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" title="Đang có thông báo hoạt động" />
+          )}
         </button>
 
         <button
@@ -520,11 +853,11 @@ export const AdminPage: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* TAB 1: USERS MONITOR */}
+      {/* TAB 1: USERS MONITOR & MANAGEMENT */}
       {/* ========================================================================= */}
       {activeAdminTab === 'users' && (
         <div className="space-y-4">
-          {/* Search & Filter Toolbar */}
+          {/* Search, Filter & Quick Action Toolbar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -644,6 +977,10 @@ export const AdminPage: React.FC = () => {
                               Thành viên
                             </span>
                           )}
+
+                          <span className="text-3xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                            {u.sizeKb.toFixed(1)} KB
+                          </span>
                         </div>
 
                         <div className="flex items-center gap-3 text-2xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap font-mono">
@@ -671,28 +1008,58 @@ export const AdminPage: React.FC = () => {
                         </span>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setSelectedUserDetail(u)}
-                        className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer shrink-0"
-                      >
-                        Chi tiết
-                      </button>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedUserDetail(u)}
+                          className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
+                        >
+                          Chi tiết
+                        </button>
+
+                        {!u.isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUserBackup(u)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
+                            title="Xóa bản sao lưu người này khỏi Cloud"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
           )}
+
+          {/* Bottom Maintenance Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-100 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs gap-3">
+            <span className="text-slate-600 dark:text-slate-400">
+              Tổng cộng <strong>{cloudUsers.length}</strong> tài khoản đang sử dụng bộ nhớ đám mây (<strong>{totalSizeKb.toFixed(1)} KB</strong>).
+            </span>
+
+            <button
+              type="button"
+              onClick={handleCleanGuestBackups}
+              disabled={isCleaningGuests}
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 rounded-xl border border-rose-200 dark:border-rose-900 transition-all cursor-pointer self-start sm:self-auto disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{isCleaningGuests ? 'Đang dọn...' : 'Dọn dẹp bản ghi khách thử nghiệm'}</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: DATABASE & SQL SCHEMA */}
+      {/* TAB 2: DATABASE, STORAGE & SQL SCHEMA */}
       {/* ========================================================================= */}
       {activeAdminTab === 'database' && (
         <div className="space-y-6">
-          {/* Card: Connection Status & Quick Controls */}
+          {/* Card: Connection Status & Storage Overview */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
               <div className="flex items-center space-x-3">
@@ -709,10 +1076,44 @@ export const AdminPage: React.FC = () => {
                 </div>
               </div>
 
-              <span className="px-3 py-1 text-2xs font-bold rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 w-fit">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Trực Tuyến (Online 100%)</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePingSupabase}
+                  disabled={isPinging}
+                  className="px-3 py-1 text-2xs font-bold rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Zap className="w-3 h-3 text-amber-500" />
+                  <span>{isPinging ? 'Đo...' : pingResult ? `${pingResult.latency} ms` : 'Đo Ping'}</span>
+                </button>
+
+                <span className="px-3 py-1 text-2xs font-bold rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 w-fit">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Online 100%</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Storage Quota Bar */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                  <HardDrive className="w-4 h-4 text-blue-600" />
+                  <span>Dung lượng CSDL đang sử dụng:</span>
+                </span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                  {totalSizeKb.toFixed(2)} KB / 500,000 KB (500 MB Free Tier)
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full"
+                  style={{ width: `${Math.max(1, (totalSizeKb / 500000) * 100)}%` }}
+                />
+              </div>
+              <p className="text-3xs text-slate-400">
+                Chỉ mới sử dụng <strong>{((totalSizeKb / 500000) * 100).toFixed(3)}%</strong> hạn mức gói Cloud miễn phí của Supabase.
+              </p>
             </div>
 
             {/* Connection Details */}
@@ -909,7 +1310,154 @@ export const AdminPage: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: AI GEMINI SERVICE */}
+      {/* TAB 3: SYSTEM BROADCAST ANNOUNCEMENT */}
+      {/* ========================================================================= */}
+      {activeAdminTab === 'announcement' && (
+        <div className="space-y-6">
+          {/* Active Announcement Status */}
+          {activeAnnouncement ? (
+            <div
+              className={`p-5 rounded-3xl border shadow-sm space-y-3 ${
+                activeAnnouncement.type === 'warning'
+                  ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                  : activeAnnouncement.type === 'success'
+                  ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                  : 'bg-indigo-50/80 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200'
+              }`}
+            >
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center space-x-2">
+                  <Radio className="w-4 h-4 text-emerald-500 animate-pulse" />
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    Đang phát trên toàn hệ thống
+                  </span>
+                  <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-white/70 dark:bg-slate-800">
+                    Loại: {activeAnnouncement.type}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-2 text-3xs opacity-80">
+                  <Clock className="w-3 h-3" />
+                  <span>{new Date(activeAnnouncement.createdAt).toLocaleString('vi-VN')}</span>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAnnouncement}
+                    className="px-2.5 py-1 text-2xs font-bold text-rose-600 bg-white dark:bg-slate-900 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors cursor-pointer ml-2"
+                  >
+                    Thu hồi thông báo
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-bold">{activeAnnouncement.title}</h3>
+                <p className="text-xs leading-relaxed opacity-90">{activeAnnouncement.message}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 text-xs text-slate-500 flex items-center space-x-2">
+              <Megaphone className="w-4 h-4 text-slate-400" />
+              <span>Hiện tại chưa có thông báo phát thanh nào hoạt động trên hệ thống.</span>
+            </div>
+          )}
+
+          {/* Form Create Announcement */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="flex items-center space-x-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Send className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                  Phát Thông Báo Toàn Hệ Thống
+                </h3>
+                <p className="text-2xs text-slate-400">
+                  Gửi thông báo tới chuông thông báo của tất cả người dùng khi họ mở ứng dụng
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePublishAnnouncement} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                  Tiêu đề thông báo
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: 🎉 Chào mừng phiên bản MoneyFlow v2.5!"
+                  value={announcementTitle}
+                  onChange={(e) => setAnnouncementTitle(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-800 dark:text-slate-200 font-medium"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                  Nội dung thông báo
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Nhập nội dung thông điệp muốn nhắn gửi tới người dùng..."
+                  value={announcementMessage}
+                  onChange={(e) => setAnnouncementMessage(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-800 dark:text-slate-200 leading-relaxed font-sans"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xs font-bold text-slate-500 uppercase">Mức độ:</span>
+                  <button
+                    type="button"
+                    onClick={() => setAnnouncementType('info')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                      announcementType === 'info'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Thông tin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnnouncementType('success')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                      announcementType === 'success'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Cập nhật mới
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnnouncementType('warning')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                      announcementType === 'warning'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Bảo trì / Chú ý
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isPublishingAnn}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center space-x-2 disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{isPublishingAnn ? 'Đang phát...' : 'Phát thông báo ngay'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: AI GEMINI SERVICE */}
       {/* ========================================================================= */}
       {activeAdminTab === 'ai' && (
         <div className="space-y-6">
@@ -1042,7 +1590,7 @@ export const AdminPage: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 4: SYSTEM HEALTH & SECURITY */}
+      {/* TAB 5: SYSTEM HEALTH & SECURITY */}
       {/* ========================================================================= */}
       {activeAdminTab === 'security' && (
         <div className="space-y-6">
@@ -1218,13 +1766,25 @@ export const AdminPage: React.FC = () => {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedUserDetail(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-1">
+                {!selectedUserDetail.isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUserBackup(selectedUserDetail)}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                    title="Xóa bản sao lưu người này"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedUserDetail(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Quick Metrics */}
@@ -1242,9 +1802,9 @@ export const AdminPage: React.FC = () => {
                 </span>
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
-                <span className="text-3xs uppercase font-bold text-slate-400 block">Ngân sách</span>
+                <span className="text-3xs uppercase font-bold text-slate-400 block">Dung lượng</span>
                 <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                  {selectedUserDetail.budgetCount}
+                  {selectedUserDetail.sizeKb.toFixed(1)} KB
                 </span>
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">

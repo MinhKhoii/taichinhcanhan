@@ -718,6 +718,30 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const syncTime = localStorage.getItem('moneyflow_last_cloud_sync_at') || new Date().toISOString();
           setLastCloudSyncTime(syncTime);
         }
+
+        // Tự động kiểm tra Thông báo toàn hệ thống từ Quản trị viên (nếu có)
+        try {
+          if (supabase) {
+            const { data: annRow } = await supabase
+              .from('cloud_backups')
+              .select('data, updated_at')
+              .eq('id', 'system_announcement')
+              .maybeSingle();
+
+            if (annRow && annRow.data?.title) {
+              const lastSeen = localStorage.getItem('moneyflow_last_seen_announcement');
+              if (!lastSeen || new Date(annRow.updated_at) > new Date(lastSeen)) {
+                dataService.addNotification(
+                  annRow.data.title,
+                  annRow.data.message || '',
+                  annRow.data.type || 'info'
+                );
+                localStorage.setItem('moneyflow_last_seen_announcement', annRow.updated_at);
+                if (isMounted) syncState();
+              }
+            }
+          }
+        } catch {}
       } catch (err) {
         console.warn('Initial cloud sync notice:', err);
       } finally {
