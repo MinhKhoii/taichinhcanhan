@@ -565,7 +565,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                         setShowUserMenu(false);
                         setCurrentTab('admin');
                       }}
-                      className="w-full px-3 py-2 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-xl flex items-center space-x-2 transition-colors cursor-pointer border border-amber-200/80 mb-1"
+                      className="w-full px-3 py-2 text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded-xl flex items-center space-x-2 transition-colors cursor-pointer border border-amber-200/80 dark:border-amber-900/60 mb-1"
                     >
                       <ShieldCheck className="w-4 h-4 text-amber-600" />
                       <div className="flex items-center justify-between w-full">
