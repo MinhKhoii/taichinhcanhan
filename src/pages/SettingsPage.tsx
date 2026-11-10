@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFinancial } from '../context/FinancialContext';
 import { Category, RecurringItem } from '../types';
 import {
@@ -36,6 +36,9 @@ import {
   ExternalLink,
   Wallet,
   Smartphone,
+  Users,
+  Clock,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { DynamicIcon } from '../components/common/DynamicIcon';
@@ -44,6 +47,7 @@ import { RecurringModal } from '../components/modals/RecurringModal';
 import { formatVND, getLocalDateString } from '../utils/formatters';
 import { exportComprehensiveReportToExcel } from '../utils/exportData';
 import schemaSql from '../../supabase/schema.sql?raw';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { ConfirmClearDataModal } from '../components/modals/ConfirmClearDataModal';
 import { ConfirmResetDataModal } from '../components/modals/ConfirmResetDataModal';
 import { ChangePasswordModal } from '../components/modals/ChangePasswordModal';
@@ -132,6 +136,71 @@ export const SettingsPage: React.FC = () => {
   const [geminiKeyInput, setGeminiKeyInput] = useState(aiService.getApiKey());
   const [hasGeminiKey, setHasGeminiKey] = useState(aiService.hasApiKey());
   const [isTestingGemini, setIsTestingGemini] = useState(false);
+
+  // Admin Cloud Users Monitor State
+  interface CloudUserInfo {
+    id: string;
+    email: string;
+    fullName: string;
+    createdAt: string;
+    lastActive: string;
+    txCount: number;
+    accCount: number;
+    isAdmin: boolean;
+  }
+  const [cloudUsers, setCloudUsers] = useState<CloudUserInfo[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [userLoadError, setUserLoadError] = useState<string | null>(null);
+
+  const fetchCloudUsers = async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    setIsLoadingUsers(true);
+    setUserLoadError(null);
+    try {
+      const { data: rows, error } = await supabase
+        .from('cloud_backups')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        setUserLoadError(error.message);
+        return;
+      }
+
+      if (rows) {
+        const parsed: CloudUserInfo[] = rows
+          .filter((r) => r.id !== 'moneyflow_cloud_state')
+          .map((r) => {
+            const u = r.data?.user || {};
+            const txCount = r.data?.transactions?.length || 0;
+            const accCount = r.data?.accounts?.length || 0;
+            const email = u.email || (r.id.startsWith('backup_') ? r.id.replace('backup_', '').replace(/_/g, '.') : 'Không có email');
+            const isAdm = email.toLowerCase().includes('minhkhoj') || u.role === 'admin';
+            return {
+              id: r.id,
+              email,
+              fullName: u.fullName || (isAdm ? 'Khôi' : 'Người dùng'),
+              createdAt: u.createdAt || r.updated_at,
+              lastActive: r.updated_at,
+              txCount,
+              accCount,
+              isAdmin: isAdm,
+            };
+          });
+        setCloudUsers(parsed);
+      }
+    } catch (err: any) {
+      setUserLoadError(err.message || 'Lỗi tải danh sách người dùng');
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'cloud' && isCloudConfigured) {
+      fetchCloudUsers();
+    }
+  }, [isAdmin, activeTab, isCloudConfigured]);
 
   const handleSaveGeminiKey = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1689,6 +1758,144 @@ export const SettingsPage: React.FC = () => {
             </div>
           )}
           </div>
+
+          {/* Card: Giám sát Người Dùng & Hoạt Động (Dành riêng cho Admin) */}
+          {isAdmin && isCloudConfigured && (
+            <div className="col-span-1 lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                        Giám sát Người dùng & Hoạt động Hệ thống
+                      </h3>
+                      <span className="text-3xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300">
+                        👑 Dành riêng Admin
+                      </span>
+                    </div>
+                    <p className="text-2xs text-slate-400">
+                      Kiểm tra ai đã tạo tài khoản, đang sử dụng và đồng bộ dữ liệu trên Supabase Cloud
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isLoadingUsers}
+                  onClick={fetchCloudUsers}
+                  className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer self-start sm:self-auto shrink-0 shadow-2xs active:scale-95"
+                  title="Làm mới danh sách người dùng từ Cloud"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingUsers ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                  <span>{isLoadingUsers ? 'Đang kiểm tra...' : 'Làm mới danh sách'}</span>
+                </button>
+              </div>
+
+              {/* Thống kê nhanh */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/40">
+                  <span className="text-3xs font-bold text-indigo-600 uppercase tracking-wider block">Người dùng đã đăng ký</span>
+                  <span className="text-xl font-black text-indigo-950 dark:text-indigo-200 mt-0.5 block">{cloudUsers.length} tài khoản</span>
+                </div>
+                <div className="p-3.5 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-900/40">
+                  <span className="text-3xs font-bold text-emerald-600 uppercase tracking-wider block">Tổng số giao dịch</span>
+                  <span className="text-xl font-black text-emerald-950 dark:text-emerald-200 mt-0.5 block">
+                    {cloudUsers.reduce((sum, u) => sum + u.txCount, 0)} giao dịch
+                  </span>
+                </div>
+                <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/40 col-span-2 sm:col-span-1">
+                  <span className="text-3xs font-bold text-blue-600 uppercase tracking-wider block">Tổng số ví tài khoản</span>
+                  <span className="text-xl font-black text-blue-950 dark:text-blue-200 mt-0.5 block">
+                    {cloudUsers.reduce((sum, u) => sum + u.accCount, 0)} ví
+                  </span>
+                </div>
+              </div>
+
+              {userLoadError && (
+                <div className="p-3 bg-rose-50 text-rose-700 text-xs rounded-xl border border-rose-200">
+                  {userLoadError}
+                </div>
+              )}
+
+              {/* Danh sách người dùng */}
+              <div className="space-y-2.5">
+                {isLoadingUsers && cloudUsers.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    <RefreshCw className="w-5 h-5 mx-auto animate-spin text-blue-500 mb-2" />
+                    <span>Đang truy vấn danh sách người dùng từ Supabase Cloud...</span>
+                  </div>
+                ) : cloudUsers.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    Chưa có người dùng nào khác được ghi nhận trên Cloud.
+                  </div>
+                ) : (
+                  cloudUsers.map((u) => (
+                    <div
+                      key={u.id}
+                      className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        u.isAdmin
+                          ? 'bg-amber-50/30 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/50'
+                          : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/60 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-2xs shrink-0 ${
+                            u.isAdmin
+                              ? 'bg-gradient-to-tr from-amber-500 to-orange-500 shadow-amber-500/20'
+                              : 'bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-blue-500/20'
+                          }`}
+                        >
+                          {u.fullName?.slice(0, 2).toUpperCase() || 'US'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
+                              {u.fullName}
+                            </h4>
+                            {u.isAdmin ? (
+                              <span className="text-3xs font-black px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300">
+                                👑 Quản trị viên
+                              </span>
+                            ) : (
+                              <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                Thành viên
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-2xs text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
+                            {u.email}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-4 text-2xs text-slate-600 dark:text-slate-300 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-slate-200/60 shrink-0">
+                        <div className="text-left sm:text-right">
+                          <div className="flex items-center sm:justify-end gap-1.5 font-bold text-slate-700 dark:text-slate-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
+                              <Wallet className="w-3 h-3 text-blue-600" />
+                              <span>{u.accCount} ví</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
+                              <ArrowLeftRight className="w-3 h-3 text-emerald-600" />
+                              <span>{u.txCount} giao dịch</span>
+                            </span>
+                          </div>
+                          <div className="text-3xs text-slate-400 flex items-center sm:justify-end gap-1 mt-1">
+                            <Clock className="w-2.5 h-2.5 text-slate-400" />
+                            <span>Lần cuối: {new Date(u.lastActive).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
