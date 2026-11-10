@@ -20,7 +20,11 @@ import { DebtsPage } from './pages/DebtsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { JournalPage } from './pages/JournalPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { AdminPage } from './pages/AdminPage';
+
+// Lazy-load AdminPage so regular users and normal finance usage do NOT load admin code or SQL schemas
+const AdminPage = React.lazy(() =>
+  import('./pages/AdminPage').then((m) => ({ default: m.AdminPage }))
+);
 
 const AppContent: React.FC = () => {
   const {
@@ -76,7 +80,18 @@ const AppContent: React.FC = () => {
       case 'settings':
         return <SettingsPage />;
       case 'admin':
-        return <AdminPage />;
+        return (
+          <React.Suspense
+            fallback={
+              <div className="py-20 text-center space-y-3">
+                <div className="w-8 h-8 mx-auto border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-slate-400 font-medium">Đang mở Bảng điều hành Quản trị viên...</p>
+              </div>
+            }
+          >
+            <AdminPage />
+          </React.Suspense>
+        );
       default:
         return <Dashboard />;
     }
