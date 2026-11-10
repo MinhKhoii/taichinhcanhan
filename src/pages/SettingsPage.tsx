@@ -77,7 +77,6 @@ export const SettingsPage: React.FC = () => {
     setTheme,
     session,
     isAdmin,
-    setCurrentTab,
     openAuthModal,
     logout,
     setPinCode,
@@ -275,30 +274,6 @@ export const SettingsPage: React.FC = () => {
           Tùy chỉnh thông tin tài khoản, bảo mật mã PIN, danh mục thu chi, giao diện và sao lưu dữ liệu
         </p>
       </div>
-
-      {/* Admin Notice Banner */}
-      {isAdmin && (
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-300 dark:border-amber-800/80 flex items-center justify-between gap-3 text-xs shadow-2xs">
-          <div className="flex items-center space-x-2.5 min-w-0">
-            <span className="text-lg">👑</span>
-            <div className="min-w-0">
-              <span className="font-bold text-amber-900 dark:text-amber-200">
-                Tài khoản Quản trị viên (Khôi)
-              </span>
-              <span className="text-slate-500 dark:text-slate-400 hidden sm:inline ml-2">
-                — Toàn bộ công cụ quản lý máy chủ Supabase & giám sát người dùng đã có tại Bảng điều hành Admin.
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCurrentTab('admin')}
-            className="text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 px-3.5 py-1.5 rounded-xl shadow-xs transition-all shrink-0 cursor-pointer flex items-center space-x-1"
-          >
-            <span>Trang Admin →</span>
-          </button>
-        </div>
-      )}
 
       {/* Modern Navigation Tabs - Zero Layout Jump */}
       <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-x-auto scrollbar-none">
@@ -1652,38 +1627,6 @@ export const SettingsPage: React.FC = () => {
             </div>
           )}
           </div>
-
-          {/* Card Quản Trị Viên (Dành riêng cho Admin Khôi) */}
-          {isAdmin && (
-            <div className="col-span-1 lg:col-span-2 p-5 sm:p-6 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300 dark:border-amber-800 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
-              <div className="flex items-center space-x-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center font-black text-xl shadow-md shadow-amber-500/25 shrink-0">
-                  👑
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                      Bảng Điều Hành & Quản Trị Hệ Thống
-                    </h4>
-                    <span className="text-3xs font-black px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300">
-                      ADMIN ONLY
-                    </span>
-                  </div>
-                  <p className="text-2xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
-                    Công cụ Giám sát người dùng thời gian thực, Quản lý CSDL Supabase, Trình xem mã nguồn SQL và Cấu hình Trí tuệ nhân tạo Gemini đã được chuyển sang <strong>Trang Quản Trị Hệ Thống</strong> riêng biệt để giữ giao diện tài chính cá nhân luôn gọn gàng và mượt mà.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setCurrentTab('admin')}
-                className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 rounded-xl shadow-md shadow-amber-600/30 transition-all cursor-pointer shrink-0 self-start sm:self-auto flex items-center space-x-1.5"
-              >
-                <span>Mở Trang Quản Trị Admin →</span>
-              </button>
-            </div>
-          )}
         </div>
       )}
 
