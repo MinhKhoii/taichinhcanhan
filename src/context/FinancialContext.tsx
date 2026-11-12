@@ -776,6 +776,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const now = Date.now();
       if (document.visibilityState === 'visible' && now - lastCheck > 4000) {
         lastCheck = now;
+        dataService.processRecurringTransactions();
+        dataService.processDailyYield();
         performAutoPull(true);
       }
     };

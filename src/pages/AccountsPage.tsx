@@ -23,6 +23,11 @@ import {
   ShieldCheck,
   Sparkles,
   Cloud,
+  HelpCircle,
+  X,
+  Info,
+  Calendar,
+  ArrowUpRight,
 } from 'lucide-react';
 import { formatVND, formatDateVN, getLocalDateString } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
@@ -55,6 +60,58 @@ export const AccountsPage: React.FC = () => {
   const [transferFromId, setTransferFromId] = useState<string>('');
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '');
+  const [viewingYieldAccount, setViewingYieldAccount] = useState<Account | null>(null);
+
+  // Compute yield details for the modal
+  const yieldDetails = useMemo(() => {
+    if (!viewingYieldAccount) return null;
+    const acc = viewingYieldAccount;
+    const rate = acc.yieldRate || 4.0;
+    const balance = Math.max(0, acc.balance);
+
+    // Tiền lãi chính xác hàng ngày (chưa làm tròn)
+    const exactDailyYield = (balance * (rate / 100)) / 365;
+    const roundedDailyYield = Math.round(exactDailyYield);
+
+    // Lãi kép sinh ra từ khoản tiền lãi 1 ngày (lãi trên lãi)
+    const interestOnInterest = (roundedDailyYield * (rate / 100)) / 365;
+
+    // Số tiền gốc cần tăng thêm để tiền lãi ngày tăng thêm 1 đồng
+    const nextDailyYield = roundedDailyYield + 1;
+    const neededThreshold = nextDailyYield - 0.5; // Điểm bắt đầu làm tròn lên nextDailyYield
+    const balanceNeededForNextDong = Math.max(0, (neededThreshold * 365) / (rate / 100) - balance);
+    const daysNeededForNextDong = roundedDailyYield > 0 ? Math.ceil(balanceNeededForNextDong / roundedDailyYield) : 0;
+
+    // Lọc các giao dịch sinh lời của ví này
+    const yieldTransactions = transactions
+      .filter(
+        (t) =>
+          t.accountId === acc.id &&
+          t.type === 'income' &&
+          (t.note?.includes('[Tự động sinh lời]') || t.note?.includes('Sinh lời') || t.note?.includes('Túi Thần Tài'))
+      )
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+    const totalYieldEarned = yieldTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const initialBase =
+      acc.initialBalance !== undefined && acc.initialBalance !== null
+        ? acc.initialBalance
+        : Math.max(0, balance - totalYieldEarned);
+
+    return {
+      acc,
+      rate,
+      balance,
+      initialBase,
+      exactDailyYield,
+      roundedDailyYield,
+      interestOnInterest,
+      balanceNeededForNextDong,
+      daysNeededForNextDong,
+      yieldTransactions,
+      totalYieldEarned,
+    };
+  }, [viewingYieldAccount, transactions]);
 
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
@@ -466,37 +523,52 @@ export const AccountsPage: React.FC = () => {
                             </span>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const today = getLocalDateString();
-                              if (acc.lastYieldDate === today) {
-                                if (confirm(`Ví "${acc.name}" hôm nay đã được chốt số dư và sẽ bắt đầu nhận tiền lời vào ngày mai.\n\nBạn có muốn cộng thử ngay tiền lời hôm nay không?`)) {
-                                  forceCalculateYield(acc.id, true);
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingYieldAccount(acc);
+                              }}
+                              className="px-2 py-1 text-3xs font-bold text-pink-700 bg-white hover:bg-pink-100 rounded-lg border border-pink-200 shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Xem phân tích chi tiết cách tính lãi & cơ chế lãi kép"
+                            >
+                              <HelpCircle className="w-3 h-3 text-pink-600" />
+                              <span>Cách tính</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const today = getLocalDateString();
+                                if (acc.lastYieldDate === today) {
+                                  if (confirm(`Ví "${acc.name}" hôm nay đã được chốt số dư và sẽ bắt đầu nhận tiền lời vào ngày mai.\n\nBạn có muốn cộng thử ngay tiền lời hôm nay không?`)) {
+                                    forceCalculateYield(acc.id, true);
+                                  }
+                                } else {
+                                  forceCalculateYield(acc.id);
                                 }
-                              } else {
-                                forceCalculateYield(acc.id);
+                              }}
+                              className={`px-2.5 py-1 text-3xs font-bold rounded-lg transition-all cursor-pointer shadow-2xs flex items-center space-x-1 shrink-0 ${
+                                acc.lastYieldDate === getLocalDateString()
+                                  ? 'bg-white text-pink-700 border border-pink-300 hover:bg-pink-100'
+                                  : 'text-white bg-pink-600 hover:bg-pink-700 active:scale-95'
+                              }`}
+                              title={
+                                acc.lastYieldDate === getLocalDateString()
+                                  ? 'Hôm nay đã chốt số dư, ngày mai hệ thống sẽ tự động cộng lãi'
+                                  : 'Bấm để tính và cộng tiền lời ngay lập tức vào ví'
                               }
-                            }}
-                            className={`px-2.5 py-1 text-3xs font-bold rounded-lg transition-all cursor-pointer shadow-2xs flex items-center space-x-1 shrink-0 ${
-                              acc.lastYieldDate === getLocalDateString()
-                                ? 'bg-white text-pink-700 border border-pink-300 hover:bg-pink-100'
-                                : 'text-white bg-pink-600 hover:bg-pink-700 active:scale-95'
-                            }`}
-                            title={
-                              acc.lastYieldDate === getLocalDateString()
-                                ? 'Hôm nay đã chốt số dư, ngày mai hệ thống sẽ tự động cộng lãi'
-                                : 'Bấm để tính và cộng tiền lời ngay lập tức vào ví'
-                            }
-                          >
-                            <Sparkles className="w-2.5 h-2.5 shrink-0" />
-                            <span className="whitespace-nowrap">
-                              {acc.lastYieldDate === getLocalDateString()
-                                ? 'Đã chốt (mai cộng)'
-                                : 'Sinh lời ngay'}
-                            </span>
-                          </button>
+                            >
+                              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                              <span className="whitespace-nowrap">
+                                {acc.lastYieldDate === getLocalDateString()
+                                  ? 'Đã chốt (mai cộng)'
+                                  : 'Sinh lời ngay'}
+                              </span>
+                            </button>
+                          </div>
                         </div>
 
                         {/* Dòng 2: Mức lãi suất & nút đổi % + Giải thích trạng thái */}
@@ -740,6 +812,180 @@ export const AccountsPage: React.FC = () => {
         onClose={() => setIsTransferModalOpen(false)}
         defaultFromAccountId={transferFromId}
       />
+
+      {/* Yield Detail & Compound Interest Modal */}
+      {viewingYieldAccount && yieldDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-500 text-white flex items-center justify-center shadow-md shadow-pink-500/25 shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>Phân Tích Sinh Lời Túi Thần Tài</span>
+                  </h3>
+                  <p className="text-2xs text-pink-600 dark:text-pink-400 font-semibold">
+                    Ví: {yieldDetails.acc.name} • Lãi suất {yieldDetails.rate}%/năm
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setViewingYieldAccount(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Overview Stats: Gốc, Lãi Đã Nhận, Số Dư Hiện Tại */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+                <span className="text-3xs uppercase font-bold text-slate-400 block">Số dư gốc</span>
+                <span className="text-xs sm:text-sm font-black text-slate-700 dark:text-slate-300 font-mono">
+                  {formatVND(yieldDetails.initialBase)}
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                <span className="text-3xs uppercase font-bold text-emerald-600 dark:text-emerald-400 block">Tổng lãi đã nhận</span>
+                <span className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                  +{formatVND(yieldDetails.totalYieldEarned)}
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-pink-50 dark:bg-pink-950/40 border border-pink-200 dark:border-pink-800">
+                <span className="text-3xs uppercase font-bold text-pink-600 dark:text-pink-400 block">Số dư hiện tại</span>
+                <span className="text-xs sm:text-sm font-black text-pink-600 dark:text-pink-400 font-mono">
+                  {formatVND(yieldDetails.balance)}
+                </span>
+              </div>
+            </div>
+
+            {/* Daily Yield Exact Formula Box */}
+            <div className="p-3.5 bg-gradient-to-br from-pink-50/90 to-purple-50/60 dark:from-pink-950/30 dark:to-purple-950/20 rounded-2xl border border-pink-200/80 dark:border-pink-900/50 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-pink-900 dark:text-pink-200 flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-pink-600" />
+                  <span>Tiền lời mỗi ngày:</span>
+                </span>
+                <span className="text-sm font-black text-pink-700 dark:text-pink-300 font-mono">
+                  +{formatVND(yieldDetails.roundedDailyYield)} / ngày
+                </span>
+              </div>
+
+              <div className="text-2xs text-slate-600 dark:text-slate-300 space-y-1 font-sans">
+                <p>
+                  • Công thức: <code>({formatVND(yieldDetails.balance)} × {yieldDetails.rate}%) ÷ 365 ngày</code>
+                </p>
+                <p>
+                  • Kết quả chính xác: <strong className="font-mono text-pink-700 dark:text-pink-300">{yieldDetails.exactDailyYield.toFixed(2)} ₫</strong> (Làm tròn chuẩn ngân hàng: <strong>{formatVND(yieldDetails.roundedDailyYield)}</strong>)
+                </p>
+              </div>
+            </div>
+
+            {/* Clear Explanation: Why interest doesn't increase by 1 dong every day */}
+            <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/50 space-y-2 text-xs text-indigo-950 dark:text-indigo-200">
+              <div className="flex items-center gap-1.5 font-bold text-indigo-900 dark:text-indigo-300">
+                <Info className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span>Vì sao số tiền lời 3 ngày qua là {formatVND(yieldDetails.roundedDailyYield)} mà chưa nhảy thêm 1 đồng?</span>
+              </div>
+              <div className="text-2xs text-slate-600 dark:text-slate-300 leading-relaxed space-y-1.5 font-sans">
+                <p>
+                  1. <strong>Cơ chế Lãi Kép:</strong> Mỗi ngày nhận được <code>+{formatVND(yieldDetails.roundedDailyYield)}</code>, khoản tiền này được cộng ngay vào số dư ví để tiếp tục sinh lời ngày tiếp theo.
+                </p>
+                <p>
+                  2. <strong>Số tiền lãi trên lãi:</strong> Khoản tiền lời {formatVND(yieldDetails.roundedDailyYield)} khi sinh lãi ngày tiếp theo chỉ tạo ra thêm: <code>{formatVND(yieldDetails.roundedDailyYield)} × {yieldDetails.rate}% ÷ 365 = +{yieldDetails.interestOnInterest.toFixed(2)} ₫/ngày</code> (khoảng {Math.round(yieldDetails.interestOnInterest * 100)} xu).
+                </p>
+                <p>
+                  3. <strong>Quy tắc làm tròn VNĐ:</strong> Vì đồng Việt Nam không có tiền xu lẻ dưới 1 đồng, hệ thống làm tròn theo quy tắc tài chính ngân hàng (<code>Math.round</code>). Do {yieldDetails.interestOnInterest.toFixed(2)} ₫ &lt; 0.5 ₫ nên tiền lãi ngày 2 và ngày 3 vẫn làm tròn thành {formatVND(yieldDetails.roundedDailyYield)}.
+                </p>
+                <p>
+                  4. <strong>Bước nhảy 1 đồng:</strong> Để tiền lời ngày tăng từ <strong>{formatVND(yieldDetails.roundedDailyYield)}</strong> lên <strong>{formatVND(yieldDetails.roundedDailyYield + 1)}</strong> (tăng thêm 1 ₫/ngày), số dư ví cần tích lũy thêm tối thiểu <strong>9.125 ₫</strong> gốc.
+                </p>
+              </div>
+
+              {/* Progress to next Dong */}
+              <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-800/60 space-y-1.5">
+                <div className="flex justify-between text-2xs font-semibold">
+                  <span>Tiến trình tăng lên +{formatVND(yieldDetails.roundedDailyYield + 1)}/ngày:</span>
+                  <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                    {yieldDetails.balanceNeededForNextDong <= 0 ? 'Đã đạt mốc!' : `Cần thêm ~${formatVND(Math.ceil(yieldDetails.balanceNeededForNextDong))}`}
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-indigo-200 dark:bg-indigo-900/60 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-pink-500 to-indigo-600 rounded-full"
+                    style={{
+                      width: `${Math.min(100, Math.max(5, ((9125 - yieldDetails.balanceNeededForNextDong) / 9125) * 100))}%`
+                    }}
+                  />
+                </div>
+                <p className="text-3xs text-slate-500 dark:text-slate-400 italic">
+                  {yieldDetails.balanceNeededForNextDong <= 0
+                    ? '🎉 Ngày mai số tiền lời sẽ chính thức nhảy lên mốc mới!'
+                    : `💡 Chỉ cần nhận lãi thêm khoảng ${yieldDetails.daysNeededForNextDong} ngày nữa (hoặc nạp thêm ${formatVND(Math.ceil(yieldDetails.balanceNeededForNextDong))}), tiền lời ngày sẽ nhảy lên ${formatVND(yieldDetails.roundedDailyYield + 1)}/ngày.`
+                  }
+                </p>
+              </div>
+            </div>
+
+            {/* Yield Transactions History */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-pink-600" />
+                  <span>Lịch sử các ngày nhận tiền lời ({yieldDetails.yieldTransactions.length} lần):</span>
+                </span>
+                <span className="text-2xs text-emerald-600 font-mono font-bold">
+                  +{formatVND(yieldDetails.totalYieldEarned)}
+                </span>
+              </div>
+
+              {yieldDetails.yieldTransactions.length === 0 ? (
+                <div className="p-3 text-center text-xs text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                  Chưa có giao dịch sinh lời nào được ghi nhận.
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {yieldDetails.yieldTransactions.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-2xs"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+                          {formatDateVN(t.date)}
+                        </span>
+                        <span className="text-slate-400 text-3xs truncate max-w-[140px] sm:max-w-none">
+                          {t.note || 'Tự động sinh lời'}
+                        </span>
+                      </div>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        +{formatVND(t.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Close button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingYieldAccount(null)}
+                className="w-full py-2.5 px-4 text-xs font-bold text-white bg-pink-600 hover:bg-pink-700 active:scale-95 rounded-xl shadow-md shadow-pink-500/20 transition-all cursor-pointer"
+              >
+                Đã hiểu cơ chế sinh lời
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

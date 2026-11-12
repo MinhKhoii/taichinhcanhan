@@ -104,6 +104,8 @@ export class DataService {
             localStorage.setItem(key, JSON.stringify(parsed));
           }
           this.db = parsed;
+          this.processRecurringTransactions();
+          this.processDailyYield();
           this.notifyListeners();
           return this.db;
         }
@@ -371,11 +373,24 @@ export class DataService {
         acc.balance = 0;
         changed = true;
       } else {
-        // Chuẩn hóa initialBalance = balance - txSum để đảm bảo cân bằng tuyệt đối
-        // Giữ nguyên 100% số dư acc.balance của người dùng, không bao giờ trừ bớt
-        const expectedInitial = acc.balance - txSum;
-        if (acc.initialBalance !== expectedInitial) {
-          acc.initialBalance = expectedInitial;
+        const yieldTxs = (db.transactions || []).filter(
+          (t) => t.accountId === acc.id && t.type === 'income' && (t.note?.includes('[Tự động sinh lời]') || t.note?.includes('Sinh lời') || t.note?.includes('Túi Thần Tài'))
+        );
+        const yieldSum = yieldTxs.reduce((sum, t) => sum + t.amount, 0);
+
+        // Trường hợp ví sinh lời: Nếu số dư ban đầu bị trừ lùi do bug cũ (khiến balance không tăng dù có giao dịch lãi):
+        if (acc.isYieldEnabled && yieldSum > 0 && acc.initialBalance !== undefined && acc.initialBalance < acc.balance) {
+          acc.initialBalance = Math.max(acc.initialBalance + yieldSum, acc.balance);
+          acc.balance = Math.round((acc.initialBalance + txSum) * 100) / 100;
+          changed = true;
+        } else if (acc.initialBalance !== undefined && acc.initialBalance !== null) {
+          const expectedBalance = Math.round((acc.initialBalance + txSum) * 100) / 100;
+          if (acc.balance !== expectedBalance && expectedBalance >= 0) {
+            acc.balance = expectedBalance;
+            changed = true;
+          }
+        } else {
+          acc.initialBalance = Math.max(0, acc.balance - txSum);
           changed = true;
         }
       }
@@ -615,16 +630,13 @@ export class DataService {
     for (const acc of this.db.accounts) {
       const txSum = this.getAccountNetTransactions(acc.id);
 
-      // Nếu số dư tài khoản hợp lệ, chuẩn hóa initialBalance để số dư luôn giữ nguyên vẹn
-      if (acc.balance >= 0) {
-        if (acc.initialBalance === undefined || acc.initialBalance === null || (acc.initialBalance + txSum) !== acc.balance) {
-          acc.initialBalance = acc.balance - txSum;
-        }
-      } else {
-        // Nếu số dư bị âm (chi vượt quá số tiền có)
-        acc.initialBalance = Math.max(0, Math.abs(txSum));
-        acc.balance = 0;
+      if (acc.initialBalance === undefined || acc.initialBalance === null) {
+        acc.initialBalance = Math.max(0, acc.balance - txSum);
       }
+
+      // Số dư tài khoản = Số dư ban đầu + Tổng dòng tiền giao dịch
+      const expectedBalance = Math.round((acc.initialBalance + txSum) * 100) / 100;
+      acc.balance = expectedBalance;
     }
     if (save) {
       this.saveState();
@@ -1311,32 +1323,40 @@ export class DataService {
               // 2. Hoặc tài khoản Cloud có updatedAt mới hơn local
               // 3. Hoặc Cloud có bật sinh lời MoMo (isYieldEnabled) mà local chưa có
               // 4. Hoặc Cloud có ngày sinh lời gần nhất (lastYieldDate) mới hơn local
+              const isCloudYieldNewer = Boolean(cloudAcc.lastYieldDate && (!localAcc.lastYieldDate || cloudAcc.lastYieldDate > localAcc.lastYieldDate));
+              const isLocalYieldNewer = Boolean(localAcc.lastYieldDate && (!cloudAcc.lastYieldDate || localAcc.lastYieldDate > cloudAcc.lastYieldDate));
+
               const preferCloud =
-                isCloudNewerThanLastSync ||
-                isCloudNewerThanLocal ||
-                cloudAccTime > localAccTime ||
-                (cloudAcc.isYieldEnabled && !localAcc.isYieldEnabled) ||
-                Boolean(cloudAcc.lastYieldDate && (!localAcc.lastYieldDate || cloudAcc.lastYieldDate >= localAcc.lastYieldDate));
+                !isLocalYieldNewer &&
+                (isCloudNewerThanLastSync ||
+                  isCloudNewerThanLocal ||
+                  cloudAccTime > localAccTime ||
+                  (cloudAcc.isYieldEnabled && !localAcc.isYieldEnabled) ||
+                  isCloudYieldNewer);
+
+              const targetLastYieldDate = (localAcc.lastYieldDate && (!cloudAcc.lastYieldDate || localAcc.lastYieldDate >= cloudAcc.lastYieldDate))
+                ? localAcc.lastYieldDate
+                : (cloudAcc.lastYieldDate || localAcc.lastYieldDate);
 
               if (preferCloud) {
                 return {
                   ...localAcc,
                   ...cloudAcc,
-                  balance: cloudAcc.balance,
+                  balance: Math.max(cloudAcc.balance, isLocalYieldNewer ? localAcc.balance : cloudAcc.balance),
                   initialBalance: cloudAcc.initialBalance !== undefined ? cloudAcc.initialBalance : localAcc.initialBalance,
                   isYieldEnabled: cloudAcc.isYieldEnabled !== undefined ? cloudAcc.isYieldEnabled : localAcc.isYieldEnabled,
                   yieldRate: cloudAcc.yieldRate ?? localAcc.yieldRate,
-                  lastYieldDate: cloudAcc.lastYieldDate || localAcc.lastYieldDate,
+                  lastYieldDate: targetLastYieldDate,
                 };
               } else {
                 return {
                   ...cloudAcc,
                   ...localAcc,
-                  balance: localAcc.balance,
+                  balance: Math.max(localAcc.balance, cloudAcc.balance),
                   initialBalance: localAcc.initialBalance !== undefined ? localAcc.initialBalance : cloudAcc.initialBalance,
                   isYieldEnabled: localAcc.isYieldEnabled !== undefined ? localAcc.isYieldEnabled : cloudAcc.isYieldEnabled,
                   yieldRate: localAcc.yieldRate ?? cloudAcc.yieldRate,
-                  lastYieldDate: localAcc.lastYieldDate || cloudAcc.lastYieldDate,
+                  lastYieldDate: targetLastYieldDate,
                 };
               }
             })
@@ -2099,8 +2119,10 @@ export class DataService {
     });
 
     if (processedCount > 0) {
+      this.recalculateAccountBalances(false);
       this.saveState();
       this.notifyListeners();
+      this.triggerAutoCloudSync();
     }
 
     return processedCount;
@@ -2156,8 +2178,10 @@ export class DataService {
 
     acc.lastYieldDate = todayStr;
     acc.updatedAt = new Date().toISOString();
+    this.recalculateAccountBalances(false);
     this.saveState();
     this.notifyListeners();
+    this.triggerAutoCloudSync();
 
     return {
       success: true,
