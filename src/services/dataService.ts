@@ -233,13 +233,32 @@ export class DataService {
     let changed = false;
     const todayStr = getLocalDateString();
 
-    // 1. Kiểm tra và loại bỏ các giao dịch cấn trừ tự động bị kích hoạt lỗi trước đây (nếu có)
-    const hasNegativeAcc = db.accounts.some((a) => a.balance < 0);
-    if (hasNegativeAcc && db.transactions) {
+    // 1. Kiểm tra và loại bỏ triệt để các giao dịch cấn trừ tự động bị kích hoạt lỗi trước đây (nếu có)
+    if (db.transactions && db.transactions.length > 0) {
       const originalTxCount = db.transactions.length;
-      db.transactions = db.transactions.filter((t) => !t.note?.includes('⚡ Bù trừ số dư âm'));
+      const removedOffsetIds: string[] = [];
+      db.transactions = db.transactions.filter((t) => {
+        if (t.note?.includes('⚡ Bù trừ số dư âm')) {
+          removedOffsetIds.push(t.id);
+          return false;
+        }
+        return true;
+      });
       if (db.transactions.length !== originalTxCount) {
         changed = true;
+        if (!db.deletedTransactionIds) db.deletedTransactionIds = [];
+        for (const id of removedOffsetIds) {
+          if (!db.deletedTransactionIds.includes(id)) {
+            db.deletedTransactionIds.push(id);
+          }
+        }
+        try {
+          const storedDeleted = JSON.parse(localStorage.getItem('moneyflow_deleted_tx_ids') || '[]');
+          for (const id of removedOffsetIds) {
+            if (!storedDeleted.includes(id)) storedDeleted.push(id);
+          }
+          localStorage.setItem('moneyflow_deleted_tx_ids', JSON.stringify(storedDeleted.slice(-500)));
+        } catch {}
       }
     }
 
@@ -367,32 +386,17 @@ export class DataService {
         }
       }
 
-      // Nếu số dư bị âm do lỗi logic cũ: Phục hồi để không bị âm
-      if (acc.balance < 0) {
-        acc.initialBalance = Math.max(0, Math.abs(txSum));
-        acc.balance = 0;
+      // Đảm bảo số dư ban đầu (initialBalance) luôn hợp lệ
+      if (acc.initialBalance === undefined || acc.initialBalance === null || isNaN(acc.initialBalance)) {
+        acc.initialBalance = Math.max(0, acc.balance - txSum);
         changed = true;
-      } else {
-        const yieldTxs = (db.transactions || []).filter(
-          (t) => t.accountId === acc.id && t.type === 'income' && (t.note?.includes('[Tự động sinh lời]') || t.note?.includes('Sinh lời') || t.note?.includes('Túi Thần Tài'))
-        );
-        const yieldSum = yieldTxs.reduce((sum, t) => sum + t.amount, 0);
+      }
 
-        // Trường hợp ví sinh lời: Nếu số dư ban đầu bị trừ lùi do bug cũ (khiến balance không tăng dù có giao dịch lãi):
-        if (acc.isYieldEnabled && yieldSum > 0 && acc.initialBalance !== undefined && acc.initialBalance < acc.balance) {
-          acc.initialBalance = Math.max(acc.initialBalance + yieldSum, acc.balance);
-          acc.balance = Math.round((acc.initialBalance + txSum) * 100) / 100;
-          changed = true;
-        } else if (acc.initialBalance !== undefined && acc.initialBalance !== null) {
-          const expectedBalance = Math.round((acc.initialBalance + txSum) * 100) / 100;
-          if (acc.balance !== expectedBalance && expectedBalance >= 0) {
-            acc.balance = expectedBalance;
-            changed = true;
-          }
-        } else {
-          acc.initialBalance = Math.max(0, acc.balance - txSum);
-          changed = true;
-        }
+      // Số dư tài khoản luôn bằng Số dư ban đầu + Tổng dòng tiền giao dịch thực tế
+      const expectedBalance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
+      if (acc.balance !== expectedBalance) {
+        acc.balance = expectedBalance;
+        changed = true;
       }
     }
 
@@ -608,6 +612,7 @@ export class DataService {
       updatedAt: new Date().toISOString(),
     };
     this.saveState();
+    this.triggerAutoCloudSync();
     return this.db.accounts[index];
   }
 
@@ -630,12 +635,12 @@ export class DataService {
     for (const acc of this.db.accounts) {
       const txSum = this.getAccountNetTransactions(acc.id);
 
-      if (acc.initialBalance === undefined || acc.initialBalance === null) {
+      if (acc.initialBalance === undefined || acc.initialBalance === null || isNaN(acc.initialBalance)) {
         acc.initialBalance = Math.max(0, acc.balance - txSum);
       }
 
       // Số dư tài khoản = Số dư ban đầu + Tổng dòng tiền giao dịch
-      const expectedBalance = Math.round((acc.initialBalance + txSum) * 100) / 100;
+      const expectedBalance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
       acc.balance = expectedBalance;
     }
     if (save) {
@@ -789,14 +794,6 @@ export class DataService {
 
     this.db.transactions.unshift(newTx);
     this.saveState();
-
-    // Tự động cấn trừ từ tài khoản có tiền nếu ví này bị âm sau giao dịch
-    if (this.db.user.autoOffsetNegative !== false && newTx.type !== 'transfer') {
-      const changedAcc = this.db.accounts.find((a) => a.id === newTx.accountId);
-      if (changedAcc && changedAcc.balance < 0) {
-        this.autoOffsetNegativeAccount(changedAcc.id);
-      }
-    }
 
     return newTx;
   }
@@ -1318,47 +1315,25 @@ export class DataService {
               const localAccTime = localAcc.updatedAt ? new Date(localAcc.updatedAt).getTime() : 0;
               const cloudAccTime = cloudAcc.updatedAt ? new Date(cloudAcc.updatedAt).getTime() : 0;
 
-              // Ưu tiên bản Cloud nếu:
-              // 1. Cloud có bản backup mới hơn lần sync trước của máy này (điện thoại vừa thao tác)
-              // 2. Hoặc tài khoản Cloud có updatedAt mới hơn local
-              // 3. Hoặc Cloud có bật sinh lời MoMo (isYieldEnabled) mà local chưa có
-              // 4. Hoặc Cloud có ngày sinh lời gần nhất (lastYieldDate) mới hơn local
-              const isCloudYieldNewer = Boolean(cloudAcc.lastYieldDate && (!localAcc.lastYieldDate || cloudAcc.lastYieldDate > localAcc.lastYieldDate));
-              const isLocalYieldNewer = Boolean(localAcc.lastYieldDate && (!cloudAcc.lastYieldDate || localAcc.lastYieldDate > cloudAcc.lastYieldDate));
-
-              const preferCloud =
-                !isLocalYieldNewer &&
-                (isCloudNewerThanLastSync ||
-                  isCloudNewerThanLocal ||
-                  cloudAccTime > localAccTime ||
-                  (cloudAcc.isYieldEnabled && !localAcc.isYieldEnabled) ||
-                  isCloudYieldNewer);
+              // So sánh thời gian cập nhật của tài khoản giữa 2 thiết bị
+              const preferCloud = cloudAccTime > localAccTime;
+              const base = preferCloud ? { ...localAcc, ...cloudAcc } : { ...cloudAcc, ...localAcc };
 
               const targetLastYieldDate = (localAcc.lastYieldDate && (!cloudAcc.lastYieldDate || localAcc.lastYieldDate >= cloudAcc.lastYieldDate))
                 ? localAcc.lastYieldDate
                 : (cloudAcc.lastYieldDate || localAcc.lastYieldDate);
 
-              if (preferCloud) {
-                return {
-                  ...localAcc,
-                  ...cloudAcc,
-                  balance: Math.max(cloudAcc.balance, isLocalYieldNewer ? localAcc.balance : cloudAcc.balance),
-                  initialBalance: cloudAcc.initialBalance !== undefined ? cloudAcc.initialBalance : localAcc.initialBalance,
-                  isYieldEnabled: cloudAcc.isYieldEnabled !== undefined ? cloudAcc.isYieldEnabled : localAcc.isYieldEnabled,
-                  yieldRate: cloudAcc.yieldRate ?? localAcc.yieldRate,
-                  lastYieldDate: targetLastYieldDate,
-                };
-              } else {
-                return {
-                  ...cloudAcc,
-                  ...localAcc,
-                  balance: Math.max(localAcc.balance, cloudAcc.balance),
-                  initialBalance: localAcc.initialBalance !== undefined ? localAcc.initialBalance : cloudAcc.initialBalance,
-                  isYieldEnabled: localAcc.isYieldEnabled !== undefined ? localAcc.isYieldEnabled : cloudAcc.isYieldEnabled,
-                  yieldRate: localAcc.yieldRate ?? cloudAcc.yieldRate,
-                  lastYieldDate: targetLastYieldDate,
-                };
-              }
+              return {
+                ...base,
+                initialBalance: preferCloud
+                  ? (cloudAcc.initialBalance !== undefined ? cloudAcc.initialBalance : localAcc.initialBalance)
+                  : (localAcc.initialBalance !== undefined ? localAcc.initialBalance : cloudAcc.initialBalance),
+                isYieldEnabled: preferCloud
+                  ? (cloudAcc.isYieldEnabled !== undefined ? cloudAcc.isYieldEnabled : localAcc.isYieldEnabled)
+                  : (localAcc.isYieldEnabled !== undefined ? localAcc.isYieldEnabled : cloudAcc.isYieldEnabled),
+                yieldRate: preferCloud ? (cloudAcc.yieldRate ?? localAcc.yieldRate) : (localAcc.yieldRate ?? cloudAcc.yieldRate),
+                lastYieldDate: targetLastYieldDate,
+              };
             })
           : [...cloudAccounts];
 
@@ -1435,6 +1410,25 @@ export class DataService {
           if (!allDeletedGoals.has(localGoal.id) && !cloudGoalMap.has(localGoal.id)) {
             mergedGoals.push(localGoal);
           }
+        }
+
+        // Chuẩn hóa và tính lại số dư chính xác cho mọi tài khoản sau khi hợp nhất giao dịch
+        for (const acc of cleanMergedAccounts) {
+          let txSum = 0;
+          for (const tx of mergedTransactions) {
+            if (tx.accountId === acc.id) {
+              if (tx.type === 'income') txSum += tx.amount;
+              else if (tx.type === 'expense') txSum -= tx.amount;
+              else if (tx.type === 'transfer') txSum -= (tx.amount + (tx.transferFee || 0));
+            }
+            if (tx.toAccountId === acc.id && tx.type === 'transfer') {
+              txSum += tx.amount;
+            }
+          }
+          if (acc.initialBalance === undefined || acc.initialBalance === null || isNaN(acc.initialBalance)) {
+            acc.initialBalance = Math.max(0, acc.balance - txSum);
+          }
+          acc.balance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
         }
 
         // Cập nhật state nội bộ

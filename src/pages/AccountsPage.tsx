@@ -185,17 +185,17 @@ export const AccountsPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Nút bật/tắt Tự động bù trừ khi âm */}
+          {/* Nút bật/tắt Tự động bù trừ khi âm (Mặc định TẮT để bảo toàn số dư thực tế) */}
           <button
-            onClick={() => updateUser({ autoOffsetNegative: user?.autoOffsetNegative === false ? true : false })}
-            className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-all ${user?.autoOffsetNegative !== false
+            onClick={() => updateUser({ autoOffsetNegative: user?.autoOffsetNegative === true ? false : true })}
+            className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-all ${user?.autoOffsetNegative === true
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 shadow-2xs'
                 : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
               }`}
-            title="Khi BẬT: Hệ thống tự động cấn trừ từ tài khoản có tiền sang ví bị âm khi chi tiêu vượt số dư"
+            title="Tính năng tự động cấn trừ số dư âm (khuyến nghị TẮT để giữ nguyên vẹn 100% số dư thực tế giữa ngân hàng và ví)"
           >
-            <ShieldCheck className={`w-3.5 h-3.5 ${user?.autoOffsetNegative !== false ? 'text-emerald-600' : 'text-slate-400'}`} />
-            <span>Tự cấn trừ khi âm ví: {user?.autoOffsetNegative !== false ? 'BẬT' : 'TẮT'}</span>
+            <ShieldCheck className={`w-3.5 h-3.5 ${user?.autoOffsetNegative === true ? 'text-emerald-600' : 'text-slate-400'}`} />
+            <span>Tự cấn trừ khi âm ví: {user?.autoOffsetNegative === true ? 'BẬT' : 'TẮT'}</span>
           </button>
 
           {/* Đồng bộ lại số dư theo lịch sử giao dịch */}
@@ -621,7 +621,9 @@ export const AccountsPage: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            autoOffsetNegativeAccount(acc.id, richestAccount.id);
+                            if (confirm(`Bạn có chắc muốn cấn trừ bù ${formatVND(Math.abs(acc.balance))} từ ví "${richestAccount.name}" sang "${acc.name}" để đưa ví này về 0 ₫ không?`)) {
+                              autoOffsetNegativeAccount(acc.id, richestAccount.id);
+                            }
                           }}
                           className="w-full py-2 px-3 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-xs flex items-center justify-center space-x-1.5 transition-all"
                           title={`Cấn trừ ${formatVND(Math.abs(acc.balance))} từ ví "${richestAccount.name}" để đưa ví này về 0 ₫`}
