@@ -101,12 +101,14 @@ export const TransactionModal: React.FC = () => {
         (a.name || '').toLowerCase().includes('vietcom') ||
         (a.name || '').toLowerCase().includes('mb');
 
+      // Tự động ưu tiên chọn tài khoản CÒN TIỀN (> 0): Nếu tài khoản trước đó đã hết tiền, tự động nhảy sang tài khoản tiếp theo còn tiền
       const defaultAcc =
+        (user?.defaultAccountId && accounts.find((a) => a.id === user.defaultAccountId && a.balance > 0)) ||
+        (savedLastId && accounts.find((a) => a.id === savedLastId && a.balance > 0)) ||
+        accounts.find((a) => isBankOrEwallet(a) && a.balance > 0) ||
+        accounts.find((a) => a.balance > 0) ||
         (user?.defaultAccountId && accounts.find((a) => a.id === user.defaultAccountId)) ||
         (savedLastId && accounts.find((a) => a.id === savedLastId)) ||
-        accounts.find((a) => isBankOrEwallet(a) && a.balance > 0) ||
-        accounts.find((a) => isBankOrEwallet(a)) ||
-        accounts.find((a) => a.balance > 0) ||
         accounts[0];
 
       setAccountId(defaultAcc?.id || '');
@@ -717,11 +719,18 @@ export const TransactionModal: React.FC = () => {
                         className={`px-2.5 py-1 rounded-xl text-2xs font-semibold whitespace-nowrap shrink-0 transition-all flex items-center gap-1 cursor-pointer select-none ${
                           isSelected
                             ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            : a.balance <= 0
+                              ? 'bg-slate-100/70 text-slate-400 border border-dashed border-slate-200 hover:bg-slate-100'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
                         <span>{isBank ? '🏦' : isEwallet ? '👛' : '💵'}</span>
                         <span>{a.name}</span>
+                        {a.balance <= 0 ? (
+                          <span className="text-3xs text-rose-500 font-bold ml-0.5">(Hết tiền)</span>
+                        ) : (
+                          <span className="text-3xs opacity-75 font-normal ml-0.5">({formatVND(a.balance)})</span>
+                        )}
                       </button>
                     );
                   })}
@@ -730,14 +739,48 @@ export const TransactionModal: React.FC = () => {
 
               {(() => {
                 const currentAcc = accounts.find((a) => a.id === accountId);
-                if (currentAcc && type === 'expense' && parsedAmount > currentAcc.balance) {
-                  return (
-                    <div className="col-span-1 sm:col-span-2 -mt-1">
-                      <p className="text-3xs text-amber-600 font-medium leading-tight">
-                        ⚠️ Số dư ví hiện có {formatVND(currentAcc.balance)}. Khoản thiếu sẽ tự động cấn trừ từ tài khoản có tiền.
-                      </p>
-                    </div>
-                  );
+                if (currentAcc && type === 'expense') {
+                  const isInsufficient = parsedAmount > 0 && parsedAmount > currentAcc.balance;
+                  const isOutOfMoney = currentAcc.balance <= 0;
+
+                  if (isInsufficient || isOutOfMoney) {
+                    const betterAcc = accounts
+                      .filter((a) => a.id !== currentAcc.id && a.balance >= (parsedAmount || 1))
+                      .sort((a, b) => b.balance - a.balance)[0] ||
+                      accounts
+                        .filter((a) => a.id !== currentAcc.id && a.balance > currentAcc.balance)
+                        .sort((a, b) => b.balance - a.balance)[0];
+
+                    return (
+                      <div className="col-span-1 sm:col-span-2 -mt-1 p-2.5 rounded-xl bg-amber-50 border border-amber-200/90 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shadow-2xs">
+                        <div className="min-w-0">
+                          <p className="text-xs text-amber-800 font-bold flex items-center gap-1">
+                            <span>⚠️</span>
+                            <span>{currentAcc.name} {isOutOfMoney ? 'đã hết tiền (0 ₫)' : `chỉ còn ${formatVND(currentAcc.balance)}`}</span>
+                          </p>
+                          <p className="text-3xs text-amber-700 font-medium">
+                            {isInsufficient
+                              ? `Khoản chi ${formatVND(parsedAmount)} này lớn hơn số dư ví hiện có.`
+                              : 'Vui lòng chọn ví khác còn tiền để thanh toán.'}
+                          </p>
+                        </div>
+
+                        {betterAcc && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAccountId(betterAcc.id);
+                              setPaymentMethod(getDefaultPaymentMethodForAccount(betterAcc));
+                            }}
+                            className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold shrink-0 shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <span>👉 Đổi sang {betterAcc.name}</span>
+                            <span className="text-3xs opacity-90 font-medium">({formatVND(betterAcc.balance)})</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
                 }
                 return null;
               })()}
