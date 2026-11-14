@@ -713,6 +713,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         setIsCloudSyncing(true);
         await dataService.initCloudSync();
+        // Sau khi đã đồng bộ dữ liệu mới nhất từ Cloud về, mới xử lý giao dịch định kỳ & sinh lời hôm nay
+        dataService.processRecurringTransactions();
+        dataService.processDailyYield();
         if (isMounted) {
           syncState();
           const syncTime = localStorage.getItem('moneyflow_last_cloud_sync_at') || new Date().toISOString();
@@ -776,9 +779,10 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const now = Date.now();
       if (document.visibilityState === 'visible' && now - lastCheck > 4000) {
         lastCheck = now;
-        dataService.processRecurringTransactions();
-        dataService.processDailyYield();
-        performAutoPull(true);
+        performAutoPull(true).then(() => {
+          dataService.processRecurringTransactions();
+          dataService.processDailyYield();
+        });
       }
     };
 

@@ -50,8 +50,6 @@ export class DataService {
 
   private constructor() {
     this.db = this.loadState();
-    this.processRecurringTransactions();
-    this.processDailyYield();
   }
 
   public static getInstance(): DataService {
@@ -104,8 +102,6 @@ export class DataService {
             localStorage.setItem(key, JSON.stringify(parsed));
           }
           this.db = parsed;
-          this.processRecurringTransactions();
-          this.processDailyYield();
           this.notifyListeners();
           return this.db;
         }
@@ -1531,8 +1527,8 @@ export class DataService {
       const localTimeStr = localStorage.getItem('moneyflow_last_local_updated_at');
       const localTime = localTimeStr ? new Date(localTimeStr).getTime() : 0;
 
-      // Nếu trên Cloud có cập nhật mới hơn lần sync gần nhất của máy này, hoặc mới hơn local:
-      if (cloudTime > lastSyncTime + 1000 || cloudTime > localTime + 2000) {
+      // Nếu trên Cloud có cập nhật mới hơn lần sync gần nhất của máy này:
+      if (cloudTime > lastSyncTime + 500) {
         const pullRes = await this.pullFromSupabase();
         if (pullRes.success) {
           return { updated: true, message: 'Đã tự động đồng bộ dữ liệu mới nhất từ Cloud!' };
@@ -1599,17 +1595,8 @@ export class DataService {
       const localUpdatedAt = localUpdatedAtStr ? new Date(localUpdatedAtStr).getTime() : 0;
 
       if (data?.data) {
-        // Nếu Cloud có bản cập nhật mới hơn lần sync trước của máy này (ví dụ điện thoại vừa thao tác):
-        if (cloudUpdatedAt > lastSyncTime + 1000 || cloudUpdatedAt > localUpdatedAt) {
-          await this.pullFromSupabase();
-        } else if (localUpdatedAt > cloudUpdatedAt + 3000 && lastSyncTime >= cloudUpdatedAt) {
-          // Chỉ đẩy nếu máy này thực sự có thao tác mới sau lần đồng bộ Cloud trước
-          this.isCloudInitialCheckDone = true;
-          await this.syncToSupabase();
-        } else {
-          // Mặc định luôn kéo và hợp nhất an toàn để đảm bảo hai thiết bị đồng bộ 100%
-          await this.pullFromSupabase();
-        }
+        // Luôn luôn kéo và hợp nhất an toàn từ Cloud về trước để tránh phiên làm việc cũ đè mất dữ liệu
+        await this.pullFromSupabase();
       } else {
         // Cloud hoàn toàn trống hoặc vừa được giải phóng do không hoạt động >30 ngày:
         const wasSynced = localStorage.getItem('moneyflow_was_synced_cloud');
