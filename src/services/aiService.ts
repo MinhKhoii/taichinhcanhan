@@ -10,15 +10,18 @@ import {
 const STORAGE_KEY = 'moneyflow_gemini_api_key';
 
 const CANDIDATE_MODELS = [
-  'gemini-1.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-pro',
+  'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-flash-latest',
+  'gemini-pro-latest',
 ];
 
-async function callGeminiAPI(key: string, payload: any): Promise<any> {
+async function callGeminiAPI(key: string, payload: any, timeoutMs = 12000): Promise<any> {
   let lastError: any = null;
   for (const model of CANDIDATE_MODELS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
@@ -26,8 +29,10 @@ async function callGeminiAPI(key: string, payload: any): Promise<any> {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
+          signal: controller.signal,
         }
       );
+      clearTimeout(timer);
       if (res.ok) {
         return await res.json();
       }
@@ -39,6 +44,7 @@ async function callGeminiAPI(key: string, payload: any): Promise<any> {
       if (
         res.status === 404 ||
         res.status === 429 ||
+        res.status === 500 ||
         res.status === 503 ||
         msg.includes('no longer available') ||
         msg.includes('not found') ||
@@ -48,13 +54,19 @@ async function callGeminiAPI(key: string, payload: any): Promise<any> {
       }
       throw lastError;
     } catch (e: any) {
+      clearTimeout(timer);
       lastError = e;
       if (
-        e.message &&
-        (e.message.includes('no longer available') ||
-          e.message.includes('not found') ||
-          e.message.includes('404') ||
-          e.message.includes('429'))
+        e.name === 'AbortError' ||
+        (e.message &&
+          (e.message.includes('no longer available') ||
+            e.message.includes('not found') ||
+            e.message.includes('404') ||
+            e.message.includes('429') ||
+            e.message.includes('500') ||
+            e.message.includes('503') ||
+            e.message.includes('Resource has been exhausted') ||
+            e.message.includes('aborted')))
       ) {
         continue;
       }
