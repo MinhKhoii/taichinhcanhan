@@ -777,9 +777,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     let lastCheck = 0;
     const handleVisibilityOrFocus = () => {
       const now = Date.now();
-      if (document.visibilityState === 'visible' && now - lastCheck > 4000) {
+      if (document.visibilityState === 'visible' && now - lastCheck > 1500) {
         lastCheck = now;
-        performAutoPull(true).then(() => {
+        performAutoPull(false).then(() => {
           dataService.processRecurringTransactions();
           dataService.processDailyYield();
         });
@@ -789,12 +789,19 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
     window.addEventListener('focus', handleVisibilityOrFocus);
 
-    // 3. Định kỳ kiểm tra ngầm mỗi 15 giây nếu đang mở app
+    // 3. Định kỳ kiểm tra ngầm mỗi 3.5 giây nếu đang mở app để đồng bộ tức thì giữa Điện thoại & Máy tính
     const intervalTimer = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        handleVisibilityOrFocus();
+        const now = Date.now();
+        if (now - lastCheck > 3000) {
+          lastCheck = now;
+          performAutoPull(true).then(() => {
+            dataService.processRecurringTransactions();
+            dataService.processDailyYield();
+          });
+        }
       }
-    }, 15000);
+    }, 3500);
 
     // 4. LẮNG NGHE THAY ĐỔI THEO THỜI GIAN THỰC (Supabase Realtime)
     let channel: any = null;

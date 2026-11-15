@@ -198,29 +198,19 @@ export const AccountsPage: React.FC = () => {
             <span>Tự cấn trừ khi âm ví: {user?.autoOffsetNegative === true ? 'BẬT' : 'TẮT'}</span>
           </button>
 
-          {/* Đồng bộ lại số dư theo lịch sử giao dịch */}
-          <button
-            onClick={() => recalculateAccountBalances()}
-            className="flex items-center space-x-1 px-3 py-2 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors shadow-2xs"
-            title="Tính toán và đồng bộ lại chính xác số dư từng ví theo toàn bộ lịch sử thu/chi"
-          >
-            <RotateCw className="w-3.5 h-3.5 text-slate-500" />
-            <span className="hidden sm:inline">Đồng bộ số dư</span>
-          </button>
-
           {/* Đồng bộ Đám mây 2 chiều giữa Điện thoại & Máy tính */}
           {isCloudConfigured && (
             <button
               onClick={() => syncToCloud()}
               disabled={isCloudSyncing}
-              className={`flex items-center space-x-1 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shadow-2xs ${isCloudSyncing
+              className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer ${isCloudSyncing
                   ? 'bg-blue-50 text-blue-400 border border-blue-200 cursor-not-allowed'
-                  : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer'
+                  : 'text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 active:scale-95'
                 }`}
-              title="Đồng bộ 2 chiều dữ liệu tài khoản và số dư giữa điện thoại và máy tính qua Cloud"
+              title="Lấy ngay dữ liệu tài khoản và số dư mới nhất từ điện thoại sang máy tính qua Cloud"
             >
-              <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-pulse text-blue-500' : 'text-emerald-600'}`} />
-              <span className="hidden sm:inline">{isCloudSyncing ? 'Đang đồng bộ...' : 'Đồng bộ Cloud'}</span>
+              <RotateCw className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-spin text-blue-600' : 'text-blue-600'}`} />
+              <span className="hidden sm:inline">{isCloudSyncing ? 'Đang đồng bộ...' : 'Đồng bộ từ Cloud'}</span>
             </button>
           )}
 

@@ -382,16 +382,15 @@ export class DataService {
         }
       }
 
-      // Đảm bảo số dư ban đầu (initialBalance) luôn hợp lệ
-      if (acc.initialBalance === undefined || acc.initialBalance === null || isNaN(acc.initialBalance)) {
-        acc.initialBalance = Math.max(0, acc.balance - txSum);
-        changed = true;
-      }
-
-      // Số dư tài khoản luôn bằng Số dư ban đầu + Tổng dòng tiền giao dịch thực tế
-      const expectedBalance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
-      if (acc.balance !== expectedBalance) {
-        acc.balance = expectedBalance;
+      // Đảm bảo số dư ban đầu (initialBalance) luôn hợp lệ và bảo toàn tuyệt đối số dư thực tế acc.balance
+      if (acc.balance !== undefined && acc.balance !== null && !isNaN(acc.balance)) {
+        const expectedInitial = Math.round((acc.balance - txSum) * 100) / 100;
+        if (acc.initialBalance !== expectedInitial) {
+          acc.initialBalance = expectedInitial;
+          changed = true;
+        }
+      } else if (acc.initialBalance !== undefined && acc.initialBalance !== null && !isNaN(acc.initialBalance)) {
+        acc.balance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
         changed = true;
       }
     }
@@ -631,13 +630,15 @@ export class DataService {
     for (const acc of this.db.accounts) {
       const txSum = this.getAccountNetTransactions(acc.id);
 
-      if (acc.initialBalance === undefined || acc.initialBalance === null || isNaN(acc.initialBalance)) {
-        acc.initialBalance = Math.max(0, acc.balance - txSum);
+      if (acc.balance !== undefined && acc.balance !== null && !isNaN(acc.balance)) {
+        // Bảo vệ số dư thực tế không bị trừ ngầm, chỉ chuẩn hóa initialBalance tương ứng
+        acc.initialBalance = Math.round((acc.balance - txSum) * 100) / 100;
+      } else {
+        if (acc.initialBalance === undefined || acc.initialBalance === null || isNaN(acc.initialBalance)) {
+          acc.initialBalance = 0;
+        }
+        acc.balance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
       }
-
-      // Số dư tài khoản = Số dư ban đầu + Tổng dòng tiền giao dịch
-      const expectedBalance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
-      acc.balance = expectedBalance;
     }
     if (save) {
       this.saveState();
@@ -1312,7 +1313,7 @@ export class DataService {
               const cloudAccTime = cloudAcc.updatedAt ? new Date(cloudAcc.updatedAt).getTime() : 0;
 
               // So sánh thời gian cập nhật của tài khoản giữa 2 thiết bị
-              const preferCloud = cloudAccTime > localAccTime;
+              const preferCloud = cloudAccTime >= localAccTime || isCloudNewerThanLocal || isCloudNewerThanLastSync;
               const base = preferCloud ? { ...localAcc, ...cloudAcc } : { ...cloudAcc, ...localAcc };
 
               const targetLastYieldDate = (localAcc.lastYieldDate && (!cloudAcc.lastYieldDate || localAcc.lastYieldDate >= cloudAcc.lastYieldDate))
@@ -1321,6 +1322,7 @@ export class DataService {
 
               return {
                 ...base,
+                balance: preferCloud ? cloudAcc.balance : localAcc.balance,
                 initialBalance: preferCloud
                   ? (cloudAcc.initialBalance !== undefined ? cloudAcc.initialBalance : localAcc.initialBalance)
                   : (localAcc.initialBalance !== undefined ? localAcc.initialBalance : cloudAcc.initialBalance),
@@ -1329,6 +1331,7 @@ export class DataService {
                   : (localAcc.isYieldEnabled !== undefined ? localAcc.isYieldEnabled : cloudAcc.isYieldEnabled),
                 yieldRate: preferCloud ? (cloudAcc.yieldRate ?? localAcc.yieldRate) : (localAcc.yieldRate ?? cloudAcc.yieldRate),
                 lastYieldDate: targetLastYieldDate,
+                updatedAt: preferCloud ? (cloudAcc.updatedAt || localAcc.updatedAt) : (localAcc.updatedAt || cloudAcc.updatedAt),
               };
             })
           : [...cloudAccounts];
@@ -1408,7 +1411,7 @@ export class DataService {
           }
         }
 
-        // Chuẩn hóa và tính lại số dư chính xác cho mọi tài khoản sau khi hợp nhất giao dịch
+        // Chuẩn hóa và bảo toàn số dư thực tế cho mọi tài khoản sau khi hợp nhất giao dịch
         for (const acc of cleanMergedAccounts) {
           let txSum = 0;
           for (const tx of mergedTransactions) {
@@ -1421,10 +1424,15 @@ export class DataService {
               txSum += tx.amount;
             }
           }
-          if (acc.initialBalance === undefined || acc.initialBalance === null || isNaN(acc.initialBalance)) {
-            acc.initialBalance = Math.max(0, acc.balance - txSum);
+          if (acc.balance !== undefined && acc.balance !== null && !isNaN(acc.balance)) {
+            // Bảo toàn tuyệt đối số dư thực tế do người dùng thiết lập, chuẩn hóa initialBalance tương ứng
+            acc.initialBalance = Math.round((acc.balance - txSum) * 100) / 100;
+          } else {
+            if (acc.initialBalance === undefined || acc.initialBalance === null || isNaN(acc.initialBalance)) {
+              acc.initialBalance = 0;
+            }
+            acc.balance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
           }
-          acc.balance = Math.round(((acc.initialBalance ?? 0) + txSum) * 100) / 100;
         }
 
         // Cập nhật state nội bộ
@@ -1521,14 +1529,18 @@ export class DataService {
         return { updated: false };
       }
 
-      const cloudTime = new Date(cloudRes.data.updated_at).getTime();
+      const cloudUpdatedStr = cloudRes.data.updated_at;
       const lastSyncStr = localStorage.getItem('moneyflow_last_cloud_sync_at');
       const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
+      const cloudTime = new Date(cloudUpdatedStr).getTime();
       const localTimeStr = localStorage.getItem('moneyflow_last_local_updated_at');
       const localTime = localTimeStr ? new Date(localTimeStr).getTime() : 0;
 
-      // Nếu trên Cloud có cập nhật mới hơn lần sync gần nhất của máy này:
-      if (cloudTime > lastSyncTime + 500) {
+      // Tự động kéo nếu Cloud có phiên bản khác với lần sync gần nhất HOẶC Cloud mới hơn local
+      const isCloudDifferent = cloudUpdatedStr && cloudUpdatedStr !== lastSyncStr;
+      const isCloudNewer = cloudTime > (lastSyncTime + 100) || cloudTime > localTime;
+
+      if (isCloudDifferent || isCloudNewer) {
         const pullRes = await this.pullFromSupabase();
         if (pullRes.success) {
           return { updated: true, message: 'Đã tự động đồng bộ dữ liệu mới nhất từ Cloud!' };
