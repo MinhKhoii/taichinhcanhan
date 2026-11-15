@@ -54,13 +54,14 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-200 modal-backdrop-lock"
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 overflow-hidden animate-in fade-in duration-200 modal-backdrop-lock"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col modal-content-scroll">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0 bg-white">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col h-[90dvh] sm:h-auto sm:max-h-[88vh] max-h-[92dvh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+        <div className="flex items-center justify-between px-6 py-3.5 sm:py-4 border-b border-slate-100 flex-shrink-0 bg-white">
           <div>
             <h3 className="text-lg font-bold text-slate-800">Chuyển tiền nội bộ</h3>
             <p className="text-2xs text-slate-500">
@@ -77,7 +78,8 @@ export const TransferModal: React.FC<TransferModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 modal-content-scroll">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain modal-content-scroll">
           {/* Transfer visual preview */}
           <div className="flex items-center justify-between p-3.5 bg-blue-50/60 border border-blue-100 rounded-2xl">
             <div className="text-left">
@@ -187,18 +189,19 @@ export const TransferModal: React.FC<TransferModalProps> = ({
               />
             </div>
           </div>
+          </div>
 
-          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 flex-shrink-0">
+          <div className="flex items-center justify-end space-x-3 px-6 py-3.5 border-t border-slate-100 bg-slate-50/95 backdrop-blur-xs flex-shrink-0 sticky bottom-0 z-10 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl"
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="flex items-center space-x-2 px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs"
+              className="flex items-center space-x-2 px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer"
             >
               <Check className="w-4 h-4" />
               <span>Chuyển tiền</span>

@@ -343,14 +343,17 @@ export const TransactionModal: React.FC = () => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-200 modal-backdrop-lock"
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 overflow-hidden animate-in fade-in duration-200 modal-backdrop-lock"
       onClick={(e) => {
         if (e.target === e.currentTarget) closeAddTxModal();
       }}
     >
-      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col modal-content-scroll">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col h-[90dvh] sm:h-auto sm:max-h-[88vh] max-h-[92dvh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+        {/* Mobile handle indicator */}
+        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+
         {/* Header - Cố định trên cùng */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-100 flex-shrink-0 bg-white">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3 sm:py-3.5 border-b border-slate-100 flex-shrink-0 bg-white">
           <div className="flex items-center gap-2.5">
             <h3 className="text-base sm:text-lg font-bold text-slate-800">
               {editingTransaction ? 'Chỉnh sửa giao dịch' : 'Thêm giao dịch mới'}
@@ -405,7 +408,7 @@ export const TransactionModal: React.FC = () => {
 
         {/* Form chính với vùng nội dung cuộn mượt mà độc lập */}
         <form noValidate onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 modal-content-scroll">
+          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain modal-content-scroll">
             {/* Type Selector Tabs */}
             <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
               <button
@@ -876,7 +879,7 @@ export const TransactionModal: React.FC = () => {
           </div>
 
           {/* Submit Actions - Cố định ở chân modal để bấm nhanh mọi lúc */}
-          <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex-shrink-0">
+          <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50/95 backdrop-blur-xs flex-shrink-0 sticky bottom-0 z-10 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
             <button
               type="button"
               onClick={closeAddTxModal}

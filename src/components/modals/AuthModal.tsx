@@ -164,12 +164,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 overflow-hidden animate-in fade-in duration-200 modal-backdrop-lock"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden my-auto border border-slate-100 flex flex-col">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col h-[90dvh] sm:h-auto sm:max-h-[88vh] max-h-[92dvh] border border-slate-100 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0" />
         {/* Brand Header */}
         <div className="relative bg-gradient-to-tr from-blue-700 via-indigo-600 to-blue-600 p-6 text-white text-center shrink-0">
           <button
@@ -247,7 +248,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* Form Body */}
-        <div className="p-6 space-y-4 flex-1">
+        <div className="p-6 space-y-4 flex-1 overflow-y-auto modal-content-scroll overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {errorMessage && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium animate-in fade-in duration-150">
               {errorMessage}
