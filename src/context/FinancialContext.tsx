@@ -305,14 +305,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsPrivacyMode((prev) => {
       const next = !prev;
       setGlobalPrivacyMode(next);
-      if (next) {
-        showToast('🔒 Đã bật Chế độ Riêng tư: Toàn bộ số dư và giao dịch đã được ẩn an toàn!', 'info');
-      } else {
-        showToast('👁️ Đã tắt Chế độ Riêng tư: Hiển thị lại số tiền đầy đủ.', 'info');
-      }
       return next;
     });
-  }, [showToast]);
+  }, []);
 
   const formatMoney = useCallback(
     (amount: number, showSign: boolean = false) => {
