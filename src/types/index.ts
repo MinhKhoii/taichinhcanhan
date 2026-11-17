@@ -77,6 +77,7 @@ export interface Transaction {
   paymentMethod: PaymentMethod;
   recurringItemId?: string; // ID của mục lương / thu chi định kỳ liên kết
   isYield?: boolean; // Đánh dấu giao dịch sinh lời tự động hàng ngày
+  member?: string; // Thành viên gia đình / Người chi (Cá nhân, Vợ, Chồng, Con cái, Cả nhà...)
   createdAt: string;
   updatedAt: string;
 }

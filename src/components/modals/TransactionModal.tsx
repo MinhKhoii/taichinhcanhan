@@ -20,6 +20,7 @@ import {
   Loader2,
   Plus,
   Calculator,
+  Users,
 } from 'lucide-react';
 import { DynamicIcon } from '../common/DynamicIcon';
 import {
@@ -38,6 +39,16 @@ import {
 import { useModalEscape } from '../../hooks/useModalEscape';
 import { aiService } from '../../services/aiService';
 import { ReceiptCameraModal } from '../common/ReceiptCameraModal';
+
+const FAMILY_MEMBERS = [
+  { id: 'Cá nhân', label: 'Cá nhân', icon: '👤' },
+  { id: 'Vợ', label: 'Vợ', icon: '👩' },
+  { id: 'Chồng', label: 'Chồng', icon: '👨' },
+  { id: 'Con cái', label: 'Con cái', icon: '👶' },
+  { id: 'Cả gia đình', label: 'Cả gia đình', icon: '👨‍👩‍👧' },
+  { id: 'Bố mẹ', label: 'Bố mẹ', icon: '🏡' },
+  { id: 'Khác', label: 'Khác', icon: '👥' },
+];
 
 export const TransactionModal: React.FC = () => {
   const {
@@ -60,6 +71,8 @@ export const TransactionModal: React.FC = () => {
   const [date, setDate] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState<string>('');
+  const [member, setMember] = useState<string>('Cá nhân');
+  const [showCalculator, setShowCalculator] = useState<boolean>(false);
   const [autoDetectedCategory, setAutoDetectedCategory] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -84,11 +97,15 @@ export const TransactionModal: React.FC = () => {
       setDate(editingTransaction.date);
       setPaymentMethod(editingTransaction.paymentMethod);
       setNote(editingTransaction.note || '');
+      setMember(editingTransaction.member || 'Cá nhân');
+      setShowCalculator(false);
       setAutoDetectedCategory(null);
     } else {
       setType('expense');
       setAmountStr('');
       setDate(getTodayStr());
+      setMember('Cá nhân');
+      setShowCalculator(false);
       setAutoDetectedCategory(null);
 
       // Ưu tiên chọn tài khoản mặc định
@@ -178,6 +195,36 @@ export const TransactionModal: React.FC = () => {
   const clearAmount = () => {
     setAmountStr('');
     amountInputRef.current?.focus();
+  };
+
+  const handleNumpadPress = (key: string) => {
+    if (key === 'C') {
+      setAmountStr('');
+      return;
+    }
+    if (key === '⌫') {
+      setAmountStr((prev) => prev.slice(0, -1));
+      return;
+    }
+    if (key === '=') {
+      if (mathCalculated !== null && mathCalculated > 0) {
+        setAmountStr(mathCalculated.toString());
+      }
+      return;
+    }
+    if (key === '+000') {
+      if (parsedAmount > 0) {
+        setAmountStr((parsedAmount * 1000).toString());
+      }
+      return;
+    }
+    if (key === '+000000') {
+      if (parsedAmount > 0) {
+        setAmountStr((parsedAmount * 1000000).toString());
+      }
+      return;
+    }
+    setAmountStr((prev) => prev + key);
   };
 
   const smartSuggestions = getSmartAmountSuggestions(parsedAmount);
@@ -289,6 +336,7 @@ export const TransactionModal: React.FC = () => {
         date,
         paymentMethod,
         note,
+        member: member || undefined,
       });
     } else {
       createTransaction({
@@ -300,6 +348,7 @@ export const TransactionModal: React.FC = () => {
         date,
         paymentMethod,
         note,
+        member: member || undefined,
       });
     }
 
@@ -324,6 +373,7 @@ export const TransactionModal: React.FC = () => {
       date,
       paymentMethod,
       note,
+      member: member || undefined,
     });
 
     try {
@@ -468,6 +518,19 @@ export const TransactionModal: React.FC = () => {
                 <label className="text-3xs uppercase tracking-wider font-bold text-slate-400">
                   Số tiền giao dịch (VNĐ)
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCalculator(!showCalculator)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-2xs font-bold transition-all cursor-pointer border ${
+                    showCalculator
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                      : 'bg-white hover:bg-blue-50 text-blue-600 border-blue-200'
+                  }`}
+                  title="Mở máy tính mini để tính toán nhanh (Phong cách Money Lover)"
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>{showCalculator ? 'Đóng máy tính' : 'Máy tính mini'}</span>
+                </button>
               </div>
 
               {/* Main Display Input */}
@@ -490,6 +553,125 @@ export const TransactionModal: React.FC = () => {
                 />
                 <span className="text-xl sm:text-2xl font-bold text-slate-400">₫</span>
               </div>
+
+              {/* MONEY LOVER STYLE NUMPAD / CALCULATOR */}
+              {showCalculator && (
+                <div className="mt-3 p-3 bg-white border border-slate-200/90 rounded-2xl shadow-xs max-w-xs mx-auto animate-in fade-in zoom-in-95 duration-150">
+                  <div className="grid grid-cols-4 gap-1.5 text-sm font-bold">
+                    {/* Row 1 */}
+                    {['7', '8', '9'].map((digit) => (
+                      <button
+                        key={digit}
+                        type="button"
+                        onClick={() => handleNumpadPress(digit)}
+                        className="h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200/70 active:scale-95 transition-all cursor-pointer font-bold"
+                      >
+                        {digit}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('/')}
+                      className="h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 active:scale-95 transition-all cursor-pointer font-black text-base"
+                    >
+                      ÷
+                    </button>
+
+                    {/* Row 2 */}
+                    {['4', '5', '6'].map((digit) => (
+                      <button
+                        key={digit}
+                        type="button"
+                        onClick={() => handleNumpadPress(digit)}
+                        className="h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200/70 active:scale-95 transition-all cursor-pointer font-bold"
+                      >
+                        {digit}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('*')}
+                      className="h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 active:scale-95 transition-all cursor-pointer font-black text-base"
+                    >
+                      ×
+                    </button>
+
+                    {/* Row 3 */}
+                    {['1', '2', '3'].map((digit) => (
+                      <button
+                        key={digit}
+                        type="button"
+                        onClick={() => handleNumpadPress(digit)}
+                        className="h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200/70 active:scale-95 transition-all cursor-pointer font-bold"
+                      >
+                        {digit}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('-')}
+                      className="h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 active:scale-95 transition-all cursor-pointer font-black text-base"
+                    >
+                      -
+                    </button>
+
+                    {/* Row 4 */}
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('C')}
+                      className="h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 active:scale-95 transition-all cursor-pointer font-bold"
+                    >
+                      C
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('0')}
+                      className="h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200/70 active:scale-95 transition-all cursor-pointer font-bold"
+                    >
+                      0
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('=')}
+                      className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-xs active:scale-95 transition-all cursor-pointer text-base"
+                    >
+                      =
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('+')}
+                      className="h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 active:scale-95 transition-all cursor-pointer font-black text-base"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* Quick Thousand & Backspace */}
+                  <div className="grid grid-cols-3 gap-1.5 mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('+000')}
+                      className="py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-2xs font-extrabold transition-all cursor-pointer"
+                    >
+                      +000
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('+000000')}
+                      className="py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-2xs font-extrabold transition-all cursor-pointer"
+                    >
+                      +000.000
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNumpadPress('⌫')}
+                      className="py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-2xs font-bold transition-all cursor-pointer"
+                    >
+                      ⌫ Xóa
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* LIVE MATH RESULT (Khi người dùng gõ phép tính: 35k + 20k) */}
               {isMathExpression && mathCalculated !== null && (
@@ -875,6 +1057,45 @@ export const TransactionModal: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Thành viên gia đình / Người chi (Tính năng từ MISA) */}
+            <div className="bg-slate-50/70 p-3 rounded-2xl border border-slate-200/80">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700">
+                  <Users className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Thành viên gia đình / Người chi</span>
+                </label>
+                {member && member !== 'Cá nhân' && (
+                  <button
+                    type="button"
+                    onClick={() => setMember('Cá nhân')}
+                    className="text-3xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
+                  >
+                    Đặt lại mặc định
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 flex-nowrap">
+                {FAMILY_MEMBERS.map((m) => {
+                  const isSelected = member === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setMember(m.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl font-semibold border transition-all shrink-0 cursor-pointer shadow-2xs active:scale-95 ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-500/20'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      <span className="text-sm">{m.icon}</span>
+                      <span>{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

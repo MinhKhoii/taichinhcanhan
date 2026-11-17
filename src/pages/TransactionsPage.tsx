@@ -20,8 +20,10 @@ import {
   X,
   Coins,
   Sparkles,
+  List,
+  Users,
 } from 'lucide-react';
-import { formatVND, formatDateVN } from '../utils/formatters';
+import { formatVND, formatDateVN, formatCompactVND, getLocalDateString, getLocalMonthString } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { exportTransactionsToExcel, exportTransactionsToCSV } from '../utils/exportData';
 import { RecurringModal } from '../components/modals/RecurringModal';
@@ -40,6 +42,7 @@ export const TransactionsPage: React.FC = () => {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
+  const [selectedMember, setSelectedMember] = useState<string>('all');
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
@@ -47,6 +50,16 @@ export const TransactionsPage: React.FC = () => {
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
   const [txToDelete, setTxToDelete] = useState<any>(null);
+
+  // View Mode: Table vs Calendar (Spendee style)
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
+  const [calendarYearMonth, setCalendarYearMonth] = useState<string>(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  });
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(() => getLocalDateString());
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,6 +88,14 @@ export const TransactionsPage: React.FC = () => {
       if (selectedAccount !== 'all' && t.accountId !== selectedAccount && t.toAccountId !== selectedAccount) {
         return false;
       }
+      // Member filter (Tính năng từ MISA)
+      if (selectedMember !== 'all') {
+        if (selectedMember === 'Cá nhân') {
+          if (t.member && t.member !== 'Cá nhân') return false;
+        } else {
+          if (t.member !== selectedMember) return false;
+        }
+      }
       // Min amount
       if (minAmount && t.amount < parseInt(minAmount, 10)) return false;
       // Max amount
@@ -83,7 +104,7 @@ export const TransactionsPage: React.FC = () => {
       if (startDate && t.date < startDate) return false;
       if (endDate && t.date > endDate) return false;
 
-      // Keyword search in note, category name, account name
+      // Keyword search in note, category name, account name, member
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
         const noteMatch = (t.note || '').toLowerCase().includes(term);
@@ -91,7 +112,8 @@ export const TransactionsPage: React.FC = () => {
         const catMatch = cat?.name.toLowerCase().includes(term);
         const acc = accMap.get(t.accountId);
         const accMatch = acc?.name.toLowerCase().includes(term);
-        if (!noteMatch && !catMatch && !accMatch) return false;
+        const memberMatch = (t.member || '').toLowerCase().includes(term);
+        if (!noteMatch && !catMatch && !accMatch && !memberMatch) return false;
       }
 
       return true;
@@ -101,6 +123,7 @@ export const TransactionsPage: React.FC = () => {
     selectedType,
     selectedCategory,
     selectedAccount,
+    selectedMember,
     minAmount,
     maxAmount,
     startDate,
@@ -145,6 +168,7 @@ export const TransactionsPage: React.FC = () => {
     setSelectedType('all');
     setSelectedCategory('all');
     setSelectedAccount('all');
+    setSelectedMember('all');
     setMinAmount('');
     setMaxAmount('');
     setStartDate('');
@@ -157,7 +181,108 @@ export const TransactionsPage: React.FC = () => {
     selectedType !== 'all' ||
     selectedCategory !== 'all' ||
     selectedAccount !== 'all' ||
+    selectedMember !== 'all' ||
     Boolean(minAmount || maxAmount || startDate || endDate || searchTerm);
+
+  // Calendar data computation (Tính năng từ Spendee)
+  const {
+    calendarDays,
+    monthTotalIncome,
+    monthTotalExpense,
+    monthNet,
+    calendarMonthName,
+  } = useMemo(() => {
+    const [yearStr, monthStr] = calendarYearMonth.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const totalDays = lastDay.getDate();
+
+    // Day of week: 0 = Sun, 1 = Mon, ..., 6 = Sat -> Mon = 0..6
+    let startingDayOfWeek = firstDay.getDay() - 1;
+    if (startingDayOfWeek === -1) startingDayOfWeek = 6;
+
+    const monthPrefix = `${calendarYearMonth}-`;
+    const monthTxs = transactions.filter((t) => t.date.startsWith(monthPrefix));
+
+    const totalIncome = monthTxs
+      .filter((t) => t.type === 'income')
+      .reduce((s, t) => s + t.amount, 0);
+    const totalExpense = monthTxs
+      .filter((t) => t.type === 'expense')
+      .reduce((s, t) => s + t.amount, 0);
+
+    const dayMap = new Map<
+      string,
+      { income: number; expense: number; count: number; txs: Transaction[] }
+    >();
+    for (const t of monthTxs) {
+      if (!dayMap.has(t.date)) {
+        dayMap.set(t.date, { income: 0, expense: 0, count: 0, txs: [] });
+      }
+      const d = dayMap.get(t.date)!;
+      if (t.type === 'income') d.income += t.amount;
+      if (t.type === 'expense') d.expense += t.amount;
+      d.count += 1;
+      d.txs.push(t);
+    }
+
+    const days = [];
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push({ dayNumber: 0, dateStr: '', data: null });
+    }
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${calendarYearMonth}-${String(d).padStart(2, '0')}`;
+      days.push({
+        dayNumber: d,
+        dateStr,
+        data: dayMap.get(dateStr) || null,
+      });
+    }
+
+    return {
+      calendarDays: days,
+      monthTotalIncome: totalIncome,
+      monthTotalExpense: totalExpense,
+      monthNet: totalIncome - totalExpense,
+      calendarMonthName: `Tháng ${month} năm ${year}`,
+    };
+  }, [calendarYearMonth, transactions]);
+
+  // Selected Day's transactions in Calendar View
+  const selectedDayData = useMemo(() => {
+    if (!selectedCalendarDate) return null;
+    const txs = transactions.filter((t) => t.date === selectedCalendarDate);
+    const income = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    return {
+      date: selectedCalendarDate,
+      txs,
+      income,
+      expense,
+      net: income - expense,
+    };
+  }, [selectedCalendarDate, transactions]);
+
+  const handlePrevMonth = () => {
+    const [y, m] = calendarYearMonth.split('-').map(Number);
+    const prevDate = new Date(y, m - 2, 1);
+    setCalendarYearMonth(`${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`);
+  };
+
+  const handleNextMonth = () => {
+    const [y, m] = calendarYearMonth.split('-').map(Number);
+    const nextDate = new Date(y, m, 1);
+    setCalendarYearMonth(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`);
+  };
+
+  const handleCurrentMonth = () => {
+    const now = new Date();
+    setCalendarYearMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    setSelectedCalendarDate(getLocalDateString());
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -323,11 +448,41 @@ export const TransactionsPage: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-blue-600"></span>
             )}
           </button>
+
+          {/* View Mode Toggle: Table vs Calendar (Tính năng từ Spendee) */}
+          <div className="flex items-center p-1 bg-slate-100 rounded-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-white text-blue-600 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Xem dạng bảng danh sách"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Danh sách</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('calendar')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                viewMode === 'calendar'
+                  ? 'bg-white text-blue-600 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Xem theo Lịch chi tiêu tháng (Phong cách Spendee)"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lịch tháng</span>
+            </button>
+          </div>
         </div>
 
         {/* Expandable Advanced Filters Box */}
         {showFilterDrawer && (
-          <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in slide-in-from-top duration-150">
+          <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 animate-in slide-in-from-top duration-150">
             <div>
               <label className="block text-2xs font-semibold text-slate-500 uppercase mb-1">
                 Danh mục
@@ -368,6 +523,30 @@ export const TransactionsPage: React.FC = () => {
                     {a.name}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Member filter (Tính năng từ MISA) */}
+            <div>
+              <label className="block text-2xs font-semibold text-slate-500 uppercase mb-1">
+                Thành viên chi
+              </label>
+              <select
+                value={selectedMember}
+                onChange={(e) => {
+                  setSelectedMember(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg font-medium text-slate-700"
+              >
+                <option value="all">Tất cả thành viên</option>
+                <option value="Cá nhân">👤 Cá nhân</option>
+                <option value="Vợ">👩 Vợ</option>
+                <option value="Chồng">👨 Chồng</option>
+                <option value="Con cái">👶 Con cái</option>
+                <option value="Cả gia đình">👨‍👩‍👧 Cả gia đình</option>
+                <option value="Bố mẹ">🏡 Bố mẹ</option>
+                <option value="Khác">👥 Khác</option>
               </select>
             </div>
 
@@ -428,7 +607,7 @@ export const TransactionsPage: React.FC = () => {
             </div>
 
             {hasActiveFilters && (
-              <div className="lg:col-span-4 flex justify-end">
+              <div className="lg:col-span-5 flex justify-end">
                 <button
                   onClick={handleResetFilters}
                   className="text-xs text-rose-600 hover:text-rose-700 font-medium underline"
@@ -441,8 +620,244 @@ export const TransactionsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Transactions Professional Data Table & Mobile Cards */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* View Mode Switching: Calendar View vs Data Table View */}
+      {viewMode === 'calendar' ? (
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-6 space-y-6 animate-in fade-in duration-200">
+          {/* Calendar Top Navigation & Month Summary Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            {/* Month Switcher */}
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-all cursor-pointer"
+                title="Tháng trước"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <h2 className="text-base sm:text-lg font-black text-slate-800 min-w-44 text-center">
+                {calendarMonthName}
+              </h2>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-all cursor-pointer"
+                title="Tháng sau"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCurrentMonth}
+                className="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all cursor-pointer"
+              >
+                Hôm nay
+              </button>
+            </div>
+
+            {/* Monthly Total Stats Pills (Spendee style) */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/70 text-emerald-800 text-xs flex items-center gap-1.5">
+                <span className="text-3xs uppercase font-bold text-emerald-600">Thu:</span>
+                <span className="font-extrabold">+{formatVND(monthTotalIncome)}</span>
+              </div>
+              <div className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200/70 text-rose-800 text-xs flex items-center gap-1.5">
+                <span className="text-3xs uppercase font-bold text-rose-600">Chi:</span>
+                <span className="font-extrabold">-{formatVND(monthTotalExpense)}</span>
+              </div>
+              <div className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200/70 text-blue-800 text-xs flex items-center gap-1.5">
+                <span className="text-3xs uppercase font-bold text-blue-600">Dòng tiền:</span>
+                <span className="font-black">{formatVND(monthNet, true)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Calendar Grid */}
+          <div>
+            {/* Weekday Header */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center text-xs font-bold text-slate-400">
+              <div className="py-1">Thứ 2</div>
+              <div className="py-1">Thứ 3</div>
+              <div className="py-1">Thứ 4</div>
+              <div className="py-1">Thứ 5</div>
+              <div className="py-1">Thứ 6</div>
+              <div className="py-1 text-blue-600">Thứ 7</div>
+              <div className="py-1 text-rose-600">Chủ nhật</div>
+            </div>
+
+            {/* Calendar Cells */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              {calendarDays.map((cell, idx) => {
+                if (!cell.dateStr) {
+                  return (
+                    <div
+                      key={`empty-${idx}`}
+                      className="min-h-[64px] sm:min-h-[88px] rounded-2xl bg-slate-50/40 border border-transparent"
+                    />
+                  );
+                }
+
+                const isToday = cell.dateStr === getLocalDateString();
+                const isSelected = cell.dateStr === selectedCalendarDate;
+                const hasIncome = cell.data && cell.data.income > 0;
+                const hasExpense = cell.data && cell.data.expense > 0;
+
+                return (
+                  <div
+                    key={cell.dateStr}
+                    onClick={() => setSelectedCalendarDate(cell.dateStr)}
+                    className={`min-h-[64px] sm:min-h-[88px] p-1.5 sm:p-2 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                      isSelected
+                        ? 'border-blue-600 bg-blue-50/50 shadow-sm ring-2 ring-blue-500/30'
+                        : isToday
+                        ? 'border-blue-300 bg-blue-50/20 hover:border-blue-400'
+                        : 'border-slate-200/80 bg-white hover:border-blue-300 hover:bg-slate-50/80'
+                    }`}
+                  >
+                    {/* Top: Day number & Badge */}
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`text-xs sm:text-sm font-black ${
+                          isSelected
+                            ? 'text-blue-700'
+                            : isToday
+                            ? 'text-blue-600'
+                            : 'text-slate-700'
+                        }`}
+                      >
+                        {cell.dayNumber}
+                      </span>
+                      {isToday && (
+                        <span className="hidden sm:inline text-3xs px-1 rounded bg-blue-600 text-white font-bold scale-90">
+                          Hôm nay
+                        </span>
+                      )}
+                      {cell.data && cell.data.count > 0 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 sm:hidden" />
+                      )}
+                    </div>
+
+                    {/* Bottom: Daily Income & Expense */}
+                    <div className="space-y-0.5 overflow-hidden text-right">
+                      {cell.data && cell.data.income > 0 && (
+                        <span className="text-3xs sm:text-2xs font-black text-emerald-600 truncate block">
+                          +{formatCompactVND(cell.data.income)}
+                        </span>
+                      )}
+                      {cell.data && cell.data.expense > 0 && (
+                        <span className="text-3xs sm:text-2xs font-black text-rose-600 truncate block">
+                          -{formatCompactVND(cell.data.expense)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Selected Day Transaction Details (Spendee style bottom drawer) */}
+          {selectedDayData && (
+            <div className="pt-4 border-t border-slate-100 space-y-3 animate-in fade-in duration-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-800">
+                    Giao dịch ngày {formatDateVN(selectedDayData.date)}
+                  </h3>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                    {selectedDayData.txs.length} giao dịch
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  {selectedDayData.income > 0 && (
+                    <span className="text-xs font-bold text-emerald-600">
+                      Thu: +{formatVND(selectedDayData.income)}
+                    </span>
+                  )}
+                  {selectedDayData.expense > 0 && (
+                    <span className="text-xs font-bold text-rose-600">
+                      Chi: -{formatVND(selectedDayData.expense)}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openAddTxModal()}
+                    className="flex items-center space-x-1 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Thêm giao dịch</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Transactions on Selected Day */}
+              {selectedDayData.txs.length === 0 ? (
+                <div className="py-8 text-center bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                  Không có giao dịch nào vào ngày {formatDateVN(selectedDayData.date)}. Bấm "+ Thêm giao dịch" để ghi chép.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {selectedDayData.txs.map((t) => {
+                    const cat = catMap.get(t.categoryId || '');
+                    const acc = accMap.get(t.accountId);
+                    const toAcc = t.toAccountId ? accMap.get(t.toAccountId) : null;
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => openAddTxModal(t)}
+                        className="p-3 bg-slate-50/70 hover:bg-slate-100/80 rounded-2xl border border-slate-200/70 flex items-center justify-between gap-3 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs shadow-2xs shrink-0"
+                            style={{ backgroundColor: cat?.color || '#64748B' }}
+                          >
+                            <DynamicIcon name={cat?.icon || 'Tag'} className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-slate-800 truncate">
+                                {cat?.name || (t.type === 'transfer' ? 'Chuyển khoản' : 'Giao dịch')}
+                              </span>
+                              {t.member && t.member !== 'Cá nhân' && (
+                                <span className="text-3xs px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200/60">
+                                  {t.member}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-2xs text-slate-500 truncate">
+                              {t.type === 'transfer' ? `${acc?.name} ➔ ${toAcc?.name}` : acc?.name}
+                              {t.note && ` • ${t.note}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span
+                            className={`text-xs sm:text-sm font-black ${
+                              t.type === 'income'
+                                ? 'text-emerald-600'
+                                : t.type === 'expense'
+                                ? 'text-rose-600'
+                                : 'text-blue-600'
+                            }`}
+                          >
+                            {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}
+                            {formatVND(t.amount)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Transactions Professional Data Table & Mobile Cards */
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         {paginatedList.length === 0 ? (
           <div className="py-16 text-center px-4">
             <div className="max-w-sm mx-auto space-y-3">
@@ -614,19 +1029,26 @@ export const TransactionsPage: React.FC = () => {
                         <p className="text-slate-800 font-medium truncate max-w-xs">
                           {t.note || '—'}
                         </p>
-                        <span className="inline-block mt-0.5 px-2 py-0.5 text-2xs rounded-md bg-slate-100 text-slate-600">
-                          {t.paymentMethod === 'cash'
-                            ? 'Tiền mặt'
-                            : t.paymentMethod === 'transfer'
-                            ? 'Chuyển khoản'
-                            : t.paymentMethod === 'card'
-                            ? 'Thẻ'
-                            : t.paymentMethod === 'qr'
-                            ? 'Quét QR'
-                            : t.paymentMethod === 'ewallet'
-                            ? 'Ví điện tử'
-                            : 'Khác'}
-                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span className="px-2 py-0.5 text-2xs rounded-md bg-slate-100 text-slate-600">
+                            {t.paymentMethod === 'cash'
+                              ? 'Tiền mặt'
+                              : t.paymentMethod === 'transfer'
+                              ? 'Chuyển khoản'
+                              : t.paymentMethod === 'card'
+                              ? 'Thẻ'
+                              : t.paymentMethod === 'qr'
+                              ? 'Quét QR'
+                              : t.paymentMethod === 'ewallet'
+                              ? 'Ví điện tử'
+                              : 'Khác'}
+                          </span>
+                          {t.member && t.member !== 'Cá nhân' && (
+                            <span className="px-2 py-0.5 text-2xs rounded-md bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200/60">
+                              {t.member}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Account */}
@@ -769,6 +1191,11 @@ export const TransactionsPage: React.FC = () => {
                           <span className="text-3xs px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-500 font-medium">
                             {subType}
                           </span>
+                          {t.member && t.member !== 'Cá nhân' && (
+                            <span className="text-3xs px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200/60">
+                              {t.member}
+                            </span>
+                          )}
                         </div>
                         <span className="text-2xs text-slate-400 block mt-0.5">
                           {formatDateVN(t.date)}
@@ -933,6 +1360,7 @@ export const TransactionsPage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       <RecurringModal
         isOpen={isRecurringModalOpen}
