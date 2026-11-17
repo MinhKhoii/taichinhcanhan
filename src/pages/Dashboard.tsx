@@ -168,6 +168,65 @@ export const Dashboard: React.FC = () => {
     return calculate503020Rule(activeTx, categories, curIncome);
   }, [activeTx, categories, curIncome]);
 
+  // DỰ BÁO DÒNG TIỀN VÀ SỐ DƯ CUỐI THÁNG (Tính năng học từ Firefly III)
+  const cashFlowForecast = useMemo(() => {
+    const today = new Date();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const currentDay = today.getDate();
+    const daysRemaining = Math.max(0, daysInMonth - currentDay);
+    const daysPassed = Math.max(1, currentDay);
+
+    const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const thisMonthTxs = transactions.filter((t) => t.date.startsWith(currentMonthPrefix));
+
+    const thisMonthIncome = thisMonthTxs
+      .filter((t) => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const thisMonthExpense = thisMonthTxs.reduce((sum, t) => {
+      if (t.type === 'expense') return sum + t.amount;
+      if (t.type === 'transfer' && t.transferFee) return sum + t.transferFee;
+      return sum;
+    }, 0);
+
+    const avgDailyExpense = Math.round(thisMonthExpense / daysPassed);
+    const projectedAdditionalExpense = avgDailyExpense * daysRemaining;
+    const projectedTotalExpense = thisMonthExpense + projectedAdditionalExpense;
+    const currentTotalBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
+    const projectedEndBalance = currentTotalBalance - projectedAdditionalExpense;
+
+    let status: 'safe' | 'warning' | 'danger' = 'safe';
+    let statusText = 'An toàn & Ổn định';
+    let advice = 'Tốc độ chi tiêu rất hợp lý, dòng tiền cuối tháng vẫn dồi dào!';
+
+    if (projectedEndBalance < 0) {
+      status = 'danger';
+      statusText = 'Nguy cơ thâm hụt ví';
+      advice = `Với tốc độ tiêu ${formatVND(avgDailyExpense)}/ngày, bạn có nguy cơ bị âm số dư trước cuối tháng. Cần cắt giảm các khoản chi không thiết yếu ngay!`;
+    } else if (projectedEndBalance < currentTotalBalance * 0.25 || projectedAdditionalExpense > currentTotalBalance * 0.75) {
+      status = 'warning';
+      statusText = 'Cần thắt lưng buộc bụng';
+      advice = `Số dư dự kiến cuối tháng giảm khá sâu. Hãy giới hạn chi tiêu dưới ${formatVND(Math.round(currentTotalBalance / (daysRemaining || 1)))}/ngày để giữ ví an toàn.`;
+    }
+
+    return {
+      currentDay,
+      daysInMonth,
+      daysRemaining,
+      daysPassed,
+      avgDailyExpense,
+      projectedAdditionalExpense,
+      projectedTotalExpense,
+      projectedEndBalance,
+      thisMonthIncome,
+      thisMonthExpense,
+      currentTotalBalance,
+      status,
+      statusText,
+      advice,
+    };
+  }, [transactions, accounts]);
+
   // Period display label
   const periodLabelMap: Record<string, string> = {
     today: 'Hôm nay',
@@ -535,6 +594,66 @@ export const Dashboard: React.FC = () => {
                 ? 'Dòng tiền thặng dư tích cực'
                 : 'Cảnh báo: Dòng tiền đang thâm hụt'}
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Smart Cash Flow Forecasting Widget (Học từ Firefly III) */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden border border-indigo-900/50">
+        <div className="absolute -right-16 -top-16 w-60 h-60 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 -bottom-16 w-60 h-60 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="p-1.5 rounded-xl bg-white/10 text-amber-300">
+                <Sparkles className="w-4 h-4 animate-pulse" />
+              </span>
+              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-blue-200">
+                Dự báo dòng tiền & Số dư cuối tháng
+              </h3>
+              <span
+                className={`text-3xs font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
+                  cashFlowForecast.status === 'safe'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                    : cashFlowForecast.status === 'warning'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                    : 'bg-rose-500/20 text-rose-300 border-rose-400/40'
+                }`}
+              >
+                ● {cashFlowForecast.statusText}
+              </span>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+              {cashFlowForecast.advice}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-2xs text-slate-300">
+              <span>
+                Tốc độ tiêu: <strong className="text-white font-bold">{formatVND(cashFlowForecast.avgDailyExpense)}/ngày</strong>
+              </span>
+              <span>•</span>
+              <span>
+                Thời gian: còn <strong className="text-amber-300 font-bold">{cashFlowForecast.daysRemaining} ngày</strong> nữa
+              </span>
+              <span>•</span>
+              <span>
+                Dự kiến chi thêm: <strong className="text-rose-300 font-bold">~{formatVND(cashFlowForecast.projectedAdditionalExpense)}</strong>
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 sm:p-5 w-full lg:w-auto min-w-[240px] text-right sm:text-left lg:text-right shrink-0">
+            <span className="text-3xs uppercase tracking-wider font-semibold text-blue-200 block">
+              Dự kiến số dư ngày {cashFlowForecast.daysInMonth}/{new Date().getMonth() + 1}
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-white mt-1 tracking-tight">
+              {formatMoney(cashFlowForecast.projectedEndBalance)}
+            </div>
+            <span className="text-3xs text-slate-300 mt-0.5 block">
+              (Số dư hiện tại: {formatMoney(cashFlowForecast.currentTotalBalance)})
+            </span>
           </div>
         </div>
       </div>

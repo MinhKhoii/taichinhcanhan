@@ -48,6 +48,7 @@ export interface Account {
   isYieldEnabled?: boolean; // Tự động sinh lời hàng ngày (Tài khoản tích lũy sinh lời)
   yieldRate?: number; // Lãi suất %/năm (mặc định 4.0)
   lastYieldDate?: string; // Ngày gần nhất đã cộng tiền lời (YYYY-MM-DD)
+  lastReconciledAt?: string; // Ngày gần nhất đã đối soát số dư khớp với ngân hàng thật (ISO string)
   createdAt: string;
   updatedAt: string;
 }

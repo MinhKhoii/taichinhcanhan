@@ -28,11 +28,14 @@ import {
   Info,
   Calendar,
   ArrowUpRight,
+  Scale,
+  CheckCheck,
 } from 'lucide-react';
 import { formatVND, formatDateVN, getLocalDateString } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
 import { AccountModal } from '../components/modals/AccountModal';
 import { TransferModal } from '../components/modals/TransferModal';
+import { ReconcileModal } from '../components/modals/ReconcileModal';
 
 export const AccountsPage: React.FC = () => {
   const {
@@ -61,6 +64,7 @@ export const AccountsPage: React.FC = () => {
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '');
   const [viewingYieldAccount, setViewingYieldAccount] = useState<Account | null>(null);
+  const [reconcilingAccount, setReconcilingAccount] = useState<Account | null>(null);
 
   // Compute yield details for the modal
   const yieldDetails = useMemo(() => {
@@ -459,6 +463,22 @@ export const AccountsPage: React.FC = () => {
 
                       <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReconcilingAccount(acc);
+                          }}
+                          className={`px-2 py-1 text-3xs font-bold rounded-lg transition-all cursor-pointer shadow-2xs flex items-center gap-1 shrink-0 ${
+                            acc.lastReconciledAt
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                          }`}
+                          title="Đối soát số dư thực tế với ứng dụng ngân hàng/ví (Tính năng từ Actual Budget)"
+                        >
+                          <Scale className="w-3 h-3" />
+                          <span>{acc.lastReconciledAt ? 'Đã đối soát' : 'Đối soát'}</span>
+                        </button>
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenEdit(acc);
@@ -719,6 +739,20 @@ export const AccountsPage: React.FC = () => {
                   )}
                 </div>
 
+                {/* Nút Đối soát số dư (Tính năng từ Actual Budget) */}
+                <button
+                  type="button"
+                  onClick={() => setReconcilingAccount(selectedAccount)}
+                  className="w-full py-2.5 px-3.5 mb-3.5 bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 border border-indigo-200/80 rounded-2xl text-xs font-bold text-indigo-700 flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-2xs"
+                >
+                  <Scale className="w-4 h-4 text-indigo-600" />
+                  <span>
+                    {selectedAccount.lastReconciledAt
+                      ? `Đối soát lại số dư (Đã khớp ${formatDateVN(selectedAccount.lastReconciledAt)})`
+                      : 'Đối soát số dư với ngân hàng thật'}
+                  </span>
+                </button>
+
                 {/* Transactions List */}
                 <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                   {accountTransactions.length === 0 ? (
@@ -978,6 +1012,13 @@ export const AccountsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Đối soát số dư thực tế (Tính năng từ Actual Budget) */}
+      <ReconcileModal
+        account={reconcilingAccount}
+        isOpen={Boolean(reconcilingAccount)}
+        onClose={() => setReconcilingAccount(null)}
+      />
     </div>
   );
 };
