@@ -16,8 +16,17 @@ import {
   Cloud,
   KeyRound,
   HelpCircle,
+  Clock,
 } from 'lucide-react';
 import { useModalEscape } from '../../hooks/useModalEscape';
+import {
+  getLockoutState,
+  recordFailedAttempt,
+  resetLockout,
+  formatCountdown,
+  AUTH_LOGIN_LOCKOUT_KEY,
+  MAX_LOGIN_ATTEMPTS,
+} from '../../utils/security';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -41,31 +50,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [rememberAccount, setRememberAccount] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   useModalEscape(onClose, isOpen);
 
-  // When modal is opened, clear temporary input so stranger / public users see a 100% clean blank form
+  // Sync lockout state & clear temporary input when modal opens
   useEffect(() => {
     if (isOpen) {
-      setErrorMessage('');
+      const lockState = getLockoutState(AUTH_LOGIN_LOCKOUT_KEY);
+      if (lockState.isLocked) {
+        setLockoutSeconds(lockState.remainingSeconds);
+      } else {
+        setLockoutSeconds(0);
+        setErrorMessage('');
+      }
       try {
         localStorage.removeItem('moneyflow_recent_accounts_v1');
       } catch {}
     }
   }, [isOpen]);
 
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          resetLockout(AUTH_LOGIN_LOCKOUT_KEY);
+          setErrorMessage('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutSeconds]);
+
   if (!isOpen) return null;
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+
+    // Check if locked out
+    const lockCheck = getLockoutState(AUTH_LOGIN_LOCKOUT_KEY);
+    if (lockCheck.isLocked) {
+      setLockoutSeconds(lockCheck.remainingSeconds);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const res = await login(email, password);
       if (res.success) {
+        resetLockout(AUTH_LOGIN_LOCKOUT_KEY);
+        setLockoutSeconds(0);
         setCurrentTab('dashboard');
         if (typeof window !== 'undefined') {
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -73,10 +116,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         showToast(res.message, 'success');
         onClose();
       } else {
-        setErrorMessage(res.message);
+        const lockout = recordFailedAttempt(AUTH_LOGIN_LOCKOUT_KEY);
+        if (lockout.isLocked) {
+          setLockoutSeconds(lockout.remainingSeconds);
+          setErrorMessage('');
+        } else {
+          setErrorMessage(`${res.message} (Bạn còn ${lockout.attemptsLeft} lần thử trước khi bị tạm khóa 60s)`);
+        }
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Lỗi đăng nhập, vui lòng kiểm tra lại');
+      const lockout = recordFailedAttempt(AUTH_LOGIN_LOCKOUT_KEY);
+      if (lockout.isLocked) {
+        setLockoutSeconds(lockout.remainingSeconds);
+        setErrorMessage('');
+      } else {
+        setErrorMessage((err.message || 'Lỗi đăng nhập, vui lòng kiểm tra lại') + ` (Còn ${lockout.attemptsLeft} lần thử)`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -249,7 +304,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Form Body */}
         <div className="p-6 space-y-4 flex-1 overflow-y-auto modal-content-scroll overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          {errorMessage && (
+          {lockoutSeconds > 0 && (
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 animate-in fade-in duration-200">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+                <Clock className="w-4 h-4 animate-pulse" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-bold text-amber-900">Tạm khóa do nhập sai quá 5 lần</h4>
+                  <span className="px-2 py-0.5 bg-amber-600 text-white font-mono font-bold text-xs rounded-md shadow-2xs">
+                    {formatCountdown(lockoutSeconds)}
+                  </span>
+                </div>
+                <p className="text-2xs text-amber-700 mt-1 leading-relaxed">
+                  Nhằm chống dò mật khẩu, hệ thống tạm dừng đăng nhập trong 60 giây. Làm mới trang sẽ không bỏ qua thời gian chờ này.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {errorMessage && lockoutSeconds <= 0 && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium animate-in fade-in duration-150">
               {errorMessage}
             </div>
@@ -270,10 +344,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     type="email"
                     autoComplete="username email"
                     required
+                    disabled={isLoading || lockoutSeconds > 0}
                     placeholder="email@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-9 pr-3.5 py-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                    className="w-full pl-9 pr-3.5 py-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </div>
               </div>
@@ -291,10 +366,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     required
+                    disabled={isLoading || lockoutSeconds > 0}
                     placeholder="Nhập mật khẩu của bạn"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-10 py-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                    className="w-full pl-9 pr-10 py-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden disabled:bg-slate-100 disabled:text-slate-400"
                   />
                   <button
                     type="button"
@@ -332,11 +408,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-60"
+                disabled={isLoading || lockoutSeconds > 0}
+                className={`w-full py-2.5 text-xs font-bold text-white rounded-xl shadow-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-60 ${
+                  lockoutSeconds > 0 ? 'bg-amber-600 hover:bg-amber-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
-                <span>{isLoading ? 'Đang xác thực...' : 'Đăng nhập'}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                {lockoutSeconds > 0 ? (
+                  <>
+                    <Clock className="w-3.5 h-3.5 animate-spin" />
+                    <span>Vui lòng chờ {formatCountdown(lockoutSeconds)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{isLoading ? 'Đang xác thực...' : 'Đăng nhập'}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
               </button>
 
               <div className="pt-2 border-t border-slate-100">

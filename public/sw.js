@@ -1,5 +1,5 @@
 // MoneyFlow PWA Service Worker
-const CACHE_NAME = 'moneyflow-cache-v13';
+const CACHE_NAME = 'moneyflow-cache-v14';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
