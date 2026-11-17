@@ -227,6 +227,27 @@ export const Dashboard: React.FC = () => {
     };
   }, [transactions, accounts]);
 
+  // Ghép thông tin dự báo dòng tiền thông minh vào Trợ lý tài chính
+  const displayInsights = useMemo(() => {
+    const list = [...insights];
+    if (cashFlowForecast && accounts.length > 0) {
+      list.unshift({
+        id: 'firefly-cashflow-forecast',
+        type:
+          cashFlowForecast.status === 'danger'
+            ? 'alert'
+            : cashFlowForecast.status === 'warning'
+            ? 'warning'
+            : 'positive',
+        title: `Dự báo số dư ngày ${cashFlowForecast.daysInMonth}/${new Date().getMonth() + 1}: ${formatMoney(cashFlowForecast.projectedEndBalance)}`,
+        message: `${cashFlowForecast.advice} (Tốc độ tiêu ~${formatVND(cashFlowForecast.avgDailyExpense)}/ngày, dự kiến chi thêm ~${formatVND(cashFlowForecast.projectedAdditionalExpense)} trong ${cashFlowForecast.daysRemaining} ngày còn lại).`,
+        actionText: 'Đối soát số dư',
+        actionTab: 'accounts',
+      });
+    }
+    return list;
+  }, [insights, cashFlowForecast, accounts.length, formatMoney]);
+
   // Period display label
   const periodLabelMap: Record<string, string> = {
     today: 'Hôm nay',
@@ -337,7 +358,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Top Banner: Smart Financial Assistant Highlight with Carousel */}
-      {insights.length > 0 && !isBannerDismissed && (
+      {displayInsights.length > 0 && !isBannerDismissed && (
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 sm:p-5 shadow-xl">
           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
 
@@ -352,9 +373,9 @@ export const Dashboard: React.FC = () => {
                   Trợ lý tài chính thông minh
                 </span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                {insights.length > 1 && (
+                {displayInsights.length > 1 && (
                   <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-white/15 text-blue-100 shrink-0">
-                    {((activeInsightIndex % insights.length) + 1)}/{insights.length}
+                    {((activeInsightIndex % displayInsights.length) + 1)}/{displayInsights.length}
                   </span>
                 )}
               </div>
@@ -394,21 +415,21 @@ export const Dashboard: React.FC = () => {
           <div className="relative z-10 pt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="min-w-0 flex-1 min-h-[3.25rem] sm:min-h-[3rem] flex flex-col justify-center">
               <h3 className="text-sm sm:text-base font-bold text-white line-clamp-1">
-                {insights[activeInsightIndex % insights.length]?.title}
+                {displayInsights[activeInsightIndex % displayInsights.length]?.title}
               </h3>
               <p className="text-xs sm:text-sm text-slate-200 mt-0.5 max-w-2xl leading-relaxed line-clamp-2 sm:line-clamp-none">
-                {insights[activeInsightIndex % insights.length]?.message}
+                {displayInsights[activeInsightIndex % displayInsights.length]?.message}
               </p>
             </div>
 
             {/* Bottom Actions Row: Carousel Prev/Next & Insight Action Button */}
             <div className="flex items-center justify-between md:justify-end gap-2 shrink-0 pt-1 md:pt-0">
-              {insights.length > 1 && (
+              {displayInsights.length > 1 && (
                 <div className="flex items-center space-x-1 bg-white/10 p-1 rounded-xl">
                   <button
                     type="button"
                     onClick={() =>
-                      setActiveInsightIndex((prev) => (prev - 1 + insights.length) % insights.length)
+                      setActiveInsightIndex((prev) => (prev - 1 + displayInsights.length) % displayInsights.length)
                     }
                     className="p-1 hover:bg-white/20 rounded-lg text-white transition-colors cursor-pointer"
                     title="Gợi ý trước"
@@ -418,7 +439,7 @@ export const Dashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() =>
-                      setActiveInsightIndex((prev) => (prev + 1) % insights.length)
+                      setActiveInsightIndex((prev) => (prev + 1) % displayInsights.length)
                     }
                     className="p-1 hover:bg-white/20 rounded-lg text-white transition-colors cursor-pointer"
                     title="Gợi ý tiếp theo"
@@ -428,16 +449,16 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
 
-              {insights[activeInsightIndex % insights.length]?.actionText ? (
+              {displayInsights[activeInsightIndex % displayInsights.length]?.actionText ? (
                 <button
                   type="button"
                   onClick={() => {
-                    const tab = insights[activeInsightIndex % insights.length]?.actionTab;
+                    const tab = displayInsights[activeInsightIndex % displayInsights.length]?.actionTab;
                     if (tab) setCurrentTab(tab);
                   }}
                   className="flex items-center space-x-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold bg-white text-slate-900 hover:bg-slate-100 active:scale-95 rounded-xl transition-all shadow-md cursor-pointer"
                 >
-                  <span>{insights[activeInsightIndex % insights.length].actionText}</span>
+                  <span>{displayInsights[activeInsightIndex % displayInsights.length].actionText}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               ) : null}
@@ -447,7 +468,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Minimal toggle pill when Assistant Banner is dismissed */}
-      {isBannerDismissed && insights.length > 0 && (
+      {isBannerDismissed && displayInsights.length > 0 && (
         <div className="flex items-center justify-end gap-2 -mt-2 -mb-2">
           <button
             type="button"
@@ -460,7 +481,7 @@ export const Dashboard: React.FC = () => {
             className="inline-flex items-center space-x-1.5 text-2xs font-semibold text-slate-500 hover:text-blue-600 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200/80 px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-2xs"
             title="Bấm để mở lại bảng gợi ý"
           >
-            <span>Xem gợi ý ({insights.length})</span>
+            <span>Xem gợi ý ({displayInsights.length})</span>
           </button>
         </div>
       )}
@@ -594,66 +615,6 @@ export const Dashboard: React.FC = () => {
                 ? 'Dòng tiền thặng dư tích cực'
                 : 'Cảnh báo: Dòng tiền đang thâm hụt'}
             </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Smart Cash Flow Forecasting Widget (Học từ Firefly III) */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden border border-indigo-900/50">
-        <div className="absolute -right-16 -top-16 w-60 h-60 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 -bottom-16 w-60 h-60 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="p-1.5 rounded-xl bg-white/10 text-amber-300">
-                <Sparkles className="w-4 h-4 animate-pulse" />
-              </span>
-              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-blue-200">
-                Dự báo dòng tiền & Số dư cuối tháng
-              </h3>
-              <span
-                className={`text-3xs font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
-                  cashFlowForecast.status === 'safe'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
-                    : cashFlowForecast.status === 'warning'
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
-                    : 'bg-rose-500/20 text-rose-300 border-rose-400/40'
-                }`}
-              >
-                ● {cashFlowForecast.statusText}
-              </span>
-            </div>
-
-            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
-              {cashFlowForecast.advice}
-            </p>
-
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-2xs text-slate-300">
-              <span>
-                Tốc độ tiêu: <strong className="text-white font-bold">{formatVND(cashFlowForecast.avgDailyExpense)}/ngày</strong>
-              </span>
-              <span>•</span>
-              <span>
-                Thời gian: còn <strong className="text-amber-300 font-bold">{cashFlowForecast.daysRemaining} ngày</strong> nữa
-              </span>
-              <span>•</span>
-              <span>
-                Dự kiến chi thêm: <strong className="text-rose-300 font-bold">~{formatVND(cashFlowForecast.projectedAdditionalExpense)}</strong>
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 sm:p-5 w-full lg:w-auto min-w-[240px] text-right sm:text-left lg:text-right shrink-0">
-            <span className="text-3xs uppercase tracking-wider font-semibold text-blue-200 block">
-              Dự kiến số dư ngày {cashFlowForecast.daysInMonth}/{new Date().getMonth() + 1}
-            </span>
-            <div className="text-xl sm:text-2xl font-black text-white mt-1 tracking-tight">
-              {formatMoney(cashFlowForecast.projectedEndBalance)}
-            </div>
-            <span className="text-3xs text-slate-300 mt-0.5 block">
-              (Số dư hiện tại: {formatMoney(cashFlowForecast.currentTotalBalance)})
-            </span>
           </div>
         </div>
       </div>
@@ -928,6 +889,40 @@ export const Dashboard: React.FC = () => {
                 />
               </AreaChart>
             </ResponsiveContainer>
+          </div>
+
+          {/* Dự báo dòng tiền cuối tháng (Học từ Firefly III) */}
+          <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl p-3 sm:px-4">
+            <div className="flex items-center space-x-2">
+              <div className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="font-semibold text-slate-600 dark:text-slate-400">
+                  Dự báo số dư ngày {cashFlowForecast.daysInMonth}/{new Date().getMonth() + 1}:
+                </span>
+                <span className="font-black text-slate-900 dark:text-slate-100">
+                  {formatMoney(cashFlowForecast.projectedEndBalance)}
+                </span>
+                <span
+                  className={`text-3xs font-extrabold px-2 py-0.5 rounded-full ${
+                    cashFlowForecast.status === 'safe'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : cashFlowForecast.status === 'warning'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                      : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                  }`}
+                >
+                  ● {cashFlowForecast.statusText}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-2xs text-slate-500 dark:text-slate-400 flex items-center gap-2.5">
+              <span>Tốc độ: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{formatVND(cashFlowForecast.avgDailyExpense)}/ngày</strong></span>
+              <span>•</span>
+              <span>Dự kiến chi thêm: <strong className="text-rose-600 dark:text-rose-400 font-semibold">~{formatCompactVND(cashFlowForecast.projectedAdditionalExpense)}</strong></span>
+            </div>
           </div>
         </div>
 
