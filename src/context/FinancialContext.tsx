@@ -17,7 +17,7 @@ import { dataService } from '../services/dataService';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { generateFinancialInsights, FinancialInsight } from '../utils/financialAssistant';
-import { formatVND } from '../utils/formatters';
+import { formatVND, setGlobalPrivacyMode, isGlobalPrivacyActive } from '../utils/formatters';
 import {
   isSameDay,
   isSameWeek,
@@ -283,27 +283,6 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [theme]);
 
-  // Privacy Mode (Ẩn số tiền nhạy cảm khi ở nơi công cộng)
-  const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(() => {
-    return localStorage.getItem('moneyflow_privacy_mode') === 'true';
-  });
-
-  const togglePrivacyMode = useCallback(() => {
-    setIsPrivacyMode((prev) => {
-      const next = !prev;
-      localStorage.setItem('moneyflow_privacy_mode', String(next));
-      return next;
-    });
-  }, []);
-
-  const formatMoney = useCallback(
-    (amount: number, showSign: boolean = false) => {
-      if (isPrivacyMode) return '••••••••';
-      return formatVND(amount, showSign);
-    },
-    [isPrivacyMode]
-  );
-
   // Toast handler
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = `toast_${Date.now()}_${Math.random()}`;
@@ -316,6 +295,32 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  // Privacy Mode (Ẩn số tiền nhạy cảm khi ở nơi công cộng)
+  const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(() => {
+    return isGlobalPrivacyActive();
+  });
+
+  const togglePrivacyMode = useCallback(() => {
+    setIsPrivacyMode((prev) => {
+      const next = !prev;
+      setGlobalPrivacyMode(next);
+      if (next) {
+        showToast('🔒 Đã bật Chế độ Riêng tư: Toàn bộ số dư và giao dịch đã được ẩn an toàn!', 'info');
+      } else {
+        showToast('👁️ Đã tắt Chế độ Riêng tư: Hiển thị lại số tiền đầy đủ.', 'info');
+      }
+      return next;
+    });
+  }, [showToast]);
+
+  const formatMoney = useCallback(
+    (amount: number, showSign: boolean = false) => {
+      if (isPrivacyMode || isGlobalPrivacyActive()) return '••••••••';
+      return formatVND(amount, showSign, true);
+    },
+    [isPrivacyMode]
+  );
 
   // PWA Installation & Standalone Detection
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);

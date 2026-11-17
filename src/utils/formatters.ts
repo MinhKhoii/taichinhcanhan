@@ -2,11 +2,41 @@ import { format, parseISO, isValid } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Account, PaymentMethod } from '../types';
 
+let _globalPrivacyMode =
+  typeof window !== 'undefined'
+    ? localStorage.getItem('moneyflow_privacy_mode') === 'true'
+    : false;
+
+export function setGlobalPrivacyMode(enabled: boolean): void {
+  _globalPrivacyMode = enabled;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('moneyflow_privacy_mode', String(enabled));
+    } catch {}
+  }
+}
+
+export function isGlobalPrivacyActive(): boolean {
+  if (typeof window !== 'undefined') {
+    const fromStorage = localStorage.getItem('moneyflow_privacy_mode') === 'true';
+    return _globalPrivacyMode || fromStorage;
+  }
+  return _globalPrivacyMode;
+}
+
 /**
  * Format currency in Vietnamese Dong (VND)
  * e.g. 15000000 -> 15.000.000 ₫
  */
-export function formatVND(amount: number, showSign: boolean = false): string {
+export function formatVND(
+  amount: number,
+  showSign: boolean = false,
+  ignorePrivacy: boolean = false
+): string {
+  if (!ignorePrivacy && isGlobalPrivacyActive()) {
+    return '••••••••';
+  }
+
   if (isNaN(amount) || amount === null || amount === undefined) {
     return '0 ₫';
   }
@@ -25,7 +55,11 @@ export function formatVND(amount: number, showSign: boolean = false): string {
  * Compact VND format for small badges / charts
  * e.g. 15000000 -> 15 Tr
  */
-export function formatCompactVND(amount: number): string {
+export function formatCompactVND(amount: number, ignorePrivacy: boolean = false): string {
+  if (!ignorePrivacy && isGlobalPrivacyActive()) {
+    return '••••';
+  }
+
   if (isNaN(amount)) return '0 ₫';
   const abs = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
@@ -47,7 +81,10 @@ export function formatCompactVND(amount: number): string {
  * e.g. 11000000 -> 11 Triệu VNĐ
  * e.g. 11500000 -> 11 Triệu 500 Nghìn VNĐ
  */
-export function getReadableVNDWords(amount: number): string {
+export function getReadableVNDWords(amount: number, ignorePrivacy: boolean = false): string {
+  if (!ignorePrivacy && isGlobalPrivacyActive()) {
+    return '••••••••';
+  }
   if (!amount || isNaN(amount) || amount <= 0) return '';
   const ty = Math.floor(amount / 1_000_000_000);
   const trieu = Math.floor((amount % 1_000_000_000) / 1_000_000);

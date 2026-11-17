@@ -677,7 +677,7 @@ export const TransactionModal: React.FC = () => {
               {isMathExpression && mathCalculated !== null && (
                 <div className="flex items-center justify-center space-x-1.5 py-1 px-3 mt-2 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-700 max-w-sm mx-auto animate-in fade-in">
                   <Calculator className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Kết quả phép tính: = {formatVND(mathCalculated)}</span>
+                  <span>Kết quả phép tính: = {formatVND(mathCalculated, false, true)}</span>
                 </div>
               )}
 
@@ -685,10 +685,10 @@ export const TransactionModal: React.FC = () => {
               {parsedAmount > 0 && (
                 <div className="pt-3 mt-2 border-t border-slate-200/70 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
                   {/* Vietnamese Words Readout */}
-                  {getReadableVNDWords(parsedAmount) && (
+                  {getReadableVNDWords(parsedAmount, true) && (
                     <div className="flex items-center justify-center space-x-1.5 py-1 px-3 bg-blue-50/80 border border-blue-100 rounded-xl text-xs font-bold text-blue-700 max-w-md mx-auto">
                       <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-                      <span className="break-words leading-tight">{getReadableVNDWords(parsedAmount)}</span>
+                      <span className="break-words leading-tight">{getReadableVNDWords(parsedAmount, true)}</span>
                     </div>
                   )}
 
