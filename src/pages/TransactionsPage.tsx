@@ -22,6 +22,8 @@ import {
   Sparkles,
   List,
   Users,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { formatVND, formatDateVN, formatCompactVND, getLocalDateString, getLocalMonthString } from '../utils/formatters';
 import { DynamicIcon } from '../components/common/DynamicIcon';
@@ -35,6 +37,9 @@ export const TransactionsPage: React.FC = () => {
     accounts,
     openAddTxModal,
     deleteTransaction,
+    formatMoney,
+    isPrivacyMode,
+    togglePrivacyMode,
   } = useFinancial();
 
   // Search & Filter state
@@ -340,11 +345,21 @@ export const TransactionsPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <span className="text-2xs font-semibold text-emerald-800 uppercase tracking-wider">
-              Tổng thu (bộ lọc)
-            </span>
+            <div className="flex items-center space-x-1.5">
+              <span className="text-2xs font-semibold text-emerald-800 uppercase tracking-wider">
+                Tổng thu (bộ lọc)
+              </span>
+              <button
+                type="button"
+                onClick={togglePrivacyMode}
+                className="p-0.5 hover:bg-emerald-200/50 rounded-md text-emerald-700 transition-colors cursor-pointer"
+                title={isPrivacyMode ? 'Hiện số tiền' : 'Ẩn số tiền riêng tư (Chống nhìn lén)'}
+              >
+                {isPrivacyMode ? <EyeOff className="w-3.5 h-3.5 text-amber-600" /> : <Eye className="w-3.5 h-3.5 opacity-60 hover:opacity-100" />}
+              </button>
+            </div>
             <div className="text-lg font-black text-emerald-700 mt-0.5">
-              +{formatVND(summaryIncome)}
+              {isPrivacyMode ? '••••••••' : `+${formatVND(summaryIncome)}`}
             </div>
           </div>
           <div className="p-2.5 bg-emerald-500 text-white rounded-xl shadow-2xs">
@@ -354,11 +369,21 @@ export const TransactionsPage: React.FC = () => {
 
         <div className="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <span className="text-2xs font-semibold text-rose-800 uppercase tracking-wider">
-              Tổng chi (bộ lọc)
-            </span>
+            <div className="flex items-center space-x-1.5">
+              <span className="text-2xs font-semibold text-rose-800 uppercase tracking-wider">
+                Tổng chi (bộ lọc)
+              </span>
+              <button
+                type="button"
+                onClick={togglePrivacyMode}
+                className="p-0.5 hover:bg-rose-200/50 rounded-md text-rose-700 transition-colors cursor-pointer"
+                title={isPrivacyMode ? 'Hiện số tiền' : 'Ẩn số tiền riêng tư (Chống nhìn lén)'}
+              >
+                {isPrivacyMode ? <EyeOff className="w-3.5 h-3.5 text-amber-600" /> : <Eye className="w-3.5 h-3.5 opacity-60 hover:opacity-100" />}
+              </button>
+            </div>
             <div className="text-lg font-black text-rose-700 mt-0.5">
-              -{formatVND(summaryExpense)}
+              {isPrivacyMode ? '••••••••' : `-${formatVND(summaryExpense)}`}
             </div>
           </div>
           <div className="p-2.5 bg-rose-500 text-white rounded-xl shadow-2xs">
@@ -368,11 +393,21 @@ export const TransactionsPage: React.FC = () => {
 
         <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <span className="text-2xs font-semibold text-blue-800 uppercase tracking-wider">
-              Chênh lệch dòng tiền
-            </span>
+            <div className="flex items-center space-x-1.5">
+              <span className="text-2xs font-semibold text-blue-800 uppercase tracking-wider">
+                Chênh lệch dòng tiền
+              </span>
+              <button
+                type="button"
+                onClick={togglePrivacyMode}
+                className="p-0.5 hover:bg-blue-200/50 rounded-md text-blue-700 transition-colors cursor-pointer"
+                title={isPrivacyMode ? 'Hiện số tiền' : 'Ẩn số tiền riêng tư (Chống nhìn lén)'}
+              >
+                {isPrivacyMode ? <EyeOff className="w-3.5 h-3.5 text-amber-600" /> : <Eye className="w-3.5 h-3.5 opacity-60 hover:opacity-100" />}
+              </button>
+            </div>
             <div className="text-lg font-black text-blue-700 mt-0.5">
-              {formatVND(summaryNet, true)}
+              {isPrivacyMode ? '••••••••' : formatVND(summaryNet, true)}
             </div>
           </div>
           <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-2xs">
@@ -659,15 +694,15 @@ export const TransactionsPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2">
               <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/70 text-emerald-800 text-xs flex items-center gap-1.5">
                 <span className="text-3xs uppercase font-bold text-emerald-600">Thu:</span>
-                <span className="font-extrabold">+{formatVND(monthTotalIncome)}</span>
+                <span className="font-extrabold">{isPrivacyMode ? '••••••••' : `+${formatVND(monthTotalIncome)}`}</span>
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200/70 text-rose-800 text-xs flex items-center gap-1.5">
                 <span className="text-3xs uppercase font-bold text-rose-600">Chi:</span>
-                <span className="font-extrabold">-{formatVND(monthTotalExpense)}</span>
+                <span className="font-extrabold">{isPrivacyMode ? '••••••••' : `-${formatVND(monthTotalExpense)}`}</span>
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200/70 text-blue-800 text-xs flex items-center gap-1.5">
                 <span className="text-3xs uppercase font-bold text-blue-600">Dòng tiền:</span>
-                <span className="font-black">{formatVND(monthNet, true)}</span>
+                <span className="font-black">{isPrivacyMode ? '••••••••' : formatVND(monthNet, true)}</span>
               </div>
             </div>
           </div>
@@ -741,12 +776,12 @@ export const TransactionsPage: React.FC = () => {
                     <div className="space-y-0.5 overflow-hidden text-right">
                       {cell.data && cell.data.income > 0 && (
                         <span className="text-3xs sm:text-2xs font-black text-emerald-600 truncate block">
-                          +{formatCompactVND(cell.data.income)}
+                          {isPrivacyMode ? '•••' : `+${formatCompactVND(cell.data.income)}`}
                         </span>
                       )}
                       {cell.data && cell.data.expense > 0 && (
                         <span className="text-3xs sm:text-2xs font-black text-rose-600 truncate block">
-                          -{formatCompactVND(cell.data.expense)}
+                          {isPrivacyMode ? '•••' : `-${formatCompactVND(cell.data.expense)}`}
                         </span>
                       )}
                     </div>
@@ -772,12 +807,12 @@ export const TransactionsPage: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   {selectedDayData.income > 0 && (
                     <span className="text-xs font-bold text-emerald-600">
-                      Thu: +{formatVND(selectedDayData.income)}
+                      Thu: {isPrivacyMode ? '••••••••' : `+${formatVND(selectedDayData.income)}`}
                     </span>
                   )}
                   {selectedDayData.expense > 0 && (
                     <span className="text-xs font-bold text-rose-600">
-                      Chi: -{formatVND(selectedDayData.expense)}
+                      Chi: {isPrivacyMode ? '••••••••' : `-${formatVND(selectedDayData.expense)}`}
                     </span>
                   )}
                   <button
@@ -843,8 +878,9 @@ export const TransactionsPage: React.FC = () => {
                                 : 'text-blue-600'
                             }`}
                           >
-                            {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}
-                            {formatVND(t.amount)}
+                            {isPrivacyMode
+                              ? '••••••••'
+                              : `${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${formatVND(t.amount)}`}
                           </span>
                         </div>
                       </div>
@@ -1075,8 +1111,9 @@ export const TransactionsPage: React.FC = () => {
                               : 'text-blue-600'
                           }`}
                         >
-                          {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}
-                          {formatVND(t.amount)}
+                          {isPrivacyMode
+                            ? '••••••••'
+                            : `${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${formatVND(t.amount)}`}
                         </span>
                       </td>
 
@@ -1213,8 +1250,9 @@ export const TransactionsPage: React.FC = () => {
                             : 'text-blue-600'
                         }`}
                       >
-                        {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}
-                        {formatVND(t.amount)}
+                        {isPrivacyMode
+                          ? '••••••••'
+                          : `${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${formatVND(t.amount)}`}
                       </span>
                     </div>
                   </div>

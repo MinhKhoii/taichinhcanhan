@@ -16,6 +16,8 @@ import {
   AlertCircle,
   Sun,
   Moon,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { formatVND, getLocalDateString } from '../../utils/formatters';
 
@@ -33,6 +35,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     theme,
     toggleTheme,
     openAIModal,
+    formatMoney,
+    isPrivacyMode,
+    togglePrivacyMode,
   } = useFinancial();
 
   const totalNetWorth = accounts.reduce((sum, a) => sum + a.balance, 0);
@@ -192,9 +197,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               <Sparkles className="w-3 h-3 text-amber-400" />
               Tổng tài sản ròng
             </span>
+            <button
+              type="button"
+              onClick={togglePrivacyMode}
+              className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              title={isPrivacyMode ? 'Hiện số tiền' : 'Ẩn số tiền riêng tư (Chống nhìn lén)'}
+            >
+              {isPrivacyMode ? <EyeOff className="w-3.5 h-3.5 text-amber-400" /> : <Eye className="w-3.5 h-3.5 opacity-60 hover:opacity-100" />}
+            </button>
           </div>
           <div className="text-base font-bold text-white tracking-tight">
-            {formatVND(totalNetWorth)}
+            {formatMoney(totalNetWorth)}
           </div>
           <p className="text-2xs text-slate-400 mt-1">
             {accounts.length} tài khoản & ví liên kết

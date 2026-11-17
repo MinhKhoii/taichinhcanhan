@@ -47,6 +47,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { aiService } from '../services/aiService';
+import { authService } from '../services/authService';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { formatVND } from '../utils/formatters';
 import { exportAdminSystemReportToExcel } from '../utils/exportData';
@@ -100,6 +101,9 @@ export const AdminPage: React.FC = () => {
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'member' | 'active' | 'dormant'>('all');
   const [selectedUserDetail, setSelectedUserDetail] = useState<CloudUserInfo | null>(null);
+  const [userToResetPassword, setUserToResetPassword] = useState<CloudUserInfo | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState<string>('1');
+  const [isResettingPassword, setIsResettingPassword] = useState<boolean>(false);
 
   // Database Tab & Storage State
   const [isSyncing, setIsSyncing] = useState(false);
@@ -376,6 +380,33 @@ export const AdminPage: React.FC = () => {
       showToast('Lỗi tải bản sao lưu CSDL: ' + err.message, 'error');
     } finally {
       setIsDownloadingBackup(false);
+    }
+  };
+
+  // 4.5. Admin Reset User Password
+  const handleConfirmResetPassword = async () => {
+    if (!userToResetPassword) return;
+    setIsResettingPassword(true);
+    try {
+      const res = await authService.adminResetUserPassword(
+        userToResetPassword.email,
+        resetNewPassword || '1',
+        userToResetPassword.id
+      );
+      if (res.success) {
+        showToast(
+          `🔑 Đã đặt lại mật khẩu của "${userToResetPassword.fullName}" về "${resetNewPassword || '1'}" thành công!`,
+          'success'
+        );
+        setUserToResetPassword(null);
+        fetchCloudUsers();
+      } else {
+        showToast(res.message, 'error');
+      }
+    } catch (err: any) {
+      showToast(`Lỗi đặt lại mật khẩu: ${err.message || 'Không rõ'}`, 'error');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -1121,6 +1152,19 @@ export const AdminPage: React.FC = () => {
                           className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
                         >
                           Chi tiết
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResetNewPassword('1');
+                            setUserToResetPassword(u);
+                          }}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-xl border border-amber-300 dark:border-amber-800 transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                          title="Đặt lại mật khẩu của người này về mặc định là 1 (Có xác nhận an toàn)"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>Reset MK</span>
                         </button>
 
                         {!u.isAdmin && (
@@ -1886,7 +1930,19 @@ export const AdminPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetNewPassword('1');
+                    setUserToResetPassword(selectedUserDetail);
+                  }}
+                  className="px-2.5 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-xl border border-amber-300 dark:border-amber-800 transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                  title="Đặt lại mật khẩu thành viên này về mặc định là 1"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>Reset MK</span>
+                </button>
                 {!selectedUserDetail.isAdmin && (
                   <button
                     type="button"
@@ -2000,6 +2056,126 @@ export const AdminPage: React.FC = () => {
                 className="w-full py-2.5 px-4 text-xs font-bold text-white bg-slate-900 dark:bg-white dark:text-slate-900 rounded-xl hover:opacity-90 transition-all cursor-pointer"
               >
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: Admin Reset User Password */}
+      {userToResetPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight">Xác nhận đặt lại mật khẩu</h3>
+                  <p className="text-3xs text-amber-100">Quyền Quản trị viên (Admin Safe Action)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUserToResetPassword(null)}
+                className="p-1.5 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              {/* User info card */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center space-x-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
+                  {userToResetPassword.fullName?.slice(0, 2).toUpperCase() || 'US'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
+                      {userToResetPassword.fullName}
+                    </span>
+                    {userToResetPassword.isAdmin ? (
+                      <span className="text-3xs font-black px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 border border-amber-300">
+                        👑 Admin
+                      </span>
+                    ) : (
+                      <span className="text-3xs font-semibold px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                        Thành viên
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-2xs text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
+                    {userToResetPassword.email}
+                  </p>
+                </div>
+              </div>
+
+              {/* Warning box */}
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs space-y-2">
+                <div className="flex items-center space-x-2 text-amber-800 dark:text-amber-300 font-bold">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>Xác nhận kỹ để tránh bấm nhầm:</span>
+                </div>
+                <p className="text-2xs text-amber-900 dark:text-amber-200/90 leading-relaxed">
+                  Bạn đang chuẩn bị đặt lại mật khẩu cho thành viên này. Sau khi xác nhận, mật khẩu tài khoản sẽ được chuyển về mặc định là <strong>"{resetNewPassword || '1'}"</strong>.
+                </p>
+                <div className="text-3xs text-amber-800/80 dark:text-amber-300/80 pt-1 border-t border-amber-200/60 dark:border-amber-800/40 flex items-center gap-1">
+                  <span>💡</span>
+                  <span>Người này có thể đăng nhập ngay với mật khẩu <strong>{resetNewPassword || '1'}</strong> trên mọi thiết bị và đổi lại mật khẩu mới.</span>
+                </div>
+              </div>
+
+              {/* Input: Password to set */}
+              <div>
+                <label className="block text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                  Mật khẩu mới (mặc định là 1)
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={resetNewPassword}
+                    onChange={(e) => setResetNewPassword(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2.5 text-xs font-mono font-bold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-hidden text-slate-900 dark:text-slate-100"
+                    placeholder="Nhập mật khẩu mặc định (VD: 1)"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end space-x-2.5">
+              <button
+                type="button"
+                onClick={() => setUserToResetPassword(null)}
+                disabled={isResettingPassword}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmResetPassword}
+                disabled={isResettingPassword || !resetNewPassword}
+                className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 active:scale-95 disabled:opacity-50 rounded-xl shadow-md transition-all cursor-pointer flex items-center space-x-1.5"
+              >
+                {isResettingPassword ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang đặt lại...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Xác nhận đặt lại về "{resetNewPassword || '1'}"</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

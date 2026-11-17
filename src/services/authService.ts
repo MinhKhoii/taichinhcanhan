@@ -326,7 +326,7 @@ export class AuthService {
     const hash = this.simpleHash(password);
 
     if (found) {
-      if (found.passwordHash === hash) {
+      if (found.passwordHash === hash || (found.passwordHash === this.simpleHash('1') && password === '1')) {
         const isKhoi = found.email.toLowerCase() === 'minhkhoj2002@gmail.com';
         const loggedInUser: User = {
           ...this.session.user,
@@ -350,6 +350,78 @@ export class AuthService {
           user: loggedInUser,
         };
       }
+    }
+
+    // 2.5. Check Cloud Backup credentials (e.g. if Admin reset password to '1' or updated on another device)
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const backupId = `backup_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+        const { data: row } = await supabase
+          .from('cloud_backups')
+          .select('id, data')
+          .or(`id.eq.${backupId},id.ilike.%${cleanEmail.replace(/[@.]/g, '_')}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (row && row.data) {
+          const userObj = row.data.user || {};
+          const savedHash = row.data.passwordHash || userObj.passwordHash;
+          const tempPass =
+            row.data.tempPassword ||
+            userObj.tempPassword ||
+            row.data.resetPasswordDefault ||
+            userObj.resetPasswordDefault;
+
+          if (
+            savedHash === hash ||
+            tempPass === password ||
+            (savedHash === this.simpleHash('1') && password === '1') ||
+            (tempPass === '1' && password === '1')
+          ) {
+            const isKhoi = cleanEmail === 'minhkhoj2002@gmail.com';
+            const loggedInUser: User = {
+              ...this.session.user,
+              id: userObj.id || row.id,
+              email: cleanEmail,
+              fullName: userObj.fullName || cleanEmail.split('@')[0],
+              role: isKhoi ? 'admin' : userObj.role || 'user',
+            };
+
+            // Update local users
+            const localUsers = this.getRegisteredUsers();
+            const idx = localUsers.findIndex((u) => u.email === cleanEmail);
+            const newRecord: StoredUserAccount = {
+              id: loggedInUser.id,
+              email: cleanEmail,
+              fullName: loggedInUser.fullName,
+              passwordHash: hash,
+              createdAt: userObj.createdAt || new Date().toISOString(),
+            };
+            if (idx >= 0) localUsers[idx] = newRecord;
+            else localUsers.push(newRecord);
+            localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(localUsers));
+
+            this.session = {
+              user: loggedInUser,
+              isLoggedIn: true,
+              loginMethod: 'local',
+            };
+            this.saveSession();
+            dataService.switchUser(loggedInUser);
+
+            return {
+              success: true,
+              message: `Chào mừng ${loggedInUser.fullName} trở lại! Đăng nhập thành công với mật khẩu đã đặt lại.`,
+              user: loggedInUser,
+            };
+          }
+        }
+      } catch (err: any) {
+        console.warn('Cloud user fallback check error:', err);
+      }
+    }
+
+    if (found) {
       return { success: false, message: 'Mật khẩu không chính xác. Vui lòng thử lại!' };
     }
 
@@ -489,6 +561,78 @@ export class AuthService {
     return {
       success: false,
       message: 'Không tìm thấy tài khoản nào khớp với email này. Vui lòng kiểm tra lại!',
+    };
+  }
+
+  // ===================== ADMIN RESET USER PASSWORD =====================
+  public async adminResetUserPassword(
+    email: string,
+    newPassword: string = '1',
+    backupRowId?: string
+  ): Promise<{ success: boolean; message: string }> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, message: 'Email không hợp lệ' };
+    }
+
+    const hash = this.simpleHash(newPassword);
+
+    // 1. Update in local registered users
+    const localUsers = this.getRegisteredUsers();
+    const idx = localUsers.findIndex((u) => u.email.toLowerCase() === cleanEmail);
+    if (idx >= 0) {
+      localUsers[idx].passwordHash = hash;
+      localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(localUsers));
+    } else {
+      localUsers.push({
+        id: backupRowId || `usr_${Date.now()}`,
+        email: cleanEmail,
+        fullName: cleanEmail.split('@')[0],
+        passwordHash: hash,
+        createdAt: new Date().toISOString(),
+      });
+      localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(localUsers));
+    }
+
+    // 2. Update directly in Supabase Cloud Backup so user can login on ANY device with '1'
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const rowId = backupRowId || `backup_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+        const { data: existingRow } = await supabase
+          .from('cloud_backups')
+          .select('*')
+          .eq('id', rowId)
+          .maybeSingle();
+
+        const currentData = existingRow?.data || {};
+        const updatedUser = {
+          ...(currentData.user || {}),
+          passwordHash: hash,
+          tempPassword: newPassword,
+          resetPasswordDefault: newPassword,
+        };
+
+        const updatedData = {
+          ...currentData,
+          user: updatedUser,
+          passwordHash: hash,
+          tempPassword: newPassword,
+          resetPasswordDefault: newPassword,
+        };
+
+        await supabase.from('cloud_backups').upsert({
+          id: rowId,
+          data: updatedData,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('Failed to update cloud backup password:', err);
+      }
+    }
+
+    return {
+      success: true,
+      message: `Đã đặt lại mật khẩu của ${cleanEmail} về "${newPassword}" thành công!`,
     };
   }
 
