@@ -50,7 +50,7 @@ export const TransactionsPage: React.FC = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Sorting
   const [sortField, setSortField] = useState<'date' | 'amount'>('date');
@@ -139,7 +139,7 @@ export const TransactionsPage: React.FC = () => {
   const paginatedList = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return sortedList.slice(start, start + pageSize);
-  }, [sortedList, currentPage]);
+  }, [sortedList, currentPage, pageSize]);
 
   const handleResetFilters = () => {
     setSelectedType('all');
@@ -839,35 +839,95 @@ export const TransactionsPage: React.FC = () => {
       )}
 
         {/* Table Footer & Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 gap-3 text-xs text-slate-500">
-          <div>
-            Hiển thị{' '}
-            <span className="font-bold text-slate-700">
-              {sortedList.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
-            </span>{' '}
-            đến{' '}
-            <span className="font-bold text-slate-700">
-              {Math.min(currentPage * pageSize, sortedList.length)}
-            </span>{' '}
-            trong tổng số <span className="font-bold text-slate-700">{sortedList.length}</span> giao dịch
+        <div className="flex flex-col md:flex-row items-center justify-between px-6 py-4 border-t border-slate-100 gap-4 text-xs text-slate-500">
+          {/* Left: Summary & Page Size selector */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              Hiển thị{' '}
+              <span className="font-bold text-slate-700">
+                {sortedList.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+              </span>{' '}
+              đến{' '}
+              <span className="font-bold text-slate-700">
+                {Math.min(currentPage * pageSize, sortedList.length)}
+              </span>{' '}
+              trong tổng số <span className="font-bold text-slate-700">{sortedList.length}</span> giao dịch
+            </span>
+
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-1.5 pl-2 sm:border-l sm:border-slate-200">
+              <span className="text-slate-400">Hiển thị:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer text-xs"
+              >
+                <option value={10}>10 dòng / trang</option>
+                <option value={20}>20 dòng / trang</option>
+                <option value={50}>50 dòng / trang</option>
+                <option value={100}>100 dòng / trang</option>
+                <option value={999999}>Tất cả giao dịch</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          {/* Right: Modern Numbered Pagination Controls */}
+          <div className="flex items-center space-x-1.5 sm:mr-4">
             <button
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Trang trước"
             >
               <ChevronLeft className="w-4 h-4" />
+              <span className="hidden sm:inline text-2xs font-medium">Trước</span>
             </button>
-            <span className="px-3 py-1 font-semibold text-slate-800">
-              Trang {currentPage} / {totalPages}
-            </span>
+
+            {/* Direct Page Number Buttons */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+              if (
+                totalPages > 6 &&
+                pageNum !== 1 &&
+                pageNum !== totalPages &&
+                Math.abs(pageNum - currentPage) > 1
+              ) {
+                if (pageNum === 2 || pageNum === totalPages - 1) {
+                  return (
+                    <span key={pageNum} className="px-1 text-slate-400 font-semibold">
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              }
+
+              const isActive = pageNum === currentPage;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`min-w-8 h-8 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600'
+                  }`}
+                  title={`Chuyển đến trang ${pageNum}`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+
             <button
               onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Trang sau"
             >
+              <span className="hidden sm:inline text-2xs font-medium">Sau</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

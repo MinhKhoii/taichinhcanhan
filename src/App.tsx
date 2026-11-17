@@ -117,7 +117,7 @@ const AppContent: React.FC = () => {
         <div className="h-16 w-full shrink-0" aria-hidden="true" />
 
         {/* Page Content View */}
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-28 sm:pb-12 max-w-7xl w-full mx-auto overflow-x-hidden">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-32 sm:pb-20 lg:pb-24 max-w-7xl w-full mx-auto overflow-x-hidden">
           {renderActiveTab()}
         </main>
       </div>

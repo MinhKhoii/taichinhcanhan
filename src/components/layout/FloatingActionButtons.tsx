@@ -82,19 +82,16 @@ export const FloatingActionButtons: React.FC = () => {
         <Sparkles className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform animate-pulse" />
       </button>
 
-      {/* Primary Floating Action Button (FAB) */}
-      <div className="pointer-events-auto relative">
+      {/* Primary Floating Action Button (FAB) - Hiển thị trên Mobile, Desktop đã có sẵn nút cố định trên Header */}
+      <div className="pointer-events-auto relative sm:hidden">
         <button
           type="button"
           onClick={() => openAddTxModal()}
-          className="flex items-center justify-center gap-2 h-12 w-12 sm:h-auto sm:w-auto sm:px-4.5 sm:py-3 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-500/35 hover:shadow-2xl hover:shadow-blue-500/45 hover:scale-105 active:scale-90 transition-all duration-200 cursor-pointer group focus:outline-none focus:ring-4 focus:ring-blue-500/30"
+          className="flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-500/35 hover:shadow-2xl hover:shadow-blue-500/45 active:scale-90 transition-all duration-200 cursor-pointer group focus:outline-none focus:ring-4 focus:ring-blue-500/30"
           title="Thêm giao dịch thu chi nhanh (+)"
           aria-label="Thêm giao dịch"
         >
-          <Plus className="w-6 h-6 sm:w-5 sm:h-5 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
-          <span className="hidden sm:inline font-bold text-sm tracking-wide">
-            Thêm chi tiêu
-          </span>
+          <Plus className="w-6 h-6 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
         </button>
       </div>
     </div>
